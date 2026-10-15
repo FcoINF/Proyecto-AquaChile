@@ -1,0 +1,819 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "972193f4cc0e89f0083805d92150a61f",
+    "entities": [
+      {
+        "tableName": "usuarios",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `rut` TEXT NOT NULL, `rol` TEXT NOT NULL, `pinHash` TEXT NOT NULL, `pinSalt` TEXT NOT NULL, `activo` INTEGER NOT NULL, `creadoAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rut",
+            "columnName": "rut",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rol",
+            "columnName": "rol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinHash",
+            "columnName": "pinHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinSalt",
+            "columnName": "pinSalt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activo",
+            "columnName": "activo",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creadoAt",
+            "columnName": "creadoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_usuarios_rut",
+            "unique": true,
+            "columnNames": [
+              "rut"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_usuarios_rut` ON `${TABLE_NAME}` (`rut`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "centros",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `ubicacion` TEXT NOT NULL, `activo` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ubicacion",
+            "columnName": "ubicacion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activo",
+            "columnName": "activo",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "buzos",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `rut` TEXT NOT NULL, `matricula` TEXT NOT NULL, `categoria` TEXT NOT NULL, `certificacionVigenteHastaEpochDay` INTEGER NOT NULL, `activo` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rut",
+            "columnName": "rut",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matricula",
+            "columnName": "matricula",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoria",
+            "columnName": "categoria",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "certificacionVigenteHastaEpochDay",
+            "columnName": "certificacionVigenteHastaEpochDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activo",
+            "columnName": "activo",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "faenas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `codigo` TEXT NOT NULL, `centroId` INTEGER NOT NULL, `centroNombre` TEXT NOT NULL, `buzoId` INTEGER NOT NULL, `buzoNombre` TEXT NOT NULL, `supervisorId` INTEGER NOT NULL, `supervisorNombre` TEXT NOT NULL, `fechaInicio` INTEGER NOT NULL, `estado` TEXT NOT NULL, `supervisorFirmaAt` INTEGER, `decisionPorId` INTEGER, `decisionPorNombre` TEXT, `decisionAt` INTEGER, `decisionMotivo` TEXT, `creadoAt` INTEGER NOT NULL, `actualizadoAt` INTEGER NOT NULL, `estadoSync` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "codigo",
+            "columnName": "codigo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centroId",
+            "columnName": "centroId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centroNombre",
+            "columnName": "centroNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "buzoId",
+            "columnName": "buzoId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "buzoNombre",
+            "columnName": "buzoNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supervisorId",
+            "columnName": "supervisorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supervisorNombre",
+            "columnName": "supervisorNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaInicio",
+            "columnName": "fechaInicio",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supervisorFirmaAt",
+            "columnName": "supervisorFirmaAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "decisionPorId",
+            "columnName": "decisionPorId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "decisionPorNombre",
+            "columnName": "decisionPorNombre",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "decisionAt",
+            "columnName": "decisionAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "decisionMotivo",
+            "columnName": "decisionMotivo",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "creadoAt",
+            "columnName": "creadoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadoAt",
+            "columnName": "actualizadoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estadoSync",
+            "columnName": "estadoSync",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_faenas_supervisorId",
+            "unique": false,
+            "columnNames": [
+              "supervisorId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_faenas_supervisorId` ON `${TABLE_NAME}` (`supervisorId`)"
+          },
+          {
+            "name": "index_faenas_buzoId",
+            "unique": false,
+            "columnNames": [
+              "buzoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_faenas_buzoId` ON `${TABLE_NAME}` (`buzoId`)"
+          },
+          {
+            "name": "index_faenas_estado",
+            "unique": false,
+            "columnNames": [
+              "estado"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_faenas_estado` ON `${TABLE_NAME}` (`estado`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "respuestas_checklist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`faenaId` INTEGER NOT NULL, `itemId` TEXT NOT NULL, `estado` TEXT NOT NULL, `nota` TEXT NOT NULL, PRIMARY KEY(`faenaId`, `itemId`), FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nota",
+            "columnName": "nota",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "faenaId",
+            "itemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_respuestas_checklist_faenaId",
+            "unique": false,
+            "columnNames": [
+              "faenaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_respuestas_checklist_faenaId` ON `${TABLE_NAME}` (`faenaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "antecedentes_ast",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`faenaId` INTEGER NOT NULL, `tipologia` TEXT NOT NULL, `tarea` TEXT NOT NULL, `pasos` TEXT NOT NULL, `profundidadMaxPlanificadaM` REAL, `requiereNuevoAst` INTEGER NOT NULL, `actualizadoAt` INTEGER NOT NULL, PRIMARY KEY(`faenaId`), FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipologia",
+            "columnName": "tipologia",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tarea",
+            "columnName": "tarea",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pasos",
+            "columnName": "pasos",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profundidadMaxPlanificadaM",
+            "columnName": "profundidadMaxPlanificadaM",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "requiereNuevoAst",
+            "columnName": "requiereNuevoAst",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadoAt",
+            "columnName": "actualizadoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "faenaId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "respuestas_formulario",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`faenaId` INTEGER NOT NULL, `formulario` TEXT NOT NULL, `clave` TEXT NOT NULL, `respuesta` INTEGER NOT NULL, PRIMARY KEY(`faenaId`, `formulario`, `clave`), FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "formulario",
+            "columnName": "formulario",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clave",
+            "columnName": "clave",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "respuesta",
+            "columnName": "respuesta",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "faenaId",
+            "formulario",
+            "clave"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_respuestas_formulario_faenaId",
+            "unique": false,
+            "columnNames": [
+              "faenaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_respuestas_formulario_faenaId` ON `${TABLE_NAME}` (`faenaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "encuestas_salud",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`faenaId` INTEGER NOT NULL, `sistolica` INTEGER, `diastolica` INTEGER, `saturacionO2` INTEGER, `temperaturaC` REAL, `observaciones` TEXT NOT NULL, `actualizadoAt` INTEGER NOT NULL, PRIMARY KEY(`faenaId`), FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sistolica",
+            "columnName": "sistolica",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "diastolica",
+            "columnName": "diastolica",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "saturacionO2",
+            "columnName": "saturacionO2",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "temperaturaC",
+            "columnName": "temperaturaC",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "observaciones",
+            "columnName": "observaciones",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadoAt",
+            "columnName": "actualizadoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "faenaId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "evidencias",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `faenaId` INTEGER NOT NULL, `tipo` TEXT NOT NULL, `itemId` TEXT, `ruta` TEXT NOT NULL, `creadoAt` INTEGER NOT NULL, FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "ruta",
+            "columnName": "ruta",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creadoAt",
+            "columnName": "creadoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_evidencias_faenaId",
+            "unique": false,
+            "columnNames": [
+              "faenaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_evidencias_faenaId` ON `${TABLE_NAME}` (`faenaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "registros_posteriores",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`faenaId` INTEGER NOT NULL, `tiempoInmersionMin` INTEGER NOT NULL, `profundidadMaxM` REAL NOT NULL, `presionBancoBar` INTEGER NOT NULL, `sinDolorArticular` INTEGER NOT NULL, `respiracionNormal` INTEGER NOT NULL, `observaciones` TEXT NOT NULL, `registradoPorId` INTEGER NOT NULL, `registradoAt` INTEGER NOT NULL, PRIMARY KEY(`faenaId`), FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tiempoInmersionMin",
+            "columnName": "tiempoInmersionMin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profundidadMaxM",
+            "columnName": "profundidadMaxM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "presionBancoBar",
+            "columnName": "presionBancoBar",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sinDolorArticular",
+            "columnName": "sinDolorArticular",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "respiracionNormal",
+            "columnName": "respiracionNormal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observaciones",
+            "columnName": "observaciones",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registradoPorId",
+            "columnName": "registradoPorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registradoAt",
+            "columnName": "registradoAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "faenaId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "eventos_faena",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `faenaId` INTEGER NOT NULL, `tipo` TEXT NOT NULL, `detalle` TEXT NOT NULL, `actorId` INTEGER NOT NULL, `actorNombre` TEXT NOT NULL, `at` INTEGER NOT NULL, FOREIGN KEY(`faenaId`) REFERENCES `faenas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faenaId",
+            "columnName": "faenaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detalle",
+            "columnName": "detalle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actorId",
+            "columnName": "actorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actorNombre",
+            "columnName": "actorNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "at",
+            "columnName": "at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_eventos_faena_faenaId",
+            "unique": false,
+            "columnNames": [
+              "faenaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_eventos_faena_faenaId` ON `${TABLE_NAME}` (`faenaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "faenas",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "faenaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '972193f4cc0e89f0083805d92150a61f')"
+    ]
+  }
+}
