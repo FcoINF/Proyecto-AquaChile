@@ -33,11 +33,11 @@ fun LoginScreen(sesion: SesionViewModel, onIngresoExitoso: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
     ) {
         Text(
-            text = "AquaCheck Buceo",
+            text = "AquaFlow",
             style = MaterialTheme.typography.headlineMedium
         )
         Text(
-            text = "Usuarios de prueba: supervisor / jefe (clave 1234)",
+            text = "Demo: supervisor / jefe (Administrador). Clave: 1234",
             style = MaterialTheme.typography.bodyMedium
         )
 
