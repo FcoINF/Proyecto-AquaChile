@@ -11,14 +11,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.duoc.aquaflow.model.EncuestaSalud
+import com.duoc.aquaflow.ui.navigation.Tab
+import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.screens.DashboardScreen
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
+import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 object Ruta {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
+    const val HISTORIAL = "historial"
     const val SALUD = "faena/salud"
 }
 
@@ -30,6 +34,13 @@ fun AquaFlowNavHost() {
 
     // Provisorio: cuando exista el FaenaViewModel, esto se mueve allá
     var ultimaEncuesta by remember { mutableStateOf<EncuestaSalud?>(null) }
+
+    fun irATab(tab: Tab) {
+        nav.navigate(tab.ruta) {
+            popUpTo(Ruta.DASHBOARD) { inclusive = false }
+            launchSingleTop = true
+        }
+    }
 
     NavHost(navController = nav, startDestination = Ruta.LOGIN) {
 
@@ -48,8 +59,10 @@ fun AquaFlowNavHost() {
             usuario?.let { u ->
                 DashboardScreen(
                     usuario = u,
+                    tabs = tabsPara(u.rol),
                     ultimaEncuesta = ultimaEncuesta,
                     onNuevaEncuesta = { nav.navigate(Ruta.SALUD) },
+                    onTab = ::irATab,
                     onSalir = {
                         sesion.salir()
                         ultimaEncuesta = null
@@ -61,15 +74,23 @@ fun AquaFlowNavHost() {
             }
         }
 
+        composable(Ruta.HISTORIAL) {
+            usuario?.let { u ->
+                HistorialScreen(usuario = u, tabs = tabsPara(u.rol), onTab = ::irATab)
+            }
+        }
+
         composable(Ruta.SALUD) {
             EncuestaSaludScreen(
                 vm = viewModel(),   // uno nuevo por visita
                 buzo = "Buzo por asignar",
+                tabs = usuario?.let { tabsPara(it.rol) } ?: Tab.entries.toList(),
                 onGuardar = {
                     ultimaEncuesta = it
-                    nav.popBackStack()
+                    irATab(Tab.INICIO)
                 },
-                onVolver = { nav.popBackStack() }
+                onVolver = { irATab(Tab.INICIO) },
+                onTab = ::irATab
             )
         }
     }

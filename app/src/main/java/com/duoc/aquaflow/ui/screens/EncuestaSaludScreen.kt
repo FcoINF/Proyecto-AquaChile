@@ -26,6 +26,8 @@ import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import com.duoc.aquaflow.ui.components.CampoSalud
 import com.duoc.aquaflow.ui.components.SemaforoSalud
+import com.duoc.aquaflow.ui.navigation.MainBottomBar
+import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 
 // Solo dibuja y avisa los clics: la validación la hace el ViewModel y el semáforo, Reglas.
@@ -35,8 +37,10 @@ import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 fun EncuestaSaludScreen(
     vm: EncuestaSaludViewModel,
     buzo: String,
+    tabs: List<Tab>,
     onGuardar: (EncuestaSalud) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    onTab: (Tab) -> Unit
 ) {
     // collectAsState convierte el StateFlow del ViewModel en estado de Compose
     val ui by vm.ui.collectAsState()
@@ -47,7 +51,8 @@ fun EncuestaSaludScreen(
                 title = { Text("Encuesta de salud") },
                 navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
             )
-        }
+        },
+        bottomBar = { MainBottomBar(Tab.ENCUESTA, tabs, onTab) }
     ) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
