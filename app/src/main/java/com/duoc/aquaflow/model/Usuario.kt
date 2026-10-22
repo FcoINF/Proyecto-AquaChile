@@ -1,5 +1,10 @@
 package com.duoc.aquaflow.model
-enum class Rol { SUPERVISOR, JEFE }
+
+// Conservamos JEFE como identificador hasta que el equipo acuerde el nombre interno.
+enum class Rol(val texto: String) {
+    SUPERVISOR("Supervisor"),
+    JEFE("Administrador")
+}
 
 data class Usuario(
     val nombre: String,

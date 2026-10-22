@@ -40,6 +40,20 @@ class EncuestaSaludViewModel : ViewModel() {
     private val _ui = MutableStateFlow(EncuestaSaludUiState())
     val ui: StateFlow<EncuestaSaludUiState> = _ui.asStateFlow()
 
+    private var encuestaCargada = false
+
+    // Carga una sola vez para no sobrescribir ediciones al rotar la pantalla.
+    fun cargar(encuesta: EncuestaSalud) {
+        if (encuestaCargada) return
+        encuestaCargada = true
+        _ui.value = EncuestaSaludUiState(
+            sistolica = encuesta.sistolica.toString(),
+            diastolica = encuesta.diastolica.toString(),
+            saturacion = encuesta.saturacion.toString(),
+            alertas = encuesta.alertasEncuesta.toSet()
+        )
+    }
+
     fun cambiarSistolica(v: String) = _ui.update { it.copy(sistolica = v.soloNumeros(), error = null) }
     fun cambiarDiastolica(v: String) = _ui.update { it.copy(diastolica = v.soloNumeros(), error = null) }
     fun cambiarSaturacion(v: String) = _ui.update { it.copy(saturacion = v.soloNumeros(), error = null) }
