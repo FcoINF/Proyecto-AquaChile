@@ -6,5 +6,8 @@ data class PreChequeo(
     val fecha: String = "",
     val hora: String = "",
     val buzoAsignado: String = "",
-    val supervisorACargo: String = ""
+    val supervisorACargo: String = "",
+    val condicionesListas: Boolean = false,
+    val embarcacionLista: Boolean = false,
+    val comunicacionesOperativas: Boolean = false
 )

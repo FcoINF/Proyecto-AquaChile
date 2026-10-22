@@ -6,6 +6,7 @@ import com.duoc.aquaflow.data.repository.BorradoresApertura
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.duoc.aquaflow.domain.Reglas
+import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PreChequeo
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.update
 data class FaenaUiState(
     val apertura: PreChequeo = PreChequeo(),
     val aperturaConfirmada: Boolean = false,
+    val checklist: ChecklistFaena? = null,
     val ast: FormularioAst? = null,
     val encuesta: EncuestaSalud? = null,
     val decision: RegistroDecision? = null,
@@ -52,14 +54,14 @@ class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
 
     fun actualizar(apertura: PreChequeo) = _ui.update { actual ->
         if (actual.ocupado) return@update actual
-        // La identidad y el supervisor provienen de la sesión, no del formulario.
+        // La identidad proviene de la sesión, pero el supervisor se puede seleccionar del formulario.
         val nueva = apertura.copy(
-            id = actual.apertura.id,
-            supervisorACargo = actual.apertura.supervisorACargo
+            id = actual.apertura.id
         )
         if (nueva == actual.apertura) actual else actual.copy(
             apertura = nueva,
             aperturaConfirmada = false,
+            checklist = null,
             encuesta = null,
             ast = null,
             decision = null,
@@ -125,6 +127,12 @@ class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
                 _ui.update { it.copy(ocupado = false) }
             }
         }
+    }
+
+    fun registrarChecklist(checklist: ChecklistFaena): Boolean {
+        if (!_ui.value.aperturaConfirmada) return false
+        _ui.update { it.copy(checklist = checklist, decision = null) }
+        return true
     }
 
     fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {

@@ -23,6 +23,7 @@ import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.screens.AperturaFaenaScreen
 import com.duoc.aquaflow.ui.screens.AstScreen
+import com.duoc.aquaflow.ui.screens.ChecklistScreen
 import com.duoc.aquaflow.ui.screens.DashboardScreen
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
@@ -37,6 +38,7 @@ object Ruta {
     const val HISTORIAL = "historial"
     const val FAENA = "faena"
     const val APERTURA = "faena/apertura"
+    const val CHECKLIST = "faena/checklist"
     const val SALUD = "faena/salud"
     const val AST = "faena/ast"
     const val RESUMEN = "faena/resumen"
@@ -130,12 +132,28 @@ fun AquaFlowNavHost() {
                     onRecuperar = faena::recuperarApertura,
                     onContinuar = {
                         faena.guardarApertura(continuar = true) {
-                            nav.navigate(Ruta.SALUD)
+                            nav.navigate(Ruta.CHECKLIST)
                         }
                     },
                     onSalir = {
                         nav.popBackStack(Ruta.DASHBOARD, inclusive = false)
                     }
+                )
+            }
+
+            composable(Ruta.CHECKLIST) { entrada ->
+                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
+                val ui by faena.ui.collectAsState()
+
+                ChecklistScreen(
+                    faenaId = ui.apertura.id,
+                    checklistInicial = ui.checklist,
+                    onGuardar = { checklist ->
+                        faena.registrarChecklist(checklist)
+                        nav.navigate(Ruta.SALUD)
+                    },
+                    onVolver = { nav.popBackStack() }
                 )
             }
 
@@ -186,7 +204,7 @@ fun AquaFlowNavHost() {
                         vm = viewModel(),
                         resumen = ResumenFaena(
                             apertura = ui.apertura,
-                            checklist = null,
+                            checklist = ui.checklist,
                             ast = ui.ast,
                             encuesta = ui.encuesta
                         ),
