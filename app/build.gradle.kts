@@ -40,6 +40,10 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     // Android base (versiones alineadas con Kotlin 2.0.21)
     implementation("androidx.core:core-ktx:1.15.0")
@@ -66,6 +70,7 @@ dependencies {
 
     // Pruebas unitarias
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 
     // Pruebas instrumentadas y herramientas de depuración
     androidTestImplementation(libs.androidx.junit)

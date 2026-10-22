@@ -1,6 +1,10 @@
 package com.duoc.aquaflow.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.duoc.aquaflow.data.repository.BorradoresApertura
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FormularioAst
@@ -24,10 +28,12 @@ data class FaenaUiState(
     val encuesta: EncuestaSalud? = null,
     val decision: RegistroDecision? = null,
     val error: String? = null,
+    val ocupado: Boolean = false,
+    val mensaje: String? = null,
 )
 
 // Borrador compartido por las pantallas del grafo "faena".
-class FaenaViewModel : ViewModel() {
+class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
     private val _ui = MutableStateFlow(FaenaUiState())
     val ui: StateFlow<FaenaUiState> = _ui.asStateFlow()
 
@@ -45,6 +51,7 @@ class FaenaViewModel : ViewModel() {
     }
 
     fun actualizar(apertura: PreChequeo) = _ui.update { actual ->
+        if (actual.ocupado) return@update actual
         // La identidad y el supervisor provienen de la sesión, no del formulario.
         val nueva = apertura.copy(
             id = actual.apertura.id,
@@ -56,7 +63,8 @@ class FaenaViewModel : ViewModel() {
             encuesta = null,
             ast = null,
             decision = null,
-            error = null
+            error = null,
+            mensaje = null
         )
     }
 
@@ -74,6 +82,49 @@ class FaenaViewModel : ViewModel() {
             it.copy(apertura = limpia, aperturaConfirmada = error == null, error = error)
         }
         return error == null
+    }
+
+    // Un borrador puede estar incompleto. Para avanzar sí se valida todo.
+    fun guardarApertura(continuar: Boolean = false, alGuardar: () -> Unit = {}) {
+        if (_ui.value.ocupado || _ui.value.apertura.id.isBlank()) return
+        if (continuar && !confirmarApertura()) return
+        val apertura = _ui.value.apertura
+        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
+        viewModelScope.launch {
+            try {
+                borradores.guardar(apertura)
+                _ui.update { it.copy(mensaje = "Apertura guardada en el dispositivo.") }
+                alGuardar()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = "No se pudo guardar la apertura. Intenta nuevamente.") }
+            } finally {
+                _ui.update { it.copy(ocupado = false) }
+            }
+        }
+    }
+
+    fun recuperarApertura() {
+        val actual = _ui.value
+        if (actual.ocupado || actual.apertura.id.isBlank()) return
+        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
+        viewModelScope.launch {
+            try {
+                val apertura = borradores.recuperar(actual.apertura.supervisorACargo)
+                _ui.value = if (apertura == null) {
+                    actual.copy(mensaje = "No tienes aperturas guardadas.")
+                } else {
+                    FaenaUiState(apertura = apertura, mensaje = "Apertura recuperada. Revisa los datos antes de continuar.")
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = "No se pudo recuperar la apertura. Intenta nuevamente.") }
+            } finally {
+                _ui.update { it.copy(ocupado = false) }
+            }
+        }
     }
 
     fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {

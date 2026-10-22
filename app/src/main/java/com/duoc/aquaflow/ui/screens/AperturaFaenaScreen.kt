@@ -33,23 +33,43 @@ import com.duoc.aquaflow.viewmodel.FaenaUiState
 fun AperturaFaenaScreen(
     ui: FaenaUiState,
     onCambiar: (PreChequeo) -> Unit,
+    onGuardar: () -> Unit,
+    onRecuperar: () -> Unit,
     onContinuar: () -> Unit,
     onSalir: () -> Unit
 ) {
     var confirmarSalida by rememberSaveable { mutableStateOf(false) }
-    BackHandler { confirmarSalida = true }
+    BackHandler { if (!ui.ocupado) confirmarSalida = true }
+    var confirmarRecuperacion by rememberSaveable { mutableStateOf(false) }
     val apertura = ui.apertura
+
+    if (confirmarRecuperacion) {
+        AlertDialog(
+            onDismissRequest = { confirmarRecuperacion = false },
+            title = { Text("¿Recuperar la última apertura?") },
+            text = { Text("Reemplazará los datos en pantalla por tu última apertura guardada. Guarda primero si quieres conservar los cambios actuales.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmarRecuperacion = false
+                    onRecuperar()
+                }) { Text("Recuperar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarRecuperacion = false }) { Text("Cancelar") }
+            }
+        )
+    }
 
     if (confirmarSalida) {
         AlertDialog(
             onDismissRequest = { confirmarSalida = false },
-            title = { Text("¿Descartar esta faena?") },
-            text = { Text("El borrador todavía no se guarda en el dispositivo.") },
+            title = { Text("¿Salir de la apertura?") },
+            text = { Text("Los cambios no guardados se perderán. La apertura guardada se conserva.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmarSalida = false
                     onSalir()
-                }) { Text("Descartar") }
+                }) { Text("Salir") }
             },
             dismissButton = {
                 TextButton(onClick = { confirmarSalida = false }) { Text("Seguir editando") }
@@ -62,7 +82,7 @@ fun AperturaFaenaScreen(
             TopAppBar(
                 title = { Text("Apertura de faena") },
                 navigationIcon = {
-                    TextButton(onClick = { confirmarSalida = true }) { Text("Volver") }
+                    TextButton(enabled = !ui.ocupado, onClick = { confirmarSalida = true }) { Text("Volver") }
                 }
             )
         }
@@ -73,11 +93,12 @@ fun AperturaFaenaScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Datos de la faena", style = MaterialTheme.typography.titleLarge)
-            Text("Todos los campos son obligatorios.")
+            Text("Completa todos los campos para continuar. Puedes guardar un borrador incompleto.")
             OutlinedTextField(
                 value = apertura.centroCultivo,
                 onValueChange = { onCambiar(apertura.copy(centroCultivo = it)) },
                 label = { Text("Centro de cultivo") },
+                enabled = !ui.ocupado,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -85,6 +106,7 @@ fun AperturaFaenaScreen(
                 value = apertura.fecha,
                 onValueChange = { onCambiar(apertura.copy(fecha = it)) },
                 label = { Text("Fecha (dd/MM/aaaa)") },
+                enabled = !ui.ocupado,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -92,6 +114,7 @@ fun AperturaFaenaScreen(
                 value = apertura.hora,
                 onValueChange = { onCambiar(apertura.copy(hora = it)) },
                 label = { Text("Hora (HH:mm)") },
+                enabled = !ui.ocupado,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -99,6 +122,7 @@ fun AperturaFaenaScreen(
                 value = apertura.buzoAsignado,
                 onValueChange = { onCambiar(apertura.copy(buzoAsignado = it)) },
                 label = { Text("Buzo asignado") },
+                enabled = !ui.ocupado,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -108,6 +132,7 @@ fun AperturaFaenaScreen(
                 readOnly = true,
                 label = { Text("Supervisor a cargo") },
                 supportingText = { Text("Corresponde al usuario que inició sesión.") },
+                enabled = !ui.ocupado,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -117,12 +142,17 @@ fun AperturaFaenaScreen(
                 SemaforoSalud(it.nivel)
                 Text("Si modificas la apertura, tendrás que completar la encuesta otra vez.")
             }
-            Text(
-                "Avance académico: por ahora se conecta con Salud. " +
-                    "Checklist y AST se integrarán en los siguientes pasos.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Button(onClick = onContinuar, modifier = Modifier.fillMaxWidth()) {
+            Text("Por ahora se guarda la apertura. Salud y AST deberán completarse nuevamente al reiniciar.",
+                style = MaterialTheme.typography.bodySmall)
+            ui.mensaje?.let { Text(it, color = MaterialTheme.colorScheme.onSurface) }
+            if (ui.ocupado) Text("Procesando apertura…")
+            Button(onClick = onGuardar, enabled = !ui.ocupado && apertura.id.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()) { Text("Guardar borrador") }
+            TextButton(onClick = { confirmarRecuperacion = true },
+                enabled = !ui.ocupado && apertura.id.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                Text("Recuperar última apertura")
+            }
+            Button(onClick = onContinuar, enabled = !ui.ocupado && apertura.id.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
                 Text(if (ui.encuesta == null) "Continuar a Salud" else "Revisar encuesta")
             }
         }

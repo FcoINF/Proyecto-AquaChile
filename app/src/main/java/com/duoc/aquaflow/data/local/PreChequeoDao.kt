@@ -1,7 +1,14 @@
 package com.duoc.aquaflow.data.local
 
-import com.duoc.aquaflow.model.PreChequeo
+import androidx.room.Dao
+import androidx.room.Query
+import androidx.room.Upsert
 
+@Dao
 interface PreChequeoDao {
-    fun obtenerPreChequeos(): List<PreChequeo>
+    @Upsert
+    suspend fun guardar(apertura: AperturaEntity)
+
+    @Query("SELECT * FROM aperturas WHERE supervisorACargo = :supervisor ORDER BY actualizadoEn DESC, id DESC LIMIT 1")
+    suspend fun ultimaApertura(supervisor: String): AperturaEntity?
 }

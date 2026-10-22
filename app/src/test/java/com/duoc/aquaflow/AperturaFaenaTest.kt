@@ -41,14 +41,14 @@ class AperturaFaenaTest {
     }
 
     @Test fun noAvanzaConAperturaIncompleta() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         assertFalse(vm.confirmarApertura())
         assertFalse(vm.registrarEncuesta(encuesta))
     }
 
     @Test fun conservaIdYSupervisorDeSesion() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         val id = vm.ui.value.apertura.id
         vm.actualizar(apertura().copy(id = "otro", supervisorACargo = "otro"))
@@ -58,7 +58,7 @@ class AperturaFaenaTest {
     }
 
     @Test fun cambiarBuzoInvalidaEncuestaAnterior() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         vm.actualizar(apertura())
         assertTrue(vm.confirmarApertura())
@@ -70,7 +70,7 @@ class AperturaFaenaTest {
     }
 
     @Test fun administradorNoIniciaFaena() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(Usuario("jefe", "1234", Rol.JEFE))
         assertEquals("", vm.ui.value.apertura.id)
         assertFalse(vm.confirmarApertura())
