@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Navegación (2.8.4 es estable para Kotlin 2.0.21 y Compose 1.7.x)
     implementation("androidx.navigation:navigation-compose:2.8.4")
