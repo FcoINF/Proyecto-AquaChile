@@ -8,6 +8,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.duoc.aquaflow.data.local.AquaFlowDatabase
+import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
@@ -40,6 +45,14 @@ object Ruta {
 @Composable
 fun AquaFlowNavHost() {
     val nav = rememberNavController()
+    val context = LocalContext.current.applicationContext
+    val faenaFactory = remember(context) {
+        viewModelFactory {
+            initializer {
+                FaenaViewModel(PreChequeoRepository(AquaFlowDatabase.obtener(context).preChequeoDao()))
+            }
+        }
+    }
     val sesion: SesionViewModel = viewModel()
     val usuario by sesion.usuario.collectAsState()
     var ultimaEncuesta by remember { mutableStateOf<EncuestaSalud?>(null) }
@@ -102,7 +115,7 @@ fun AquaFlowNavHost() {
         navigation(startDestination = Ruta.APERTURA, route = Ruta.FAENA) {
             composable(Ruta.APERTURA) { entrada ->
                 val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
                 val actual = usuario
 
@@ -113,8 +126,10 @@ fun AquaFlowNavHost() {
                 AperturaFaenaScreen(
                     ui = ui,
                     onCambiar = faena::actualizar,
+                    onGuardar = { faena.guardarApertura() },
+                    onRecuperar = faena::recuperarApertura,
                     onContinuar = {
-                        if (faena.confirmarApertura()) {
+                        faena.guardarApertura(continuar = true) {
                             nav.navigate(Ruta.SALUD)
                         }
                     },
@@ -126,7 +141,7 @@ fun AquaFlowNavHost() {
 
             composable(Ruta.SALUD) { entrada ->
                 val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
 
                 EncuestaSaludScreen(
@@ -145,7 +160,7 @@ fun AquaFlowNavHost() {
 
             composable(Ruta.AST) { entrada ->
                 val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
 
                 AstScreen(
@@ -162,7 +177,7 @@ fun AquaFlowNavHost() {
 
             composable(Ruta.RESUMEN) { entrada ->
                 val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
                 val actual = usuario
 

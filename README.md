@@ -54,6 +54,18 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 
 ## Tecnologías Utilizadas
 
+### Avance: borrador de apertura con Room
+
+- Como supervisor, entra a **Nueva faena** y completa o inicia la apertura.
+- **Guardar borrador** conserva incluso una apertura incompleta. **Continuar a Salud** exige los campos válidos y guarda antes de navegar.
+- Después de cerrar y volver a abrir la aplicación, ingresa con el mismo supervisor, abre **Nueva faena** y selecciona **Recuperar última apertura**. Confirma el reemplazo de los datos en pantalla.
+- Recuperar mantiene el identificador: guardar cambios actualiza ese registro. La consulta se limita al supervisor activo y a su última apertura guardada.
+- Esta entrega persiste únicamente la apertura; Salud, AST y decisiones todavía no se recuperan. El historial sigue utilizando datos de demostración.
+- Capas: `AperturaFaenaScreen` → `FaenaViewModel` → `BorradoresApertura` / `PreChequeoRepository` → `PreChequeoDao` → `AquaFlowDatabase`. Esquema Room versionado en `app/schemas`.
+- Usar Java 21 (el JDK configurado en Android Studio). Pruebas: `gradlew testDebugUnitTest`; con emulador activo, `gradlew connectedDebugAndroidTest`.
+- `AperturaRoomTest` verifica guardar, cerrar y reabrir una base en disco, aislamiento por supervisor y actualización sin duplicados. Las pruebas de ViewModel verifican recuperación, validación y fallo/reintento de guardado.
+- Verificación del avance: compilación debug y APK de pruebas correctos; 63 pruebas unitarias aprobadas. La ejecución de `AperturaRoomTest` en Android queda pendiente: Pixel 10 no conectó en cinco minutos y ADB reportó `unauthorized`.
+
 - **Frontend y Diseño de Interfaces**: Material Design 3, Jetpack Compose
 - **Prototipado e IA**: Google Stitch, Google AI Studio, Figma
 - **Almacenamiento Local**: SQLite / Room DB (arquitectura que soporta trabajo desconectado de la red)
