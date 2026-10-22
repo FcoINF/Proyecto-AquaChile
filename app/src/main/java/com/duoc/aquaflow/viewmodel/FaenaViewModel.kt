@@ -3,7 +3,9 @@ package com.duoc.aquaflow.viewmodel
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
+import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PreChequeo
+import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import java.text.SimpleDateFormat
@@ -14,13 +16,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import com.duoc.aquaflow.model.FormularioAst
 
 data class FaenaUiState(
     val apertura: PreChequeo = PreChequeo(),
     val aperturaConfirmada: Boolean = false,
     val ast: FormularioAst? = null,
     val encuesta: EncuestaSalud? = null,
+    val decision: RegistroDecision? = null,
     val error: String? = null,
 )
 
@@ -53,6 +55,7 @@ class FaenaViewModel : ViewModel() {
             aperturaConfirmada = false,
             encuesta = null,
             ast = null,
+            decision = null,
             error = null
         )
     }
@@ -75,12 +78,19 @@ class FaenaViewModel : ViewModel() {
 
     fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(encuesta = encuesta) }
+        _ui.update { it.copy(encuesta = encuesta, decision = null) }
         return true
     }
+
     fun registrarAst(ast: FormularioAst): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(ast = ast) }
+        _ui.update { it.copy(ast = ast, decision = null) }
+        return true
+    }
+
+    fun registrarDecision(decision: RegistroDecision): Boolean {
+        if (!_ui.value.aperturaConfirmada) return false
+        _ui.update { it.copy(decision = decision) }
         return true
     }
 }

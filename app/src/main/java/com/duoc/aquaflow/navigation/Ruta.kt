@@ -18,16 +18,14 @@ import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
 import com.duoc.aquaflow.viewmodel.SesionViewModel
-import com.duoc.aquaflow.ui.screens.AstScreen
-import com.duoc.aquaflow.viewmodel.AstViewModel
 
 object Ruta {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
     const val HISTORIAL = "historial"
     const val SALUD = "faena/salud"
-
     const val AST = "faena/ast"
+    const val RESUMEN = "faena/resumen"
 }
 
 @Composable
