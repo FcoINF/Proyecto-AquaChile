@@ -14,16 +14,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
+import com.duoc.aquaflow.ui.components.SemaforoSalud
+import com.duoc.aquaflow.ui.navigation.MainBottomBar
+import com.duoc.aquaflow.ui.navigation.Tab
 
 @Composable
 fun DashboardScreen(
     usuario: Usuario,
-    onNuevaFaena: () -> Unit,
+    tabs: List<Tab>,
+    ultimaEncuesta: EncuestaSalud?,
+    onNuevaEncuesta: () -> Unit,
+    onTab: (Tab) -> Unit,
     onSalir: () -> Unit
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        bottomBar = { MainBottomBar(Tab.INICIO, tabs, onTab) },
         floatingActionButton = {
             if (puedeCrear) {
                 ExtendedFloatingActionButton(onClick = onNuevaFaena) { Text("Nueva faena") }

@@ -10,25 +10,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import com.duoc.aquaflow.model.ResumenFaena
-import com.duoc.aquaflow.model.Rol
-import com.duoc.aquaflow.ui.screens.AperturaFaenaScreen
-import com.duoc.aquaflow.ui.screens.AstScreen
+import com.duoc.aquaflow.model.EncuestaSalud
+import com.duoc.aquaflow.ui.navigation.Tab
+import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.screens.DashboardScreen
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
-import com.duoc.aquaflow.ui.screens.ResumenFaenaScreen
-import com.duoc.aquaflow.viewmodel.AstViewModel
-import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
-import com.duoc.aquaflow.viewmodel.FaenaViewModel
-import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
+import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 object Ruta {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
-    const val FAENA = "faena"
-    const val APERTURA = "faena/apertura"
+    const val HISTORIAL = "historial"
     const val SALUD = "faena/salud"
     const val AST = "faena/ast"
     const val RESUMEN = "faena/resumen"
@@ -50,6 +44,13 @@ fun AquaFlowNavHost() {
         }
     }
 
+    fun irATab(tab: Tab) {
+        nav.navigate(tab.ruta) {
+            popUpTo(Ruta.DASHBOARD) { inclusive = false }
+            launchSingleTop = true
+        }
+    }
+
     NavHost(navController = nav, startDestination = Ruta.LOGIN) {
         composable(Ruta.LOGIN) {
             LoginScreen(
@@ -65,10 +66,16 @@ fun AquaFlowNavHost() {
         composable(Ruta.DASHBOARD) {
             usuario?.let { actual ->
                 DashboardScreen(
-                    usuario = actual,
-                    onNuevaFaena = {
-                        if (actual.rol == Rol.SUPERVISOR) {
-                            nav.navigate(Ruta.FAENA) { launchSingleTop = true }
+                    usuario = u,
+                    tabs = tabsPara(u.rol),
+                    ultimaEncuesta = ultimaEncuesta,
+                    onNuevaEncuesta = { nav.navigate(Ruta.SALUD) },
+                    onTab = ::irATab,
+                    onSalir = {
+                        sesion.salir()
+                        ultimaEncuesta = null
+                        nav.navigate(Ruta.LOGIN) {
+                            popUpTo(nav.graph.id) { inclusive = true }  // borra todo el historial
                         }
                     },
                     onSalir = sesion::salir
@@ -82,117 +89,24 @@ fun AquaFlowNavHost() {
                 val ui by faena.ui.collectAsState()
                 val actual = usuario
 
-                LaunchedEffect(actual) {
-                    if (actual != null && actual.rol == Rol.SUPERVISOR) {
-                        faena.iniciar(actual)
-                    } else if (actual != null) {
-                        nav.popBackStack(Ruta.DASHBOARD, false)
-                    }
-                }
-                if (actual?.rol == Rol.SUPERVISOR && ui.apertura.id.isNotEmpty()) {
-                    AperturaFaenaScreen(
-                        ui = ui,
-                        onCambiar = faena::actualizar,
-                        onContinuar = {
-                            if (faena.confirmarApertura()) {
-                                nav.navigate(Ruta.AST) { launchSingleTop = true }
-                            }
-                        },
-                        onSalir = { nav.popBackStack(Ruta.DASHBOARD, false) }
-                    )
-                }
+        composable(Ruta.HISTORIAL) {
+            usuario?.let { u ->
+                HistorialScreen(usuario = u, tabs = tabsPara(u.rol), onTab = ::irATab)
             }
-            composable(Ruta.AST) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
-                val ui by faena.ui.collectAsState()
-                val ast: AstViewModel = viewModel()
-                val actual = usuario
+        }
 
-                LaunchedEffect(actual, ui.aperturaConfirmada) {
-                    if (actual != null && actual.rol != Rol.SUPERVISOR) {
-                        nav.popBackStack(Ruta.DASHBOARD, false)
-                    } else if (actual != null && !ui.aperturaConfirmada) {
-                        nav.popBackStack(Ruta.APERTURA, false)
-                    }
-                }
-                LaunchedEffect(entrada) {
-                    ui.ast?.let(ast::cargar)
-                }
-                if (actual?.rol == Rol.SUPERVISOR && ui.aperturaConfirmada) {
-                    AstScreen(
-                        vm = ast,
-                        centro = ui.apertura.centroCultivo,
-                        fecha = "${ui.apertura.fecha} ${ui.apertura.hora}",
-                        onGuardar = {
-                            if (faena.registrarAst(it)) {
-                                nav.navigate(Ruta.SALUD) { launchSingleTop = true }
-                            }
-                        },
-                        onVolver = { nav.popBackStack() }
-                    )
-                }
-            }
-            composable(Ruta.SALUD) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
-                val ui by faena.ui.collectAsState()
-                val salud: EncuestaSaludViewModel = viewModel()
-                val actual = usuario
-
-                LaunchedEffect(actual, ui.aperturaConfirmada) {
-                    if (actual != null && actual.rol != Rol.SUPERVISOR) {
-                        nav.popBackStack(Ruta.DASHBOARD, false)
-                    } else if (actual != null && !ui.aperturaConfirmada) {
-                        nav.popBackStack(Ruta.APERTURA, false)
-                    }
-                }
-                LaunchedEffect(entrada) {
-                    ui.encuesta?.let(salud::cargar)
-                }
-                if (actual?.rol == Rol.SUPERVISOR && ui.aperturaConfirmada) {
-                    EncuestaSaludScreen(
-                        vm = salud,
-                        buzo = ui.apertura.buzoAsignado,
-                        onGuardar = {
-                            if (faena.registrarEncuesta(it)) {
-                                nav.navigate(Ruta.RESUMEN) { launchSingleTop = true }
-                            }
-                        },
-                        onVolver = { nav.popBackStack() }
-                    )
-                }
-            }
-            composable(Ruta.RESUMEN) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
-                val ui by faena.ui.collectAsState()
-                val resumenVm: ResumenFaenaViewModel = viewModel()
-                val actual = usuario
-
-                LaunchedEffect(actual, ui.aperturaConfirmada) {
-                    if (actual != null && !ui.aperturaConfirmada) {
-                        nav.popBackStack(Ruta.DASHBOARD, false)
-                    }
-                }
-                if (actual != null && ui.aperturaConfirmada) {
-                    ResumenFaenaScreen(
-                        vm = resumenVm,
-                        resumen = ResumenFaena(
-                            apertura = ui.apertura,
-                            checklist = null, // TODO: usar ui.checklist cuando el checklist se guarde en FaenaViewModel
-                            ast = ui.ast,
-                            encuesta = ui.encuesta
-                        ),
-                        decision = ui.decision,
-                        rol = actual.rol,
-                        nombreUsuario = actual.nombre,
-                        onDecidir = { faena.registrarDecision(it) },
-                        onVolver = { nav.popBackStack() },
-                        onFinalizar = { nav.popBackStack(Ruta.DASHBOARD, false) }
-                    )
-                }
-            }
+        composable(Ruta.SALUD) {
+            EncuestaSaludScreen(
+                vm = viewModel(),   // uno nuevo por visita
+                buzo = "Buzo por asignar",
+                tabs = usuario?.let { tabsPara(it.rol) } ?: Tab.entries.toList(),
+                onGuardar = {
+                    ultimaEncuesta = it
+                    irATab(Tab.INICIO)
+                },
+                onVolver = { irATab(Tab.INICIO) },
+                onTab = ::irATab
+            )
         }
     }
 }
