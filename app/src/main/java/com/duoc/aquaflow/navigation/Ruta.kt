@@ -18,6 +18,8 @@ import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
 import com.duoc.aquaflow.viewmodel.SesionViewModel
+import com.duoc.aquaflow.ui.screens.AstScreen
+import com.duoc.aquaflow.viewmodel.AstViewModel
 
 object Ruta {
     const val LOGIN = "login"
@@ -25,6 +27,8 @@ object Ruta {
     const val FAENA = "faena"
     const val APERTURA = "faena/apertura"
     const val SALUD = "faena/salud"
+
+    const val AST = "faena/ast"
 }
 
 @Composable
@@ -88,11 +92,41 @@ fun AquaFlowNavHost() {
                         onCambiar = faena::actualizar,
                         onContinuar = {
                             if (faena.confirmarApertura()) {
-                                // En el paso 3, este destino será Checklist.
-                                nav.navigate(Ruta.SALUD) { launchSingleTop = true }
+                                nav.navigate(Ruta.AST) { launchSingleTop = true }
                             }
                         },
                         onSalir = { nav.popBackStack(Ruta.DASHBOARD, false) }
+                    )
+                }
+            }
+            composable(Ruta.AST) { entrada ->
+                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre)
+                val ui by faena.ui.collectAsState()
+                val ast: AstViewModel = viewModel()
+                val actual = usuario
+
+                LaunchedEffect(actual, ui.aperturaConfirmada) {
+                    if (actual != null && actual.rol != Rol.SUPERVISOR) {
+                        nav.popBackStack(Ruta.DASHBOARD, false)
+                    } else if (actual != null && !ui.aperturaConfirmada) {
+                        nav.popBackStack(Ruta.APERTURA, false)
+                    }
+                }
+                LaunchedEffect(entrada) {
+                    ui.ast?.let(ast::cargar)
+                }
+                if (actual?.rol == Rol.SUPERVISOR && ui.aperturaConfirmada) {
+                    AstScreen(
+                        vm = ast,
+                        centro = ui.apertura.centroCultivo,
+                        fecha = "${ui.apertura.fecha} ${ui.apertura.hora}",
+                        onGuardar = {
+                            if (faena.registrarAst(it)) {
+                                nav.navigate(Ruta.SALUD) { launchSingleTop = true }
+                            }
+                        },
+                        onVolver = { nav.popBackStack() }
                     )
                 }
             }

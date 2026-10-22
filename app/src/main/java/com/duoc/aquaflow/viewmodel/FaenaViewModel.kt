@@ -14,12 +14,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import com.duoc.aquaflow.model.FormularioAst
 
 data class FaenaUiState(
     val apertura: PreChequeo = PreChequeo(),
     val aperturaConfirmada: Boolean = false,
+    val ast: FormularioAst? = null,
     val encuesta: EncuestaSalud? = null,
-    val error: String? = null
+    val error: String? = null,
 )
 
 // Borrador compartido por las pantallas del grafo "faena".
@@ -50,6 +52,7 @@ class FaenaViewModel : ViewModel() {
             apertura = nueva,
             aperturaConfirmada = false,
             encuesta = null,
+            ast = null,
             error = null
         )
     }
@@ -73,6 +76,11 @@ class FaenaViewModel : ViewModel() {
     fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
         _ui.update { it.copy(encuesta = encuesta) }
+        return true
+    }
+    fun registrarAst(ast: FormularioAst): Boolean {
+        if (!_ui.value.aperturaConfirmada) return false
+        _ui.update { it.copy(ast = ast) }
         return true
     }
 }
