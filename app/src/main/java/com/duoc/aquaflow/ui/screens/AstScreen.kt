@@ -25,12 +25,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.domain.ReglasAst
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PREGUNTAS_AST
 import com.duoc.aquaflow.model.TIPOLOGIAS_AST
 import com.duoc.aquaflow.ui.components.SemaforoAst
+import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.AstViewModel
 
 // Solo dibuja y avisa los clics: la validación y el semáforo los resuelven el ViewModel y ReglasAst.
@@ -139,5 +141,19 @@ fun AstScreen(
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Guardar AST") }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AstScreenPreview() {
+    AquaFlowTheme {
+        AstScreen(
+            vm = AstViewModel(),
+            centro = "Centro Punta de Tralca",
+            fecha = "20/10/2026",
+            onGuardar = {},
+            onVolver = {}
+        )
     }
 }

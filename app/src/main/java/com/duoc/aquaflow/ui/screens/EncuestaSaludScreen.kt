@@ -20,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -28,6 +29,7 @@ import com.duoc.aquaflow.ui.components.CampoSalud
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
+import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 
 // Solo dibuja y avisa los clics: la validación la hace el ViewModel y el semáforo, Reglas.
@@ -100,5 +102,20 @@ fun EncuestaSaludScreen(
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Guardar") }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EncuestaSaludScreenPreview() {
+    AquaFlowTheme {
+        EncuestaSaludScreen(
+            vm = EncuestaSaludViewModel(),
+            buzo = "Pedro Soto",
+            tabs = listOf(Tab.INICIO, Tab.ENCUESTA, Tab.HISTORIAL),
+            onGuardar = {},
+            onVolver = {},
+            onTab = {}
+        )
     }
 }

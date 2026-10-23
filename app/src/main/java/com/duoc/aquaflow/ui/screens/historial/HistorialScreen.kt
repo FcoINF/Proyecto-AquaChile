@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -24,10 +24,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.duoc.aquaflow.model.EstadoFaena
 import com.duoc.aquaflow.model.HistorialItem
+import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.ui.components.EmptyState
 import com.duoc.aquaflow.ui.components.EstadoChip
@@ -35,6 +37,7 @@ import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.navigation.tabsPara
+import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.HistorialUiState
 import com.duoc.aquaflow.viewmodel.HistorialViewModel
 
@@ -110,7 +113,7 @@ fun HistorialScreen(
                 EmptyState(
                     titulo = if (state.total == 0) "Aún no hay faenas" else "Sin resultados",
                     texto = if (state.total == 0) "Las faenas que registres aparecerán aquí." else "Prueba con otros filtros.",
-                    icono = Icons.Filled.History
+                    icono = Icons.AutoMirrored.Filled.List
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -179,5 +182,16 @@ private fun FaenaHistorialCard(item: HistorialItem) {
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HistorialScreenPreview() {
+    AquaFlowTheme {
+        HistorialScreen(
+            usuario = Usuario("Carlos Supervisor", "1234", Rol.SUPERVISOR),
+            onTab = {}
+        )
     }
 }
