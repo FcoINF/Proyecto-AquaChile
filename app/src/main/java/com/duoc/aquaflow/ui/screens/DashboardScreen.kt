@@ -100,7 +100,7 @@ fun DashboardScreen(
                     Text("Hola, $nombre", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Text(
                         if (puedeCrear) "Gestiona la preparación y seguridad de cada faena."
-                        else "Consulta las aperturas guardadas desde Historial.",
+                        else "Revisa las faenas guardadas y resuelve su autorización desde Historial.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFFD6E0E6)
                     )
@@ -122,7 +122,7 @@ fun DashboardScreen(
             } else {
                 AquaSectionCard(
                     title = "Seguimiento operativo",
-                    subtitle = "El historial reúne las faenas registradas y su estado actual."
+                    subtitle = "Abre una faena desde el historial para revisarla y autorizarla o rechazarla."
                 ) {
                     Text(
                         "Usa las pestañas inferiores para revisar las operaciones disponibles.",

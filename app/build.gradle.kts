@@ -77,6 +77,8 @@ dependencies {
     // Pruebas unitarias
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // Las pruebas de JVM no traen org.json (en el teléfono sí): se agrega para probar el codec de Room
+    testImplementation("org.json:json:20240303")
 
     // Pruebas instrumentadas y herramientas de depuración
     androidTestImplementation(libs.androidx.junit)

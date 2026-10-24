@@ -50,7 +50,10 @@ fun ResumenFaenaScreen(
     nombreUsuario: String,
     onDecidir: (RegistroDecision) -> Unit,
     onVolver: () -> Unit,
-    onFinalizar: () -> Unit
+    onFinalizar: () -> Unit,
+    textoFinalizar: String = "Ir al inicio",
+    // Error que no nace en esta pantalla (por ejemplo, al guardar la decisión en el dispositivo)
+    errorExterno: String? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resultado = ReglasDecision.resultado(resumen)
@@ -128,10 +131,13 @@ fun ResumenFaenaScreen(
                     decision != null -> {
                         Text("${decision.decision.texto} por ${decision.decididoPor}")
                         if (decision.motivo.isNotEmpty()) Text("Motivo: ${decision.motivo}")
-                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text("Ir al inicio") }
+                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
                     }
-                    !ReglasDecision.puedeDecidir(rol) ->
-                        Text("Solo la jefatura autoriza o rechaza la faena.")
+                    // El supervisor no decide: su parte termina aquí, con la faena guardada para la jefatura
+                    !ReglasDecision.puedeDecidir(rol) -> {
+                        Text("Solo la jefatura autoriza o rechaza la faena. Ya quedó guardada en el dispositivo para su revisión.")
+                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
+                    }
                     else -> {
                         OutlinedTextField(
                             value = ui.motivo,
@@ -139,7 +145,7 @@ fun ResumenFaenaScreen(
                             label = { Text("Motivo (obligatorio al rechazar)") },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        (ui.error ?: errorExterno)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir) },

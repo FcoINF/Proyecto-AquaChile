@@ -63,7 +63,7 @@ fun AquaFlowNavHost() {
     val faenaFactory = remember(context) {
         viewModelFactory {
             initializer {
-                FaenaViewModel(repository)
+                FaenaViewModel(repository, repository)
             }
         }
     }
@@ -142,11 +142,29 @@ fun AquaFlowNavHost() {
             usuario?.let { actual ->
                 val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
                 val factory = remember(repository, actual, id) {
-                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id) } }
+                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository) } }
                 }
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
                 val state by vm.state.collectAsState()
-                DetalleAperturaScreen(state, onVolver = { nav.popBackStack() }, onReintentar = vm::reintentar)
+                val faenaGuardada = state.faena
+                if (faenaGuardada != null) {
+                    // Faena encontrada: se ve completa y la jefatura puede autorizar o rechazar aquí
+                    ResumenFaenaScreen(
+                        vm = viewModel(),
+                        resumen = faenaGuardada.resumen,
+                        decision = faenaGuardada.decision,
+                        rol = actual.rol,
+                        nombreUsuario = actual.nombre,
+                        onDecidir = vm::decidir,
+                        onVolver = { nav.popBackStack() },
+                        onFinalizar = { nav.popBackStack() },
+                        textoFinalizar = "Volver al historial",
+                        errorExterno = state.errorDecision
+                    )
+                } else {
+                    // Cargando, error de lectura o faena no disponible para este usuario
+                    DetalleAperturaScreen(state, onVolver = { nav.popBackStack() }, onReintentar = vm::reintentar)
+                }
             }
         }
 
