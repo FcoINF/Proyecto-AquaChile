@@ -90,8 +90,8 @@ class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
     fun guardarApertura(continuar: Boolean = false, alGuardar: () -> Unit = {}) {
         if (_ui.value.ocupado || _ui.value.apertura.id.isBlank()) return
         if (continuar && !confirmarApertura()) return
-        val apertura = _ui.value.apertura
-        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
+        val apertura = completarFechaHora(_ui.value.apertura)
+        _ui.update { it.copy(apertura = apertura, ocupado = true, error = null, mensaje = null) }
         viewModelScope.launch {
             try {
                 borradores.guardar(apertura)
@@ -151,5 +151,14 @@ class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
         if (!_ui.value.aperturaConfirmada) return false
         _ui.update { it.copy(decision = decision) }
         return true
+    }
+
+    private fun completarFechaHora(apertura: PreChequeo): PreChequeo {
+        if (apertura.fecha.isNotBlank() && apertura.hora.isNotBlank()) return apertura
+        val ahora = Date()
+        return apertura.copy(
+            fecha = apertura.fecha.ifBlank { SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(ahora) },
+            hora = apertura.hora.ifBlank { SimpleDateFormat("HH:mm", Locale.ROOT).format(ahora) }
+        )
     }
 }

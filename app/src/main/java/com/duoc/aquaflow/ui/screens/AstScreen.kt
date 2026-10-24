@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,13 +26,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.domain.ReglasAst
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PREGUNTAS_AST
 import com.duoc.aquaflow.model.TIPOLOGIAS_AST
-import com.duoc.aquaflow.ui.components.SemaforoAst
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.AstViewModel
@@ -83,17 +84,30 @@ fun AstScreen(
                 }
             }
 
-            // 2. Chequeo inicial Sí/No
-            AquaSectionCard(title = "2. Chequeo inicial", subtitle = "Responde cada punto antes de iniciar") {
+            // 2. Chequeo inicial con una sola casilla por pregunta.
+            AquaSectionCard(title = "2. Chequeo inicial", subtitle = "Pendiente, Sí o No") {
                 PREGUNTAS_AST.forEachIndexed { i, pregunta ->
                     Card(Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(pregunta.texto + if (pregunta.critica) " · Crítica" else "", style = MaterialTheme.typography.bodyMedium)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(selected = ui.respuestas[i] == true, onClick = { vm.responder(i, true) })
-                                Text("Sí", style = MaterialTheme.typography.labelMedium)
-                                RadioButton(selected = ui.respuestas[i] == false, onClick = { vm.responder(i, false) })
-                                Text("No", style = MaterialTheme.typography.labelMedium)
+                                val respuesta = ui.respuestas[i]
+                                TriStateCheckbox(
+                                    state = when (respuesta) {
+                                        null -> ToggleableState.Indeterminate
+                                        true -> ToggleableState.On
+                                        false -> ToggleableState.Off
+                                    },
+                                    onClick = { vm.responder(i, respuesta != true) }
+                                )
+                                Text(
+                                    when (respuesta) {
+                                        null -> "Sin responder"
+                                        true -> "Sí"
+                                        false -> "No"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
                     }
@@ -137,8 +151,7 @@ fun AstScreen(
                 }
             }
 
-            // Semáforo en vivo y guardado
-            ui.resultado?.let { AquaSectionCard(title = "Resultado del AST") { SemaforoAst(it) } }
+            // El resultado sigue calculándose y se incluye al guardar; no se muestra como tarjeta final.
             ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 // Si la validación falla, guardar() deja el mensaje en ui.error y devuelve null

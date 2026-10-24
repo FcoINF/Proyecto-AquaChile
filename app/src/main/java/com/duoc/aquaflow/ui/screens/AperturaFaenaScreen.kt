@@ -136,7 +136,7 @@ fun AperturaFaenaScreen(
 
                 AquaSectionCard(
                     title = "Datos de la faena",
-                    subtitle = "Centro, fecha, buzo y supervisor a cargo"
+                    subtitle = "Centro, buzo y supervisor a cargo"
                 ) {
                     DropdownField(
                         label = "Centro de cultivo",
@@ -144,26 +144,11 @@ fun AperturaFaenaScreen(
                         options = centrosCultivo,
                         onSelected = { onCambiar(apertura.copy(centroCultivo = it)) }
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = apertura.fecha,
-                            onValueChange = { onCambiar(apertura.copy(fecha = it)) },
-                            label = { Text("Fecha") },
-                            supportingText = { Text("dd/MM/aaaa") },
-                            enabled = !ui.ocupado,
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = apertura.hora,
-                            onValueChange = { onCambiar(apertura.copy(hora = it)) },
-                            label = { Text("Hora") },
-                            supportingText = { Text("HH:mm") },
-                            enabled = !ui.ocupado,
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    Text(
+                        "La fecha y hora se registran automáticamente al crear la faena y se guardan con el borrador.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     DropdownField(
                         label = "Buzo asignado",
                         selectedValue = apertura.buzoAsignado,
