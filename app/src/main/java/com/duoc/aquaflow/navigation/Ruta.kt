@@ -1,5 +1,12 @@
 package com.duoc.aquaflow.navigation
 
+import android.net.Uri
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
+import com.duoc.aquaflow.viewmodel.HistorialViewModel
+import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,6 +44,7 @@ object Ruta {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
     const val HISTORIAL = "historial"
+    const val DETALLE_APERTURA = "historial/{aperturaId}"
     const val FAENA = "faena"
     const val APERTURA = "faena/apertura"
     const val CHECKLIST = "faena/checklist"
@@ -49,10 +57,13 @@ object Ruta {
 fun AquaFlowNavHost() {
     val nav = rememberNavController()
     val context = LocalContext.current.applicationContext
+    val repository = remember(context) {
+        PreChequeoRepository(AquaFlowDatabase.obtener(context).preChequeoDao())
+    }
     val faenaFactory = remember(context) {
         viewModelFactory {
             initializer {
-                FaenaViewModel(PreChequeoRepository(AquaFlowDatabase.obtener(context).preChequeoDao()))
+                FaenaViewModel(repository)
             }
         }
     }
@@ -111,7 +122,31 @@ fun AquaFlowNavHost() {
 
         composable(Ruta.HISTORIAL) {
             usuario?.let { actual ->
-                HistorialScreen(usuario = actual, tabs = tabsPara(actual.rol), onTab = ::irATab)
+                val factory = remember(repository, actual) {
+                    viewModelFactory { initializer { HistorialViewModel(repository, actual) } }
+                }
+                val vm: HistorialViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
+                HistorialScreen(
+                    state = state, tabs = tabsPara(actual.rol), onTab = ::irATab,
+                    onTexto = vm::onTexto, onEstado = vm::onEstado,
+                    onLimpiar = vm::limpiar, onReintentar = vm::reintentar,
+                    onDetalle = { nav.navigate("historial/${Uri.encode(it)}") }
+                )
+            }
+        }
+
+        composable(Ruta.DETALLE_APERTURA,
+            arguments = listOf(navArgument("aperturaId") { type = NavType.StringType })
+        ) { entrada ->
+            usuario?.let { actual ->
+                val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
+                val factory = remember(repository, actual, id) {
+                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id) } }
+                }
+                val vm: DetalleAperturaViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
+                DetalleAperturaScreen(state, onVolver = { nav.popBackStack() }, onReintentar = vm::reintentar)
             }
         }
 
