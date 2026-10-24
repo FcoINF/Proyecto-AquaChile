@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.PreChequeo
+import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.FaenaUiState
 
@@ -121,121 +123,120 @@ fun AperturaFaenaScreen(
         Column(
             modifier = Modifier.padding(padding).imePadding()
                 .verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Datos de la faena", style = MaterialTheme.typography.titleLarge)
-            Text("Selecciona centro, buzo, supervisor e ingresa fecha/hora.")
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Preparar una operación", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Completa los datos y confirma que el equipo esté listo para salir.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-            // Centro de cultivo como menú desplegable
-            DropdownField(
-                label = "Centro de cultivo",
-                selectedValue = apertura.centroCultivo,
-                options = centrosCultivo,
-                onSelected = { onCambiar(apertura.copy(centroCultivo = it)) }
-            )
+                AquaSectionCard(
+                    title = "Datos de la faena",
+                    subtitle = "Centro, fecha, buzo y supervisor a cargo"
+                ) {
+                    DropdownField(
+                        label = "Centro de cultivo",
+                        selectedValue = apertura.centroCultivo,
+                        options = centrosCultivo,
+                        onSelected = { onCambiar(apertura.copy(centroCultivo = it)) }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = apertura.fecha,
+                            onValueChange = { onCambiar(apertura.copy(fecha = it)) },
+                            label = { Text("Fecha") },
+                            supportingText = { Text("dd/MM/aaaa") },
+                            enabled = !ui.ocupado,
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = apertura.hora,
+                            onValueChange = { onCambiar(apertura.copy(hora = it)) },
+                            label = { Text("Hora") },
+                            supportingText = { Text("HH:mm") },
+                            enabled = !ui.ocupado,
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    DropdownField(
+                        label = "Buzo asignado",
+                        selectedValue = apertura.buzoAsignado,
+                        options = buzosAsignados,
+                        onSelected = { onCambiar(apertura.copy(buzoAsignado = it)) }
+                    )
+                    DropdownField(
+                        label = "Supervisor a cargo",
+                        selectedValue = apertura.supervisorACargo.ifBlank { supervisores.first() },
+                        options = supervisores,
+                        onSelected = { onCambiar(apertura.copy(supervisorACargo = it)) }
+                    )
+                }
 
-            OutlinedTextField(
-                value = apertura.fecha,
-                onValueChange = { onCambiar(apertura.copy(fecha = it)) },
-                label = { Text("Fecha (dd/MM/aaaa)") },
-                enabled = !ui.ocupado,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = apertura.hora,
-                onValueChange = { onCambiar(apertura.copy(hora = it)) },
-                label = { Text("Hora (HH:mm)") },
-                enabled = !ui.ocupado,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+                AquaSectionCard(
+                    title = "Condiciones iniciales",
+                    subtitle = "Confirma cada condición antes de continuar"
+                ) {
+                    CondicionRow("Mar y meteorología aptas", apertura.condicionesListas) {
+                        onCambiar(apertura.copy(condicionesListas = it))
+                    }
+                    CondicionRow("Embarcación o plataforma de apoyo lista", apertura.embarcacionLista) {
+                        onCambiar(apertura.copy(embarcacionLista = it))
+                    }
+                    CondicionRow("Comunicaciones y respuesta de emergencia operativas", apertura.comunicacionesOperativas) {
+                        onCambiar(apertura.copy(comunicacionesOperativas = it))
+                    }
+                }
 
-            // Buzo asignado como menú desplegable
-            DropdownField(
-                label = "Buzo asignado",
-                selectedValue = apertura.buzoAsignado,
-                options = buzosAsignados,
-                onSelected = { onCambiar(apertura.copy(buzoAsignado = it)) }
-            )
+                ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                ui.mensaje?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
+                if (ui.ocupado) Text("Procesando apertura…")
 
-            // Supervisor a cargo como menú desplegable
-            DropdownField(
-                label = "Supervisor a cargo",
-                selectedValue = apertura.supervisorACargo.ifBlank { supervisores.first() },
-                options = supervisores,
-                onSelected = { onCambiar(apertura.copy(supervisorACargo = it)) }
-            )
-
-            Text("Condiciones operativas iniciales", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onCambiar(apertura.copy(condicionesListas = !apertura.condicionesListas)) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = apertura.condicionesListas,
-                    onCheckedChange = { onCambiar(apertura.copy(condicionesListas = it)) }
-                )
-                Text("Condiciones meteorológicas y del mar aptas", modifier = Modifier.padding(start = 8.dp))
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onCambiar(apertura.copy(embarcacionLista = !apertura.embarcacionLista)) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = apertura.embarcacionLista,
-                    onCheckedChange = { onCambiar(apertura.copy(embarcacionLista = it)) }
-                )
-                Text("Embarcación / plataforma de apoyo lista", modifier = Modifier.padding(start = 8.dp))
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onCambiar(apertura.copy(comunicacionesOperativas = !apertura.comunicacionesOperativas)) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = apertura.comunicacionesOperativas,
-                    onCheckedChange = { onCambiar(apertura.copy(comunicacionesOperativas = it)) }
-                )
-                Text("Comunicaciones y personal de emergencia operativos", modifier = Modifier.padding(start = 8.dp))
-            }
-
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            ui.mensaje?.let { Text(it, color = MaterialTheme.colorScheme.onSurface) }
-            if (ui.ocupado) Text("Procesando apertura…")
-
-            Button(
-                onClick = onGuardar,
-                enabled = !ui.ocupado && apertura.id.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Guardar borrador")
-            }
-
-            TextButton(
-                onClick = { confirmarRecuperacion = true },
-                enabled = !ui.ocupado && apertura.id.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Recuperar última apertura")
-            }
-
-            Button(
-                onClick = onContinuar,
-                enabled = !ui.ocupado && apertura.id.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (ui.checklist == null) "Continuar a Checklist DPR-24" else "Revisar Checklist")
+                Button(
+                    onClick = onContinuar,
+                    enabled = !ui.ocupado && apertura.id.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (ui.checklist == null) "Continuar al checklist" else "Revisar checklist")
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    TextButton(
+                        onClick = onGuardar,
+                        enabled = !ui.ocupado && apertura.id.isNotBlank(),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Guardar borrador") }
+                    TextButton(
+                        onClick = { confirmarRecuperacion = true },
+                        enabled = !ui.ocupado && apertura.id.isNotBlank(),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Recuperar última") }
+                }
             }
         }
+    }
+
+@Composable
+private fun CondicionRow(
+    texto: String,
+    marcada: Boolean,
+    onCambiar: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCambiar(!marcada) },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(checked = marcada, onCheckedChange = onCambiar)
+        Text(texto, modifier = Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -260,7 +261,7 @@ fun DropdownField(
             readOnly = true,
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth()
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
         )
         ExposedDropdownMenu(
             expanded = expanded,

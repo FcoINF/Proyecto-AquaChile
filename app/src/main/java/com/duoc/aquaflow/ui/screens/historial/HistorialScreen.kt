@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +32,7 @@ import com.duoc.aquaflow.model.EstadoFaena
 import com.duoc.aquaflow.model.HistorialItem
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
+import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.EmptyState
 import com.duoc.aquaflow.ui.components.EstadoChip
 import com.duoc.aquaflow.ui.components.SemaforoSalud
@@ -38,14 +40,10 @@ import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
+import com.duoc.aquaflow.ui.theme.AquaNaranja
 import com.duoc.aquaflow.viewmodel.HistorialUiState
 import com.duoc.aquaflow.viewmodel.HistorialViewModel
 
-/**
- * Historial de faenas adaptado al diseño simple del proyecto actual.
- * Los datos son de ejemplo en memoria (ver [com.duoc.aquaflow.data.HistorialDemo]);
- * cuando exista Room se reemplaza la fuente sin cambiar esta pantalla.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistorialScreen(
@@ -65,36 +63,46 @@ fun HistorialScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Registro de inmersiones", style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "Consulta el avance y los controles realizados en cada faena.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             ResumenCard(state)
 
-            OutlinedTextField(
-                value = filtro.texto,
-                onValueChange = vm::onTexto,
-                label = { Text("Buscar por código, buzo, centro o supervisor") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Text("Estado", style = MaterialTheme.typography.labelLarge)
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = filtro.estado == null,
-                    onClick = { vm.onEstado(null) },
-                    label = { Text("Todos") }
+            AquaSectionCard(title = "Buscar y filtrar") {
+                OutlinedTextField(
+                    value = filtro.texto,
+                    onValueChange = vm::onTexto,
+                    label = { Text("Código, buzo, centro o supervisor") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                EstadoFaena.entries.forEach { estado ->
+                Text("Estado de la faena", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     FilterChip(
-                        selected = filtro.estado == estado,
-                        onClick = { vm.onEstado(estado) },
-                        label = { Text(estado.etiqueta) }
+                        selected = filtro.estado == null,
+                        onClick = { vm.onEstado(null) },
+                        label = { Text("Todas") }
                     )
+                    EstadoFaena.entries.forEach { estado ->
+                        FilterChip(
+                            selected = filtro.estado == estado,
+                            onClick = { vm.onEstado(estado) },
+                            label = { Text(estado.etiqueta) }
+                        )
+                    }
                 }
             }
 
@@ -103,7 +111,10 @@ fun HistorialScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("${state.faenas.size} de ${state.total} faena(s)", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "${state.faenas.size} de ${state.total} faenas",
+                    style = MaterialTheme.typography.titleSmall
+                )
                 if (hayFiltros) {
                     OutlinedButton(onClick = vm::limpiar) { Text("Limpiar filtros") }
                 }
@@ -126,60 +137,57 @@ fun HistorialScreen(
 
 @Composable
 private fun ResumenCard(state: HistorialUiState) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text("Resumen", style = MaterialTheme.typography.titleMedium)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                ResumenDato("Total", state.total.toString())
-                ResumenDato("Autorizadas", state.autorizadas.toString())
-                ResumenDato("Rechazadas", state.rechazadas.toString())
-                ResumenDato("Cerradas", state.cerradas.toString())
-            }
+    AquaSectionCard(title = "Resumen de operaciones") {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ResumenDato("Total", state.total.toString(), Modifier.weight(1f))
+            ResumenDato("Autorizadas", state.autorizadas.toString(), Modifier.weight(1f), AquaNaranja)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ResumenDato("Rechazadas", state.rechazadas.toString(), Modifier.weight(1f))
+            ResumenDato("Cerradas", state.cerradas.toString(), Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun ResumenDato(etiqueta: String, valor: String) {
-    Column {
-        Text(etiqueta, style = MaterialTheme.typography.labelSmall)
-        Text(valor, style = MaterialTheme.typography.titleMedium)
+private fun ResumenDato(etiqueta: String, valor: String, modifier: Modifier = Modifier, acento: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(etiqueta, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(valor, style = MaterialTheme.typography.headlineSmall, color = acento)
+        }
     }
 }
 
 @Composable
 private fun FaenaHistorialCard(item: HistorialItem) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    AquaSectionCard(title = item.codigo) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(item.buzoAsignado, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            EstadoChip(item.estado)
+        }
+        Text(item.centroCultivo, style = MaterialTheme.typography.bodyMedium)
+        Text("Supervisor · ${item.supervisorACargo}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("${item.fecha} · ${item.hora}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        item.encuesta?.let { encuesta ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    item.codigo,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                EstadoChip(item.estado)
-            }
-            Text("${item.buzoAsignado} • ${item.centroCultivo}", style = MaterialTheme.typography.bodyLarge)
-            Text("Supervisor: ${item.supervisorACargo}", style = MaterialTheme.typography.bodyMedium)
-            Text("Fecha: ${item.fecha} ${item.hora}", style = MaterialTheme.typography.bodyMedium)
-            item.encuesta?.let { e ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("Salud: ${e.sistolica}/${e.diastolica} mmHg · Sat. ${e.saturacion}%")
-                    SemaforoSalud(e.nivel)
-                }
+                Text("${encuesta.sistolica}/${encuesta.diastolica} mmHg · O₂ ${encuesta.saturacion}%", style = MaterialTheme.typography.bodySmall)
+                SemaforoSalud(encuesta.nivel)
             }
         }
     }

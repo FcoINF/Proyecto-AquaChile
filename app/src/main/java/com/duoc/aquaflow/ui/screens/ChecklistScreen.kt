@@ -9,9 +9,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -57,13 +58,7 @@ fun ChecklistScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Checklist DPR-24 (Equipos)") },
-                navigationIcon = {
-                    TextButton(onClick = onVolver) { Text("Volver") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0B1723),
-                    titleContentColor = Color.White
-                )
+                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
             )
         }
     ) { paddingValues ->
@@ -71,19 +66,32 @@ fun ChecklistScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            Text("Inspección de equipos", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Revisa cada elemento y registra su condición.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             if (observacionesCount > 0) {
                 Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                 ) {
-                    Text(
-                        text = "⚠ Hay $observacionesCount equipo(s) con observaciones o no cumple. Se recomienda adjuntar evidencia fotográfica.",
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFE65100)
-                    )
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Text(
+                            text = "$observacionesCount equipo(s) requieren atención. Adjunta evidencia fotográfica cuando corresponda.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
             }
 
@@ -150,9 +158,8 @@ fun ChecklistScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF95716))
             ) {
-                Text("Guardar y Continuar", color = Color.White)
+                Text("Guardar y continuar")
             }
         }
     }
