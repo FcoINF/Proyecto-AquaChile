@@ -31,6 +31,7 @@ import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResumenFaena
 import com.duoc.aquaflow.model.Rol
+import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.SemaforoAst
 import com.duoc.aquaflow.ui.components.SemaforoFaena
 import com.duoc.aquaflow.ui.components.SemaforoSalud
@@ -66,11 +67,24 @@ fun ResumenFaenaScreen(
     ) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Revisión de la operación", style = MaterialTheme.typography.headlineSmall)
+                Text("Confirma los datos y resuelve la autorización.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             // Semáforo global: solo aparece cuando están todas las partes
-            if (resultado != null) SemaforoFaena(resultado)
-            else Text("Resumen incompleto. Falta: ${faltantes.joinToString()}", color = MaterialTheme.colorScheme.error)
+            if (resultado != null) {
+                AquaSectionCard(title = "Estado de la faena") { SemaforoFaena(resultado) }
+            } else {
+                Card(colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Text(
+                        "Resumen incompleto · Falta: ${faltantes.joinToString()}",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
 
             Seccion("Apertura") {
                 Text(apertura.centroCultivo.ifBlank { "Centro sin definir" })
@@ -83,8 +97,8 @@ fun ResumenFaenaScreen(
                 val items = resumen.checklist?.items.orEmpty()
                 if (items.isEmpty()) Text("Sin registrar")
                 items.forEach {
-                    Text("• ${it.titulo}: ${it.estado.texto()}")
-                    if (it.notas.isNotBlank()) Text("   Nota: ${it.notas}")
+                    Text("${it.titulo} · ${it.estado.texto()}")
+                    if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 resumen.checklist?.let { Text("Fotos de evidencia: ${it.fotosEvidencia.size}") }
             }
@@ -103,7 +117,7 @@ fun ResumenFaenaScreen(
                 val e = resumen.encuesta
                 if (e == null) Text("Sin registrar") else {
                     Text("Presión ${e.sistolica}/${e.diastolica} · Saturación ${e.saturacion}%")
-                    e.alertasEncuesta.forEach { Text("⚠ $it") }
+                    e.alertasEncuesta.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
                     SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
                 }
             }
@@ -146,12 +160,7 @@ fun ResumenFaenaScreen(
 // Tarjeta con título para cada parte del resumen
 @Composable
 private fun Seccion(titulo: String, contenido: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(titulo, style = MaterialTheme.typography.titleMedium)
-            contenido()
-        }
-    }
+    AquaSectionCard(title = titulo) { contenido() }
 }
 
 private fun EstadoEquipo.texto() = when (this) {

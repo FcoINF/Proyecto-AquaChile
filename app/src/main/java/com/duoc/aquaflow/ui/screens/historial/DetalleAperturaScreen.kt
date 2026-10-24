@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.EstadoFaena
+import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.EstadoChip
 import com.duoc.aquaflow.viewmodel.DetalleAperturaUiState
 
@@ -24,27 +25,38 @@ fun DetalleAperturaScreen(
         })
     }) { padding ->
         Column(
-            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when {
-                state.cargando -> Text("Cargando apertura…")
-                state.error != null -> {
+                state.cargando -> AquaSectionCard(title = "Cargando apertura") {
+                    Text("Estamos consultando los datos guardados.")
+                }
+                state.error != null -> AquaSectionCard(title = "No se pudo cargar la apertura") {
                     Text(state.error, color = MaterialTheme.colorScheme.error)
                     Button(onClick = onReintentar) { Text("Reintentar") }
                 }
-                state.apertura == null -> Text("Esta apertura no está disponible para tu usuario.")
+                state.apertura == null -> AquaSectionCard(title = "Apertura no disponible") {
+                    Text("Esta apertura no está disponible para tu usuario.")
+                }
                 else -> {
                     val apertura = state.apertura
-                    EstadoChip(EstadoFaena.PRECHEQUEO)
-                    DatoApertura("Código", apertura.id)
-                    DatoApertura("Centro de cultivo", apertura.centroCultivo)
-                    DatoApertura("Fecha", apertura.fecha)
-                    DatoApertura("Hora", apertura.hora)
-                    DatoApertura("Buzo asignado", apertura.buzoAsignado)
-                    DatoApertura("Supervisor a cargo", apertura.supervisorACargo)
-                    Text("Se muestran los datos de apertura guardados. Checklist, AST, salud, decisión y cierre todavía no forman parte de este registro.",
-                        style = MaterialTheme.typography.bodySmall)
+                    AquaSectionCard(
+                        title = apertura.centroCultivo.ifBlank { "Centro por completar" },
+                        subtitle = "Apertura · ${apertura.id}"
+                    ) {
+                        EstadoChip(EstadoFaena.PRECHEQUEO)
+                        DatoApertura("Fecha y hora", "${apertura.fecha} · ${apertura.hora}")
+                        DatoApertura("Buzo asignado", apertura.buzoAsignado)
+                        DatoApertura("Supervisor a cargo", apertura.supervisorACargo)
+                    }
+                    AquaSectionCard(title = "Alcance del registro") {
+                        Text(
+                            "Se muestran los datos de apertura guardados. Checklist, AST, salud, decisión y cierre todavía no forman parte de este registro.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

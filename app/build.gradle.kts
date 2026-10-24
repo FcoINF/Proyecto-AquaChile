@@ -5,6 +5,14 @@ plugins {
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
 }
 
+val projectPath = projectDir.toPath().toAbsolutePath().normalize()
+if (projectPath.any { it.toString().equals("OneDrive", ignoreCase = true) }) {
+    val projectKey = Integer.toHexString(rootProject.projectDir.absolutePath.hashCode())
+    layout.buildDirectory.set(
+        file("${System.getProperty("user.home")}/.gradle/aquachile-build/$projectKey/app")
+    )
+}
+
 android {
     namespace = "com.duoc.aquaflow"
     compileSdk = 35

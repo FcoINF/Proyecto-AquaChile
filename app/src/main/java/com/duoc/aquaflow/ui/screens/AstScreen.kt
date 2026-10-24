@@ -32,6 +32,7 @@ import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PREGUNTAS_AST
 import com.duoc.aquaflow.model.TIPOLOGIAS_AST
 import com.duoc.aquaflow.ui.components.SemaforoAst
+import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.AstViewModel
 
@@ -58,82 +59,86 @@ fun AstScreen(
     ) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Análisis Seguro de Trabajo", style = MaterialTheme.typography.titleMedium)
-            Text("$centro · $fecha")
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Análisis Seguro de Trabajo", style = MaterialTheme.typography.headlineSmall)
+                Text("$centro · $fecha", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
 
             // 1. Antecedentes generales (ubicación y fecha vienen de la apertura)
-            Text("1. Antecedentes generales", style = MaterialTheme.typography.titleMedium)
-            Text("Tipología de la tarea")
-            TIPOLOGIAS_AST.forEach { tipo ->
-                Row(
-                    Modifier.fillMaxWidth().clickable { vm.elegirTipologia(tipo) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = ui.tipologia == tipo, onClick = { vm.elegirTipologia(tipo) })
-                    Text(tipo)
+            AquaSectionCard(title = "1. Antecedentes generales", subtitle = "Selecciona la tipología de la tarea") {
+                TIPOLOGIAS_AST.forEach { tipo ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { vm.elegirTipologia(tipo) },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = ui.tipologia == tipo, onClick = { vm.elegirTipologia(tipo) })
+                        Text(tipo, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = ui.requiereNuevoAst, onCheckedChange = { vm.alternarNuevoAst() })
-                Text("Requiere un nuevo AST (cambiaron los registros)")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = ui.requiereNuevoAst, onCheckedChange = { vm.alternarNuevoAst() })
+                    Text("Requiere un nuevo AST (cambiaron los registros)", style = MaterialTheme.typography.bodyMedium)
+                }
             }
 
             // 2. Chequeo inicial Sí/No
-            Text("2. Chequeo inicial", style = MaterialTheme.typography.titleMedium)
-            PREGUNTAS_AST.forEachIndexed { i, pregunta ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(pregunta.texto + if (pregunta.critica) " (crítica)" else "")
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = ui.respuestas[i] == true, onClick = { vm.responder(i, true) })
-                            Text("Sí")
-                            RadioButton(selected = ui.respuestas[i] == false, onClick = { vm.responder(i, false) })
-                            Text("No")
+            AquaSectionCard(title = "2. Chequeo inicial", subtitle = "Responde cada punto antes de iniciar") {
+                PREGUNTAS_AST.forEachIndexed { i, pregunta ->
+                    Card(Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(pregunta.texto + if (pregunta.critica) " · Crítica" else "", style = MaterialTheme.typography.bodyMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = ui.respuestas[i] == true, onClick = { vm.responder(i, true) })
+                                Text("Sí", style = MaterialTheme.typography.labelMedium)
+                                RadioButton(selected = ui.respuestas[i] == false, onClick = { vm.responder(i, false) })
+                                Text("No", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
             }
 
             // 3. Pasos de la tarea con su peligro y medida de control
-            Text("3. Pasos, peligros y controles", style = MaterialTheme.typography.titleMedium)
-            ui.pasos.forEachIndexed { i, paso ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
-                        OutlinedTextField(
-                            value = paso.tarea,
-                            onValueChange = { vm.cambiarPaso(i, paso.copy(tarea = it)) },
-                            label = { Text("Tarea") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = paso.peligro,
-                            onValueChange = { vm.cambiarPaso(i, paso.copy(peligro = it)) },
-                            label = { Text("Peligro") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = paso.control,
-                            onValueChange = { vm.cambiarPaso(i, paso.copy(control = it)) },
-                            label = { Text("Medida de control") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = paso.critico, onCheckedChange = { vm.cambiarPaso(i, paso.copy(critico = it)) })
-                            Text("Riesgo crítico")
+            AquaSectionCard(title = "3. Pasos, peligros y controles", subtitle = "Define el control para cada paso de la tarea") {
+                ui.pasos.forEachIndexed { i, paso ->
+                    Card(Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
+                            OutlinedTextField(
+                                value = paso.tarea,
+                                onValueChange = { vm.cambiarPaso(i, paso.copy(tarea = it)) },
+                                label = { Text("Tarea") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = paso.peligro,
+                                onValueChange = { vm.cambiarPaso(i, paso.copy(peligro = it)) },
+                                label = { Text("Peligro") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = paso.control,
+                                onValueChange = { vm.cambiarPaso(i, paso.copy(control = it)) },
+                                label = { Text("Medida de control") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = paso.critico, onCheckedChange = { vm.cambiarPaso(i, paso.copy(critico = it)) })
+                                Text("Riesgo crítico", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (ui.pasos.size > 1) TextButton(onClick = { vm.quitarPaso(i) }) { Text("Quitar paso") }
                         }
-                        if (ui.pasos.size > 1) TextButton(onClick = { vm.quitarPaso(i) }) { Text("Quitar paso") }
                     }
                 }
-            }
-            if (ui.pasos.size < ReglasAst.MAX_PASOS) {
-                OutlinedButton(onClick = vm::agregarPaso, modifier = Modifier.fillMaxWidth()) { Text("Agregar paso") }
+                if (ui.pasos.size < ReglasAst.MAX_PASOS) {
+                    OutlinedButton(onClick = vm::agregarPaso, modifier = Modifier.fillMaxWidth()) { Text("Agregar paso") }
+                }
             }
 
             // Semáforo en vivo y guardado
-            ui.resultado?.let { SemaforoAst(it) }
+            ui.resultado?.let { AquaSectionCard(title = "Resultado del AST") { SemaforoAst(it) } }
             ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 // Si la validación falla, guardar() deja el mensaje en ui.error y devuelve null
