@@ -46,7 +46,7 @@ fun DashboardScreen(
             Text("Rol activo: ${usuario.rol.texto}")
             Text(
                 if (puedeCrear) "Inicia una faena para registrar su apertura."
-                else "La revisión y el historial se incorporarán en una próxima etapa."
+                else "Consulta las aperturas guardadas desde Historial."
             )
             Button(onClick = onSalir) { Text("Cerrar sesión") }
         }
