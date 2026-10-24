@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 fun EmptyState(
     titulo: String,
     texto: String,
-    icono: ImageVector = Icons.Filled.History,
+    icono: ImageVector = Icons.AutoMirrored.Filled.List,
     modifier: Modifier = Modifier
 ) {
     Column(

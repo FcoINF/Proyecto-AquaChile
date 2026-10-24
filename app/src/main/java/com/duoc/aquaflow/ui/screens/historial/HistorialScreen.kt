@@ -6,17 +6,30 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.*
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.EstadoFaena
 import com.duoc.aquaflow.model.HistorialItem
+import com.duoc.aquaflow.model.Rol
+import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.ui.components.EmptyState
 import com.duoc.aquaflow.ui.components.EstadoChip
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
+import com.duoc.aquaflow.ui.navigation.tabsPara
+import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.HistorialUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,8 +80,17 @@ fun HistorialScreen(
                     }
                 }
             }
-            if (filtro.texto.isNotBlank() || filtro.estado != null) {
-                item { OutlinedButton(onClick = onLimpiar) { Text("Limpiar filtros") } }
+
+            if (state.faenas.isEmpty()) {
+                EmptyState(
+                    titulo = if (state.total == 0) "Aún no hay faenas" else "Sin resultados",
+                    texto = if (state.total == 0) "Las faenas que registres aparecerán aquí." else "Prueba con otros filtros.",
+                    icono = Icons.AutoMirrored.Filled.List
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    state.faenas.forEach { item -> FaenaHistorialCard(item) }
+                }
             }
             when {
                 state.cargando -> item { Text("Cargando aperturas…") }
@@ -108,5 +130,16 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
             Text("Fecha: ${item.fecha.ifBlank { "Por completar" }} ${item.hora}")
             OutlinedButton(onClick = onDetalle) { Text("Ver detalle") }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HistorialScreenPreview() {
+    AquaFlowTheme {
+        HistorialScreen(
+            usuario = Usuario("Carlos Supervisor", "1234", Rol.SUPERVISOR),
+            onTab = {}
+        )
     }
 }

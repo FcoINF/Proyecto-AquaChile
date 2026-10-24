@@ -38,7 +38,13 @@ class BorradorAperturaTest {
 
     @Test fun falloAlGuardarNoNavegaYPermiteReintentar() = runTest {
         val vm = FaenaViewModel(datos).apply { iniciar(usuario) }
-        vm.actualizar(vm.ui.value.apertura.copy(centroCultivo = "Centro", buzoAsignado = "Buzo"))
+        vm.actualizar(vm.ui.value.apertura.copy(
+            centroCultivo = "Centro",
+            buzoAsignado = "Buzo",
+            condicionesListas = true,
+            embarcacionLista = true,
+            comunicacionesOperativas = true
+        ))
         var avances = 0
         datos.fallar = true
         vm.guardarApertura(continuar = true) { avances++ }
