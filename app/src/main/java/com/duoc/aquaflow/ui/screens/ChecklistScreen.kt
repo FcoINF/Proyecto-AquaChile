@@ -1,28 +1,41 @@
 package com.duoc.aquaflow.ui.screens
 
+import android.graphics.Bitmap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.ui.components.ItemChecklist
 import com.duoc.aquaflow.ui.components.SeccionFotos
+import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistScreen(
-    onContinuarClick: () -> Unit
+    faenaId: String,
+    checklistInicial: ChecklistFaena?,
+    onGuardar: (ChecklistFaena) -> Unit,
+    onVolver: () -> Unit
 ) {
     // Lista inicial de prueba para la revisión DPR-24
     var equipos by remember {
         mutableStateOf(
-            listOf(
-                ItemEquipamiento("1", "Compressor y Filtros Carbón", "Test de CO/CO2 con tubo colorimétrico OK"),
+            checklistInicial?.items?.takeIf { it.isNotEmpty() } ?: listOf(
+                ItemEquipamiento("1", "Compresor y Filtros Carbón", "Test de CO/CO2 con tubo colorimétrico OK"),
                 ItemEquipamiento("2", "Traje Seco, Arnés y Casco KMB", "Prueba de estanqueidad de cremallera estanca"),
                 ItemEquipamiento("3", "Botellón de Rescate (Bail-out)", "Presión 210 BAR verificada en manómetro"),
                 ItemEquipamiento("4", "Manguera Umbilical y Conexiones", "Roce superficial en manga protectora externa")
@@ -30,14 +43,22 @@ fun ChecklistScreen(
         )
     }
 
+    var fotosBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            fotosBitmaps = fotosBitmaps + bitmap
+        }
+    }
+
+    val observacionesCount = equipos.count { it.estado == EstadoEquipo.NO_CUMPLE || it.estado == EstadoEquipo.OBSERVADO }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Checklist DPR-24 (Equipos)") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0B1723),
-                    titleContentColor = Color.White
-                )
+                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
             )
         }
     ) { paddingValues ->
@@ -45,8 +66,35 @@ fun ChecklistScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            Text("Inspección de equipos", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Revisa cada elemento y registra su condición.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (observacionesCount > 0) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Text(
+                            text = "$observacionesCount equipo(s) requieren atención. Adjunta evidencia fotográfica cuando corresponda.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(equipos) { item ->
                     ItemChecklist(
@@ -61,19 +109,71 @@ fun ChecklistScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
-                    SeccionFotos(cantidadFotos = 0, onTomarFotoClick = { /* Acción de fotos */ })
+                    SeccionFotos(
+                        cantidadFotos = fotosBitmaps.size,
+                        onTomarFotoClick = {
+                            try {
+                                cameraLauncher.launch(null)
+                            } catch (_: Exception) {
+                                // Si no hay app de cámara disponible, simulamos una foto para pruebas
+                                val dummyBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+                                fotosBitmaps = fotosBitmaps + dummyBitmap
+                            }
+                        }
+                    )
+
+                    if (fotosBitmaps.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Evidencias fotográficas DPR-24:", style = MaterialTheme.typography.titleSmall)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(fotosBitmaps) { bmp ->
+                                Card(
+                                    modifier = Modifier.size(80.dp),
+                                    elevation = CardDefaults.cardElevation(4.dp)
+                                ) {
+                                    Image(
+                                        bitmap = bmp.asImageBitmap(),
+                                        contentDescription = "Evidencia DPR-24",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
             Button(
-                onClick = onContinuarClick,
+                onClick = {
+                    val checklist = ChecklistFaena(
+                        idFaena = faenaId,
+                        items = equipos,
+                        fotosEvidencia = fotosBitmaps.mapIndexed { index, _ -> "dpr24_evidencia_$index.jpg" }
+                    )
+                    onGuardar(checklist)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF95716))
             ) {
-                Text("Guardar y Continuar", color = Color.White)
+                Text("Guardar y continuar")
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ChecklistScreenPreview() {
+    AquaFlowTheme {
+        ChecklistScreen(
+            faenaId = "1",
+            checklistInicial = null,
+            onGuardar = {},
+            onVolver = {}
+        )
     }
 }

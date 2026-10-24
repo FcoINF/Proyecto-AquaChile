@@ -27,3 +27,17 @@ data class RegistroDecision(
     val motivo: String,
     val decididoPor: String
 )
+
+// Una faena tal como queda guardada en el dispositivo: sus partes y, si ya existe, la decisión.
+// El estado se deduce de la decisión, así nunca puede contradecirla.
+data class FaenaGuardada(
+    val resumen: ResumenFaena,
+    val decision: RegistroDecision? = null
+) {
+    val estado: EstadoFaena
+        get() = when (decision?.decision) {
+            null -> EstadoFaena.PRECHEQUEO
+            Decision.AUTORIZADA -> EstadoFaena.AUTORIZADA
+            Decision.RECHAZADA -> EstadoFaena.RECHAZADA
+        }
+}

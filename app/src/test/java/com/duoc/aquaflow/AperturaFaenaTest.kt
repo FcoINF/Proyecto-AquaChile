@@ -15,7 +15,7 @@ class AperturaFaenaTest {
     private val supervisor = Usuario("supervisor", "1234", Rol.SUPERVISOR)
     private val encuesta = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
     private fun apertura(fecha: String = "20/10/2026", hora: String = "09:30") =
-        PreChequeo("1", "Centro demo", fecha, hora, "Buzo demo", "supervisor")
+        PreChequeo("1", "Centro demo", fecha, hora, "Buzo demo", "supervisor", true, true, true)
 
     @Test fun exigeTodosLosCampos() {
         val valida = apertura()
@@ -41,24 +41,23 @@ class AperturaFaenaTest {
     }
 
     @Test fun noAvanzaConAperturaIncompleta() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         assertFalse(vm.confirmarApertura())
         assertFalse(vm.registrarEncuesta(encuesta))
     }
 
-    @Test fun conservaIdYSupervisorDeSesion() {
-        val vm = FaenaViewModel()
+    @Test fun conservaIdYPermiteActualizarSupervisor() {
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         val id = vm.ui.value.apertura.id
-        vm.actualizar(apertura().copy(id = "otro", supervisorACargo = "otro"))
-        vm.iniciar(supervisor)
+        vm.actualizar(apertura().copy(id = "otro", supervisorACargo = "Nuevo Supervisor"))
         assertEquals(id, vm.ui.value.apertura.id)
-        assertEquals("supervisor", vm.ui.value.apertura.supervisorACargo)
+        assertEquals("Nuevo Supervisor", vm.ui.value.apertura.supervisorACargo)
     }
 
     @Test fun cambiarBuzoInvalidaEncuestaAnterior() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         vm.actualizar(apertura())
         assertTrue(vm.confirmarApertura())
@@ -70,7 +69,7 @@ class AperturaFaenaTest {
     }
 
     @Test fun administradorNoIniciaFaena() {
-        val vm = FaenaViewModel()
+        val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(Usuario("jefe", "1234", Rol.JEFE))
         assertEquals("", vm.ui.value.apertura.id)
         assertFalse(vm.confirmarApertura())

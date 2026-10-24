@@ -54,6 +54,39 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 
 ## Tecnologías Utilizadas
 
+### Avance: borrador de apertura con Room
+
+- Como supervisor, entra a **Nueva faena** y completa o inicia la apertura.
+- **Guardar borrador** conserva incluso una apertura incompleta. **Continuar a Salud** exige los campos válidos y guarda antes de navegar.
+- Después de cerrar y volver a abrir la aplicación, ingresa con el mismo supervisor, abre **Nueva faena** y selecciona **Recuperar última apertura**. Confirma el reemplazo de los datos en pantalla.
+- Recuperar mantiene el identificador: guardar cambios actualiza ese registro. La consulta se limita al supervisor activo y a su última apertura guardada.
+- Esta entrega persiste únicamente la apertura; Salud, AST y decisiones todavía no se recuperan. El historial consulta las aperturas reales de Room.
+- Capas: `AperturaFaenaScreen` → `FaenaViewModel` → `BorradoresApertura` / `PreChequeoRepository` → `PreChequeoDao` → `AquaFlowDatabase`. Esquema Room versionado en `app/schemas`.
+- Usar Java 21 (el JDK configurado en Android Studio). Pruebas: `gradlew testDebugUnitTest`; con emulador activo, `gradlew connectedDebugAndroidTest`.
+- `AperturaRoomTest` verifica guardar, cerrar y reabrir una base en disco, aislamiento por supervisor y actualización sin duplicados. Las pruebas de ViewModel verifican recuperación, validación y fallo/reintento de guardado.
+- Verificación del avance: compilación debug y APK de pruebas correctos; 63 pruebas unitarias aprobadas. La ejecución de `AperturaRoomTest` en Android queda pendiente: Pixel 10 no conectó en cinco minutos y ADB reportó `unauthorized`.
+
+### Avance: historial y detalle conectados a Room
+
+- Guarda una apertura y entra a **Historial**. Cada supervisor ve las propias; el administrador puede consultar todas las aperturas del dispositivo.
+- Busca por código, centro, buzo o supervisor; combina la búsqueda con el filtro de estado. **Limpiar filtros** restablece la lista. Los filtros se conservan al volver del detalle.
+- **Ver detalle** recupera por identificador la apertura guardada. También aplica la restricción por supervisor, aunque se intente abrir otro identificador.
+- Los campos incompletos se muestran como **Por completar**. Sin registros, sin coincidencias y ante un error de lectura se muestran mensajes distintos; los errores permiten reintentar.
+- Los cambios guardados se reflejan mediante `Flow` de Room y `StateFlow` de los ViewModels. Las pantallas reciben estado y callbacks; no consultan datos directamente.
+- Todas las aperturas actuales están **En pre-chequeo**. Los filtros de autorizadas, rechazadas y cerradas no tendrán resultados hasta persistir esas decisiones. No se mezclan datos de demostración ni se habilitan decisiones en el detalle.
+- No cambia el esquema de Room: se agregan consultas sobre la tabla existente, sin borrar datos.
+- Prueba manual: guardar dos aperturas, reiniciar la app, buscarlas en Historial, abrir una, volver y comprobar el filtro. Con otro supervisor, comprobar que no aparece la apertura ajena; con el administrador, comprobar que aparecen ambas.
+- Verificación: 69 pruebas unitarias aprobadas, incluidas seis de historial y detalle; la ejecución de las pruebas instrumentadas de Room sigue pendiente de un emulador o dispositivo conectado.
+
+### Avance: faena completa y decisión guardadas en Room
+
+- Room pasa a la **versión 2** con una migración (`MIGRACION_1_2`): las aperturas guardadas antes se conservan y quedan con sus secciones "sin registrar".
+- La misma fila de la faena guarda ahora el **checklist, el AST, la encuesta de salud y la decisión** (cada sección como JSON, ver `FaenaCodec`). Cada pantalla guarda su parte al completarla; si el guardado falla, el usuario lo ve y los datos siguen en pantalla.
+- Si el supervisor edita la apertura después de completar las secciones, estas se borran (igual que en pantalla); guardar la apertura sin cambios las conserva.
+- El **estado de la faena se deduce de la decisión** (en pre-chequeo, autorizada o rechazada), por lo que el Historial ya muestra estados reales y sus filtros funcionan.
+- La jefatura decide desde **Historial → Ver detalle**: ve la faena completa y puede autorizar o rechazar (rechazo con motivo). Una decisión ya tomada no se sobrescribe. El supervisor, al terminar el resumen, deja la faena guardada para esa revisión.
+- Pendiente: las fotos del checklist siguen en memoria (no se guardan sus rutas) y falta el registro posterior / cierre.
+
 - **Frontend y Diseño de Interfaces**: Material Design 3, Jetpack Compose
 - **Prototipado e IA**: Google Stitch, Google AI Studio, Figma
 - **Almacenamiento Local**: SQLite / Room DB (arquitectura que soporta trabajo desconectado de la red)
