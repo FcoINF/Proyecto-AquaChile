@@ -76,15 +76,16 @@ class FaenaViewModel : ViewModel() {
         return error == null
     }
 
-    fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {
+    fun registrarAst(ast: FormularioAst): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(encuesta = encuesta, decision = null) }
+        // Cambiar el AST invalida una decisión anterior: ya no corresponde a lo revisado.
+        _ui.update { it.copy(ast = ast, decision = null) }
         return true
     }
 
-    fun registrarAst(ast: FormularioAst): Boolean {
+    fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(ast = ast, decision = null) }
+        _ui.update { it.copy(encuesta = encuesta, decision = null) }
         return true
     }
 
