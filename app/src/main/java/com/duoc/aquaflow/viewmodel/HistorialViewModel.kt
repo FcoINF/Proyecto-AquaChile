@@ -26,7 +26,7 @@ class HistorialViewModel(consulta: ConsultaAperturas, usuario: Usuario) : ViewMo
 
     // Room emite de nuevo cuando cambia una apertura guardada.
     private val datos = intentos.flatMapLatest {
-        consulta.observar(usuario).map { lista ->
+        consulta.observarFaenas(usuario).map { lista ->
             val items = lista.map { it.aHistorialItem() }
             HistorialUiState(cargando = false, total = items.size, faenas = items)
         }.onStart { emit(HistorialUiState()) }

@@ -24,3 +24,16 @@ fun PreChequeo.aHistorialItem() = HistorialItem(
     hora = hora,
     estado = EstadoFaena.PRECHEQUEO
 )
+
+// Fila del historial a partir de una faena guardada: el estado y la encuesta salen de lo registrado.
+fun FaenaGuardada.aHistorialItem() = HistorialItem(
+    id = resumen.apertura.id,
+    codigo = resumen.apertura.id,
+    centroCultivo = resumen.apertura.centroCultivo,
+    buzoAsignado = resumen.apertura.buzoAsignado,
+    supervisorACargo = resumen.apertura.supervisorACargo,
+    fecha = resumen.apertura.fecha,
+    hora = resumen.apertura.hora,
+    estado = estado,
+    encuesta = resumen.encuesta
+)

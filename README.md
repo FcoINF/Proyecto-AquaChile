@@ -78,6 +78,15 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 - Prueba manual: guardar dos aperturas, reiniciar la app, buscarlas en Historial, abrir una, volver y comprobar el filtro. Con otro supervisor, comprobar que no aparece la apertura ajena; con el administrador, comprobar que aparecen ambas.
 - Verificación: 69 pruebas unitarias aprobadas, incluidas seis de historial y detalle; la ejecución de las pruebas instrumentadas de Room sigue pendiente de un emulador o dispositivo conectado.
 
+### Avance: faena completa y decisión guardadas en Room
+
+- Room pasa a la **versión 2** con una migración (`MIGRACION_1_2`): las aperturas guardadas antes se conservan y quedan con sus secciones "sin registrar".
+- La misma fila de la faena guarda ahora el **checklist, el AST, la encuesta de salud y la decisión** (cada sección como JSON, ver `FaenaCodec`). Cada pantalla guarda su parte al completarla; si el guardado falla, el usuario lo ve y los datos siguen en pantalla.
+- Si el supervisor edita la apertura después de completar las secciones, estas se borran (igual que en pantalla); guardar la apertura sin cambios las conserva.
+- El **estado de la faena se deduce de la decisión** (en pre-chequeo, autorizada o rechazada), por lo que el Historial ya muestra estados reales y sus filtros funcionan.
+- La jefatura decide desde **Historial → Ver detalle**: ve la faena completa y puede autorizar o rechazar (rechazo con motivo). Una decisión ya tomada no se sobrescribe. El supervisor, al terminar el resumen, deja la faena guardada para esa revisión.
+- Pendiente: las fotos del checklist siguen en memoria (no se guardan sus rutas) y falta el registro posterior / cierre.
+
 - **Frontend y Diseño de Interfaces**: Material Design 3, Jetpack Compose
 - **Prototipado e IA**: Google Stitch, Google AI Studio, Figma
 - **Almacenamiento Local**: SQLite / Room DB (arquitectura que soporta trabajo desconectado de la red)

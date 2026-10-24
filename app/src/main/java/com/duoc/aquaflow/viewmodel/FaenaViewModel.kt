@@ -3,6 +3,7 @@ package com.duoc.aquaflow.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.aquaflow.data.repository.BorradoresApertura
+import com.duoc.aquaflow.data.repository.RegistroFaena
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.duoc.aquaflow.domain.Reglas
@@ -35,7 +36,11 @@ data class FaenaUiState(
 )
 
 // Borrador compartido por las pantallas del grafo "faena".
-class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
+// `registro` guarda cada sección en Room apenas se completa; con null (pruebas) solo vive en memoria.
+class FaenaViewModel(
+    private val borradores: BorradoresApertura,
+    private val registro: RegistroFaena? = null
+) : ViewModel() {
     private val _ui = MutableStateFlow(FaenaUiState())
     val ui: StateFlow<FaenaUiState> = _ui.asStateFlow()
 
@@ -132,25 +137,44 @@ class FaenaViewModel(private val borradores: BorradoresApertura) : ViewModel() {
     fun registrarChecklist(checklist: ChecklistFaena): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
         _ui.update { it.copy(checklist = checklist, decision = null) }
+        persistir("el checklist") { r, id -> r.guardarChecklist(id, checklist) }
         return true
     }
 
     fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
         _ui.update { it.copy(encuesta = encuesta, decision = null) }
+        persistir("la encuesta de salud") { r, id -> r.guardarEncuesta(id, encuesta) }
         return true
     }
 
     fun registrarAst(ast: FormularioAst): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
         _ui.update { it.copy(ast = ast, decision = null) }
+        persistir("el AST") { r, id -> r.guardarAst(id, ast) }
         return true
     }
 
     fun registrarDecision(decision: RegistroDecision): Boolean {
         if (!_ui.value.aperturaConfirmada) return false
         _ui.update { it.copy(decision = decision) }
+        persistir("la decisión") { r, id -> r.guardarDecision(id, decision) }
         return true
+    }
+
+    // Guarda en segundo plano. Si falla, la pantalla sigue con los datos en memoria y avisa.
+    private fun persistir(que: String, accion: suspend (RegistroFaena, String) -> Unit) {
+        val r = registro ?: return
+        val id = _ui.value.apertura.id
+        viewModelScope.launch {
+            try {
+                accion(r, id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = "No se pudo guardar $que en el dispositivo. Intenta nuevamente.") }
+            }
+        }
     }
 
     private fun completarFechaHora(apertura: PreChequeo): PreChequeo {

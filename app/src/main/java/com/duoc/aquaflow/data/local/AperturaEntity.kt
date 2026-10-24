@@ -2,9 +2,12 @@ package com.duoc.aquaflow.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.PreChequeo
+import com.duoc.aquaflow.model.ResumenFaena
 
-// Solo persiste la apertura; las demás secciones se integrarán después.
+// Una fila por faena: la apertura en columnas y cada sección (checklist, AST, salud, decisión)
+// como texto JSON. Una sección en null significa que todavía no se registra.
 @Entity(tableName = "aperturas")
 data class AperturaEntity(
     @PrimaryKey val id: String,
@@ -13,9 +16,23 @@ data class AperturaEntity(
     val hora: String,
     val buzoAsignado: String,
     val supervisorACargo: String,
-    val actualizadoEn: Long
+    val actualizadoEn: Long,
+    val checklistJson: String? = null,
+    val astJson: String? = null,
+    val encuestaJson: String? = null,
+    val decisionJson: String? = null
 ) {
     fun aModelo() = PreChequeo(id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo)
+
+    fun aFaena() = FaenaGuardada(
+        resumen = ResumenFaena(
+            apertura = aModelo(),
+            checklist = checklistJson?.let(FaenaCodec::checklistDesde),
+            ast = astJson?.let(FaenaCodec::astDesde),
+            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde)
+        ),
+        decision = decisionJson?.let(FaenaCodec::decisionDesde)
+    )
 
     companion object {
         fun desde(apertura: PreChequeo, actualizadoEn: Long) = AperturaEntity(
