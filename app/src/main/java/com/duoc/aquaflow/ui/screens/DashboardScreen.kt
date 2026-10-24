@@ -100,7 +100,7 @@ fun DashboardScreen(
                     Text("Hola, $nombre", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Text(
                         if (puedeCrear) "Gestiona la preparación y seguridad de cada faena."
-                        else "Consulta el estado y el historial de las operaciones.",
+                        else "Consulta las aperturas guardadas desde Historial.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFFD6E0E6)
                     )

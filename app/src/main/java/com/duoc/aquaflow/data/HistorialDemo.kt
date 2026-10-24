@@ -6,13 +6,13 @@ import com.duoc.aquaflow.model.HistorialItem
 import com.duoc.aquaflow.model.NivelSalud
 
 /**
- * Datos de ejemplo en memoria para el historial.
- * Reemplazar por Room cuando se implemente la persistencia real.
+ * Datos de referencia conservados del prototipo.
+ * El historial de la aplicación consulta Room y no utiliza esta lista.
  */
 object HistorialDemo {
     val faenas = listOf(
         HistorialItem(
-            id = 1,
+            id = "1",
             codigo = "F-2026-001",
             centroCultivo = "Centro Punta de Tralca",
             buzoAsignado = "Juan Pérez",
@@ -23,7 +23,7 @@ object HistorialDemo {
             encuesta = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
         ),
         HistorialItem(
-            id = 2,
+            id = "2",
             codigo = "F-2026-002",
             centroCultivo = "Centro Caleta Abajo",
             buzoAsignado = "María González",
@@ -34,7 +34,7 @@ object HistorialDemo {
             encuesta = EncuestaSalud(138, 88, 96, emptyList(), NivelSalud.ATENCION)
         ),
         HistorialItem(
-            id = 3,
+            id = "3",
             codigo = "F-2026-003",
             centroCultivo = "Centro Bahía Profunda",
             buzoAsignado = "Carlos Rojas",
@@ -45,7 +45,7 @@ object HistorialDemo {
             encuesta = EncuestaSalud(165, 102, 90, listOf("¿Consumió alcohol en las últimas 24 horas?"), NivelSalud.CRITICO)
         ),
         HistorialItem(
-            id = 4,
+            id = "4",
             codigo = "F-2026-004",
             centroCultivo = "Centro Punta de Tralca",
             buzoAsignado = "Andrés Soto",
@@ -56,7 +56,7 @@ object HistorialDemo {
             encuesta = null
         ),
         HistorialItem(
-            id = 5,
+            id = "5",
             codigo = "F-2026-005",
             centroCultivo = "Centro Estero Norte",
             buzoAsignado = "Pedro Núñez",
@@ -67,7 +67,7 @@ object HistorialDemo {
             encuesta = EncuestaSalud(118, 78, 99, emptyList(), NivelSalud.NORMAL)
         ),
         HistorialItem(
-            id = 6,
+            id = "6",
             codigo = "F-2026-006",
             centroCultivo = "Centro Caleta Abajo",
             buzoAsignado = "Luis Vega",
@@ -78,7 +78,7 @@ object HistorialDemo {
             encuesta = EncuestaSalud(122, 79, 97, emptyList(), NivelSalud.NORMAL)
         ),
         HistorialItem(
-            id = 7,
+            id = "7",
             codigo = "F-2026-007",
             centroCultivo = "Centro Bahía Profunda",
             buzoAsignado = "Ricardo Fuentes",
