@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Card
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.EstadoFaena
 import com.duoc.aquaflow.model.HistorialItem
 import com.duoc.aquaflow.model.Rol
-import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.ui.components.EmptyState
 import com.duoc.aquaflow.ui.components.EstadoChip
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
@@ -81,16 +81,8 @@ fun HistorialScreen(
                 }
             }
 
-            if (state.faenas.isEmpty()) {
-                EmptyState(
-                    titulo = if (state.total == 0) "Aún no hay faenas" else "Sin resultados",
-                    texto = if (state.total == 0) "Las faenas que registres aparecerán aquí." else "Prueba con otros filtros.",
-                    icono = Icons.AutoMirrored.Filled.List
-                )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    state.faenas.forEach { item -> FaenaHistorialCard(item) }
-                }
+            if (filtro.texto.isNotBlank() || filtro.estado != null) {
+                item { OutlinedButton(onClick = onLimpiar) { Text("Limpiar filtros") } }
             }
             when {
                 state.cargando -> item { Text("Cargando aperturas…") }
@@ -105,7 +97,7 @@ fun HistorialScreen(
                             EmptyState(
                                 titulo = if (state.total == 0) "Aún no hay aperturas" else "Sin resultados",
                                 texto = if (state.total == 0) "Las aperturas guardadas aparecerán aquí." else "Prueba con otros filtros.",
-                                icono = Icons.Filled.History
+                                icono = Icons.AutoMirrored.Filled.List
                             )
                         }
                     }
@@ -138,7 +130,9 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
 fun HistorialScreenPreview() {
     AquaFlowTheme {
         HistorialScreen(
-            usuario = Usuario("Carlos Supervisor", "1234", Rol.SUPERVISOR),
+            state = HistorialUiState(cargando = false),
+            tabs = tabsPara(Rol.SUPERVISOR),
+            onTexto = {}, onEstado = {}, onLimpiar = {}, onReintentar = {}, onDetalle = {},
             onTab = {}
         )
     }
