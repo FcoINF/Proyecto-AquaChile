@@ -1,0 +1,53 @@
+{
+  "commit_codigo": "3967dcf",
+  "entorno": "JDK 17; Android SDK 35; Pixel 7 Pro Android 13 API 33",
+  "suites": [
+    {
+      "suite": "com.duoc.aquaflow.AperturaRoomTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "totales": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "casos": [
+    {
+      "clase": "com.duoc.aquaflow.AperturaRoomTest",
+      "prueba": "conservaAperturaAlReabrirBaseYActualizaSinDuplicar"
+    },
+    {
+      "clase": "com.duoc.aquaflow.AperturaRoomTest",
+      "prueba": "historialYDetalleRespetanUsuarioYOrdenPersistido"
+    },
+    {
+      "clase": "com.duoc.aquaflow.CicloFaenaRoomTest",
+      "prueba": "aperturaSeccionesDecisionYCierreSobrevivenReinicio"
+    },
+    {
+      "clase": "com.duoc.aquaflow.CierreFormularioUiTest",
+      "prueba": "requiereDatosYConfirmacionAntesDeEnviarCierre"
+    },
+    {
+      "clase": "com.duoc.aquaflow.EvidenciasRoomTest",
+      "prueba": "conservaArchivoYReferenciaAlReabrirRoom"
+    },
+    {
+      "clase": "com.duoc.aquaflow.ExampleInstrumentedTest",
+      "prueba": "useAppContext"
+    },
+    {
+      "clase": "com.duoc.aquaflow.MigracionesRoomTest",
+      "prueba": "conservaRegistrosDesdeCadaVersionPublicada"
+    },
+    {
+      "clase": "com.duoc.aquaflow.NavegacionFaenaUiTest",
+      "prueba": "nuevaFaenaNoHeredaSaludDeLaAnterior"
+    }
+  ]
+}

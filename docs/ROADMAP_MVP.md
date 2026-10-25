@@ -4,6 +4,12 @@ Fecha de elaboración: 24 de octubre de 2026.
 
 Objetivo: demostrar un proceso de pre-chequeo de buceo completo, trazable y persistente, alineado con la rúbrica DSY1105, y luego completar el alcance del MVP declarado en el proyecto.
 
+## Actualización de ejecución
+
+Se implementaron el guardado confirmado, la recuperación completa de secciones, protección de expedientes decididos, fotos persistentes, fecha/hora visible y cierre local con Room v4. Ver [validación](VALIDACION_MVP.md) y [estado de tareas y ramas](PLANIFICACION_MVP.md).
+
+El usuario confirmó que todavía no hay backend definido. Identidad remota y sincronización quedan pendientes. Las tablas de diagnóstico y tiempos que siguen documentan la planificación inicial; no deben interpretarse como el estado actual de lo implementado.
+
 ## 1. Alcance y criterio de planificación
 
 La Evaluación 2 es un encargo grupal (8% de la asignatura); la Evaluación 3 es una defensa individual del mismo avance (32%). Ambas cubren contenidos hasta la clase 11. La pauta no exige terminar el producto completo: exige un caso de uso real, ejecutable y explicable.
