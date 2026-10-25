@@ -89,7 +89,7 @@ class AstViewModelTest {
     }
 
     @Test fun nuncaQuedaSinPasos() {
-        val vm = AstViewModel()
+        val vm = AstViewModel().apply { agregarPaso() }
         vm.quitarPaso(0)
         assertEquals(1, vm.ui.value.pasos.size)
     }

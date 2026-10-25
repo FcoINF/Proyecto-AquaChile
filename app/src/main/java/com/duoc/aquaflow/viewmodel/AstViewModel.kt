@@ -16,7 +16,7 @@ data class AstUiState(
     val tipologia: String = "",
     val requiereNuevoAst: Boolean = false,
     val respuestas: List<Boolean?> = List(PREGUNTAS_AST.size) { null },   // null = sin responder
-    val pasos: List<PasoAst> = listOf(PasoAst()),
+    val pasos: List<PasoAst> = emptyList(),
     val error: String? = null
 ) {
     // Semáforo en vivo: aparece cuando ya se respondió todo el chequeo inicial
