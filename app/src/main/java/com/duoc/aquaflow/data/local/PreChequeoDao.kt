@@ -48,4 +48,6 @@ interface PreChequeoDao {
     // Devuelve las filas cambiadas: 0 si la faena no existe o ya estaba decidida.
     @Query("UPDATE aperturas SET decisionJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
     suspend fun guardarDecision(id: String, json: String, ahora: Long): Int
+    @Query("UPDATE aperturas SET cierreJson = :json, actualizadoEn = :ahora WHERE id = :id AND cierreJson IS NULL AND decisionJson = :decisionEsperada")
+    suspend fun guardarCierre(id: String, json: String, ahora: Long, decisionEsperada: String): Int
 }

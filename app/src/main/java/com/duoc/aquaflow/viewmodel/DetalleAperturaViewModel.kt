@@ -3,6 +3,8 @@ package com.duoc.aquaflow.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.aquaflow.data.repository.ConsultaAperturas
+import com.duoc.aquaflow.data.repository.CierreFaenas
+import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.data.repository.RegistroFaena
 import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.PreChequeo
@@ -30,7 +32,8 @@ class DetalleAperturaViewModel(
     consulta: ConsultaAperturas,
     private val usuario: Usuario,
     private val id: String,
-    private val registro: RegistroFaena? = null
+    private val registro: RegistroFaena? = null,
+    private val cierres: CierreFaenas? = null
 ) : ViewModel() {
     private val intentos = MutableStateFlow(0)
     private val errorDecision = MutableStateFlow<String?>(null)
@@ -65,6 +68,23 @@ class DetalleAperturaViewModel(
                 throw e
             } catch (e: Exception) {
                 errorDecision.value = "No se pudo guardar la decisión. ${e.localizedMessage.orEmpty()}"
+            } finally {
+                guardando.value = false
+            }
+        }
+    }
+    fun cerrar(cierre: RegistroCierre) {
+        val servicio = cierres ?: return
+        if (guardando.value) return
+        guardando.value = true
+        errorDecision.value = null
+        viewModelScope.launch {
+            try {
+                servicio.cerrar(id, cierre, usuario)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorDecision.value = "No se pudo guardar el cierre. ${e.localizedMessage.orEmpty()}"
             } finally {
                 guardando.value = false
             }

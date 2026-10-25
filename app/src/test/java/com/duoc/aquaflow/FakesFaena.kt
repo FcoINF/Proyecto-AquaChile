@@ -46,6 +46,13 @@ class DaoMemoria : PreChequeoDao {
     override suspend fun guardarEncuesta(id: String, json: String, ahora: Long) =
         cambiarEditable(id) { it.copy(encuestaJson = json, actualizadoEn = ahora) }
 
+    override suspend fun guardarCierre(id: String, json: String, ahora: Long, decisionEsperada: String): Int {
+        val actual = filas.value[id] ?: return 0
+        if (actual.cierreJson != null || actual.decisionJson != decisionEsperada) return 0
+        cambiar(id) { it.copy(cierreJson = json, actualizadoEn = ahora) }
+        return 1
+    }
+
     // Igual que el UPDATE real: solo cambia si la faena existe y aún no tiene decisión
     override suspend fun guardarDecision(id: String, json: String, ahora: Long): Int {
         val actual = filas.value[id]

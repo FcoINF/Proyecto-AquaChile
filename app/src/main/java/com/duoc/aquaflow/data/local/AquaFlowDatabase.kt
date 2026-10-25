@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [AperturaEntity::class], version = 3, exportSchema = true)
+@Database(entities = [AperturaEntity::class], version = 4, exportSchema = true)
 abstract class AquaFlowDatabase : RoomDatabase() {
     abstract fun preChequeoDao(): PreChequeoDao
 
@@ -29,13 +29,19 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRACION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN cierreJson TEXT")
+            }
+        }
+
         @Volatile private var instancia: AquaFlowDatabase? = null
 
         fun obtener(context: Context): AquaFlowDatabase = instancia ?: synchronized(this) {
             instancia ?: Room.databaseBuilder(
                 context.applicationContext, AquaFlowDatabase::class.java, "aquaflow.db"
             )
-                .addMigrations(MIGRACION_1_2, MIGRACION_2_3)
+                .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4)
                 .build()
                 .also { instancia = it }
         }

@@ -32,10 +32,11 @@ data class RegistroDecision(
 // El estado se deduce de la decisión, así nunca puede contradecirla.
 data class FaenaGuardada(
     val resumen: ResumenFaena,
-    val decision: RegistroDecision? = null
+    val decision: RegistroDecision? = null,
+    val cierre: RegistroCierre? = null
 ) {
     val estado: EstadoFaena
-        get() = when (decision?.decision) {
+        get() = if (cierre != null) EstadoFaena.CERRADA else when (decision?.decision) {
             null -> EstadoFaena.PRECHEQUEO
             Decision.AUTORIZADA -> EstadoFaena.AUTORIZADA
             Decision.RECHAZADA -> EstadoFaena.RECHAZADA

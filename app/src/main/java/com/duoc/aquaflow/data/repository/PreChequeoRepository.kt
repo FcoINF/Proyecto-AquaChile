@@ -3,6 +3,8 @@ package com.duoc.aquaflow.data.repository
 import com.duoc.aquaflow.data.local.AperturaEntity
 import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.data.local.PreChequeoDao
+import com.duoc.aquaflow.domain.ReglasCierre
+import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FaenaGuardada
@@ -34,6 +36,10 @@ interface RegistroFaena {
     }
 }
 
+interface CierreFaenas {
+    suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario)
+}
+
 interface ConsultaAperturas {
     fun observar(usuario: Usuario): Flow<List<PreChequeo>>
     fun observarDetalle(id: String, usuario: Usuario): Flow<PreChequeo?>
@@ -50,7 +56,7 @@ private fun PreChequeo.comoFaenaSinSecciones() =
     FaenaGuardada(ResumenFaena(apertura = this, checklist = null, ast = null, encuesta = null))
 
 class PreChequeoRepository(private val dao: PreChequeoDao) :
-    BorradoresApertura, ConsultaAperturas, RegistroFaena {
+    BorradoresApertura, ConsultaAperturas, RegistroFaena, CierreFaenas {
 
     // Si la apertura no cambió, conserva las secciones ya guardadas. Si cambió, quedan en blanco:
     // es la misma regla que aplica FaenaViewModel en pantalla al editar la apertura.
@@ -97,6 +103,18 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
     override suspend fun guardarDecision(id: String, decision: RegistroDecision) {
         check(dao.guardarDecision(id, FaenaCodec.decisionATexto(decision), System.currentTimeMillis()) == 1) {
             "La faena no existe o ya tiene una decisión."
+        }
+    }
+
+    override suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario) {
+        val fila = checkNotNull(dao.buscar(id)) { "La faena no existe." }
+        check(ReglasCierre.puedeCerrar(fila.aFaena(), usuario)) { "Solo se puede cerrar una faena autorizada propia o desde jefatura, una vez." }
+        val error = ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
+        require(error == null) { error.orEmpty() }
+        val ahora = System.currentTimeMillis()
+        val registro = cierre.copy(observaciones = cierre.observaciones.trim(), cerradoPor = usuario.nombre, cerradoEn = ahora)
+        check(dao.guardarCierre(id, FaenaCodec.cierreATexto(registro), ahora, requireNotNull(fila.decisionJson)) == 1) {
+            "La faena cambió o ya tiene un cierre. Actualiza el detalle."
         }
     }
 

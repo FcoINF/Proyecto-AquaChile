@@ -14,7 +14,7 @@ class MigracionesRoomTest {
     @Test fun conservaRegistrosDesdeCadaVersionPublicada() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        for (version in 1..2) {
+        for (version in 1..3) {
             val nombre = "migracion-${UUID.randomUUID()}.db"
             val archivo = context.getDatabasePath(nombre)
             archivo.parentFile!!.mkdirs()
@@ -28,15 +28,18 @@ class MigracionesRoomTest {
                         val entidad = entidades.getJSONObject(i)
                         db.execSQL(entidad.getString("createSql").replace("\${TABLE_NAME}", entidad.getString("tableName")))
                     }
-                    db.execSQL("INSERT INTO aperturas (id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo, actualizadoEn) VALUES ('f1', 'Centro', '24/10/2026', '09:00', 'Ana', 'supervisor', 1)")
+                    val extras = if (version >= 3) ", condicionesListas, embarcacionLista, comunicacionesOperativas" else ""
+                    val valores = if (version >= 3) ", 1, 1, 1" else ""
+                    db.execSQL("INSERT INTO aperturas (id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo, actualizadoEn$extras) VALUES ('f1', 'Centro', '24/10/2026', '09:00', 'Ana', 'supervisor', 1$valores)")
                     db.version = version
                 }
                 val db = Room.databaseBuilder(context, AquaFlowDatabase::class.java, nombre)
-                    .addMigrations(AquaFlowDatabase.MIGRACION_1_2, AquaFlowDatabase.MIGRACION_2_3).build()
+                    .addMigrations(AquaFlowDatabase.MIGRACION_1_2, AquaFlowDatabase.MIGRACION_2_3, AquaFlowDatabase.MIGRACION_3_4).build()
                 try {
                     val registro = db.preChequeoDao().buscar("f1")!!
                     assertEquals("Ana", registro.buzoAsignado)
-                    assertFalse(registro.condicionesListas)
+                    assertEquals(version >= 3, registro.condicionesListas)
+                    assertNull(registro.cierreJson)
                     assertNull(registro.decisionJson)
                 } finally { db.close() }
             } finally { context.deleteDatabase(nombre) }

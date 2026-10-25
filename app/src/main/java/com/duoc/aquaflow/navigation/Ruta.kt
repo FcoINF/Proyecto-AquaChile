@@ -142,7 +142,7 @@ fun AquaFlowNavHost() {
             usuario?.let { actual ->
                 val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
                 val factory = remember(repository, actual, id) {
-                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository) } }
+                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository) } }
                 }
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
                 val state by vm.state.collectAsState()
@@ -153,6 +153,8 @@ fun AquaFlowNavHost() {
                         vm = viewModel(),
                         resumen = faenaGuardada.resumen,
                         decision = faenaGuardada.decision,
+                        cierre = faenaGuardada.cierre,
+                        onCerrar = vm::cerrar,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
                         onDecidir = vm::decidir,
