@@ -105,7 +105,10 @@ fun ResumenFaenaScreen(
                     Text("${it.titulo} · ${it.estado.texto()}")
                     if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                resumen.checklist?.let { Text("Fotos de evidencia: ${it.fotosEvidencia.size}") }
+                resumen.checklist?.let {
+                    Text("Fotos de evidencia: ${it.fotosEvidencia.size}")
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(it.fotosEvidencia)
+                }
             }
 
             Seccion("AST") {
