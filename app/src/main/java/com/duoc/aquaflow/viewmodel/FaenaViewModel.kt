@@ -44,8 +44,13 @@ class FaenaViewModel(
     private val _ui = MutableStateFlow(FaenaUiState())
     val ui: StateFlow<FaenaUiState> = _ui.asStateFlow()
 
-    fun iniciar(usuario: Usuario) {
-        if (usuario.rol != Rol.SUPERVISOR || _ui.value.apertura.id.isNotEmpty()) return
+    fun iniciar(usuario: Usuario, aperturaId: String? = null) {
+        if (usuario.rol != Rol.SUPERVISOR) return
+        if (aperturaId != null) {
+            cargarFaena(aperturaId)
+            return
+        }
+        if (_ui.value.apertura.id.isNotEmpty()) return
         val ahora = Date()
         _ui.value = FaenaUiState(
             apertura = PreChequeo(
@@ -55,6 +60,33 @@ class FaenaViewModel(
                 supervisorACargo = usuario.nombre.ifBlank { "supervisor" }
             )
         )
+    }
+
+    fun cargarFaena(id: String) {
+        if (_ui.value.ocupado) return
+        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
+        viewModelScope.launch {
+            try {
+                val guardada = borradores.recuperarFaenaPorId(id)
+                _ui.value = if (guardada == null) {
+                    _ui.value.copy(ocupado = false, error = "No se encontró el borrador.")
+                } else {
+                    FaenaUiState(
+                        apertura = guardada.resumen.apertura,
+                        aperturaConfirmada = true,
+                        checklist = guardada.resumen.checklist,
+                        ast = guardada.resumen.ast,
+                        encuesta = guardada.resumen.encuesta,
+                        decision = guardada.decision,
+                        mensaje = "Borrador cargado para editar."
+                    )
+                }
+            } catch (e: Exception) {
+                _ui.update { it.copy(ocupado = false, error = "Error al cargar borrador: ${e.localizedMessage}") }
+            } finally {
+                _ui.update { it.copy(ocupado = false) }
+            }
+        }
     }
 
     fun actualizar(apertura: PreChequeo) = _ui.update { actual ->
@@ -164,6 +196,60 @@ class FaenaViewModel(
         if (!puedeRegistrar()) return false
         _ui.update { it.copy(ast = ast) }
         return persistir("el AST", alGuardar) { r, id -> r.guardarAst(id, ast) }
+    }
+
+    fun guardarBorradorChecklist(checklist: ChecklistFaena, alGuardar: () -> Unit = {}) {
+        _ui.update { it.copy(checklist = checklist) }
+        val r = registro
+        if (r == null) { alGuardar(); return }
+        val id = _ui.value.apertura.id
+        if (id.isBlank()) { alGuardar(); return }
+        _ui.update { it.copy(ocupado = true, error = null) }
+        viewModelScope.launch {
+            try {
+                r.guardarChecklist(id, checklist)
+                _ui.update { it.copy(ocupado = false, mensaje = "Borrador guardado en el dispositivo.") }
+                alGuardar()
+            } catch (e: Exception) {
+                _ui.update { it.copy(ocupado = false, error = "No se pudo guardar el borrador: ${e.localizedMessage}") }
+            }
+        }
+    }
+
+    fun guardarBorradorEncuesta(encuesta: EncuestaSalud, alGuardar: () -> Unit = {}) {
+        _ui.update { it.copy(encuesta = encuesta) }
+        val r = registro
+        if (r == null) { alGuardar(); return }
+        val id = _ui.value.apertura.id
+        if (id.isBlank()) { alGuardar(); return }
+        _ui.update { it.copy(ocupado = true, error = null) }
+        viewModelScope.launch {
+            try {
+                r.guardarEncuesta(id, encuesta)
+                _ui.update { it.copy(ocupado = false, mensaje = "Borrador guardado en el dispositivo.") }
+                alGuardar()
+            } catch (e: Exception) {
+                _ui.update { it.copy(ocupado = false, error = "No se pudo guardar el borrador: ${e.localizedMessage}") }
+            }
+        }
+    }
+
+    fun guardarBorradorAst(ast: FormularioAst, alGuardar: () -> Unit = {}) {
+        _ui.update { it.copy(ast = ast) }
+        val r = registro
+        if (r == null) { alGuardar(); return }
+        val id = _ui.value.apertura.id
+        if (id.isBlank()) { alGuardar(); return }
+        _ui.update { it.copy(ocupado = true, error = null) }
+        viewModelScope.launch {
+            try {
+                r.guardarAst(id, ast)
+                _ui.update { it.copy(ocupado = false, mensaje = "Borrador guardado en el dispositivo.") }
+                alGuardar()
+            } catch (e: Exception) {
+                _ui.update { it.copy(ocupado = false, error = "No se pudo guardar el borrador: ${e.localizedMessage}") }
+            }
+        }
     }
 
     // El flujo del supervisor registra antecedentes. Las decisiones se toman desde el detalle de jefatura.

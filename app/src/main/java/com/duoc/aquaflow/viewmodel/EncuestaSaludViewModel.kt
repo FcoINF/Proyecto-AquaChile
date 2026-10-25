@@ -87,6 +87,14 @@ class EncuestaSaludViewModel : ViewModel() {
         }
         return EncuestaSalud(sis, dia, sat, s.alertas.toList(), Reglas.nivelSalud(sis, dia, sat, s.alertas.size))
     }
+
+    fun borrador(): EncuestaSalud {
+        val s = _ui.value
+        val sis = s.sistolica.toIntOrNull() ?: 0
+        val dia = s.diastolica.toIntOrNull() ?: 0
+        val sat = s.saturacion.toIntOrNull() ?: 0
+        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL)
+    }
 }
 
 private fun String.soloNumeros() = filter { it.isDigit() }.take(3)

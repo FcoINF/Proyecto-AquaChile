@@ -58,6 +58,7 @@ fun EncuestaSaludScreen(
     buzo: String,
     tabs: List<Tab>,
     onGuardar: (EncuestaSalud) -> Unit,
+    onGuardarBorrador: (EncuestaSalud) -> Unit,
     onVolver: () -> Unit,
     onTab: (Tab) -> Unit
 ) {
@@ -169,11 +170,18 @@ fun EncuestaSaludScreen(
 
             // Mensaje de validación devuelto por el ViewModel (si lo hay)
             (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            androidx.compose.material3.OutlinedButton(
+                enabled = !ocupado,
+                onClick = { onGuardarBorrador(vm.borrador()) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) { Text("Guardar borrador") }
             Button(
                 // Si la validación falla, guardar() deja el mensaje en ui.error y devuelve null
                 enabled = !ocupado,
                 onClick = { vm.guardar()?.let(onGuardar) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) { Text("Guardar") }
         }
     }
@@ -240,6 +248,7 @@ fun EncuestaSaludScreenPreview() {
             buzo = "Pedro Soto",
             tabs = listOf(Tab.INICIO, Tab.ENCUESTA, Tab.HISTORIAL),
             onGuardar = {},
+            onGuardarBorrador = {},
             onVolver = {},
             onTab = {}
         )

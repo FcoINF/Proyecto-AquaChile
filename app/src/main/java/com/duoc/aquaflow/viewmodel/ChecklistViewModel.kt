@@ -30,10 +30,34 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         id = faenaId
         val restaurar = saved.get<String>("faena") == id
         val items = inicial?.items?.takeIf { it.isNotEmpty() } ?: listOf(
-            ItemEquipamiento("1", "Compresor y filtros", ""),
-            ItemEquipamiento("2", "Traje, arnés y casco", ""),
-            ItemEquipamiento("3", "Botellón de rescate", ""),
-            ItemEquipamiento("4", "Manguera umbilical y conexiones", "")
+            ItemEquipamiento(
+                id = "1",
+                titulo = "Compresor, Purgas y Filtros Carbón",
+                descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
+                categoria = "EQUIPO 01 • SUMINISTRO PRIMARIO",
+                badge = "220 BAR"
+            ),
+            ItemEquipamiento(
+                id = "2",
+                titulo = "Traje Seco, Arnés y Casco KMB",
+                descripcion = "Prueba de estanqueidad de cremallera estanca, diafragma buconasal y fonía bidireccional limpia.",
+                categoria = "EQUIPO 02 • PERSONAL",
+                badge = "BUZO #1"
+            ),
+            ItemEquipamiento(
+                id = "3",
+                titulo = "Botellón de Rescate (Bail-out)",
+                descripcion = "Presión 210 BAR verificada en manómetro análogo sumergible. Conmutación manual activa.",
+                categoria = "EQUIPO 03 • RESPALDO RESCATE",
+                badge = "210 BAR"
+            ),
+            ItemEquipamiento(
+                id = "4",
+                titulo = "Manguera Umbilical y Conexiones",
+                descripcion = "Prueba de presión y verificación de flujo de gas en mangueras de buceo.",
+                categoria = "EQUIPO 04 • DISTRIBUCIÓN Y LÍNEA",
+                badge = "SISTEMA OK"
+            )
         )
         val estados = if (restaurar) saved.get<ArrayList<String>>("estados") else null
         _ui.value = ChecklistUiState(
@@ -87,6 +111,8 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         }
         return ChecklistFaena(id, _ui.value.items, _ui.value.fotos)
     }
+
+    fun borrador(): ChecklistFaena = ChecklistFaena(id, _ui.value.items, _ui.value.fotos)
 
     private fun conservar() {
         saved["checklist"] = FaenaCodec.checklistATexto(ChecklistFaena(id, _ui.value.items, _ui.value.fotos))

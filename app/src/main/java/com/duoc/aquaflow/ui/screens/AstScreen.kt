@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -56,6 +57,7 @@ fun AstScreen(
     centro: String,
     fecha: String,
     onGuardar: (FormularioAst) -> Unit,
+    onGuardarBorrador: (FormularioAst) -> Unit,
     onVolver: () -> Unit
 ) {
     val ui by vm.ui.collectAsState()
@@ -221,10 +223,17 @@ fun AstScreen(
 
             // El resultado sigue calculándose y se incluye al guardar.
             (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            OutlinedButton(
+                enabled = !ocupado,
+                onClick = { onGuardarBorrador(vm.borrador()) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) { Text("Guardar borrador") }
             Button(
                 enabled = !ocupado,
                 onClick = { vm.guardar()?.let(onGuardar) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) { Text("Guardar AST") }
         }
     }
@@ -239,6 +248,7 @@ fun AstScreenPreview() {
             centro = "Centro Punta de Tralca",
             fecha = "20/10/2026",
             onGuardar = {},
+            onGuardarBorrador = {},
             onVolver = {}
         )
     }
