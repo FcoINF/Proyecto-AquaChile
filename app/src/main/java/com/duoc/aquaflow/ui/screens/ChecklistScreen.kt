@@ -26,6 +26,8 @@ import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistScreen(
+    ocupado: Boolean = false,
+    errorExterno: String? = null,
     faenaId: String,
     checklistInicial: ChecklistFaena?,
     onGuardar: (ChecklistFaena) -> Unit,
@@ -54,11 +56,12 @@ fun ChecklistScreen(
 
     val observacionesCount = equipos.count { it.estado == EstadoEquipo.NO_CUMPLE || it.estado == EstadoEquipo.OBSERVADO }
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Checklist DPR-24 (Equipos)") },
-                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
+                navigationIcon = { TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") } }
             )
         }
     ) { paddingValues ->
@@ -146,7 +149,9 @@ fun ChecklistScreen(
                 }
             }
 
+            errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
+                enabled = !ocupado,
                 onClick = {
                     val checklist = ChecklistFaena(
                         idFaena = faenaId,

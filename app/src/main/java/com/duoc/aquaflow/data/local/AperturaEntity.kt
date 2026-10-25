@@ -49,3 +49,9 @@ data class AperturaEntity(
         )
     }
 }
+
+internal fun AperturaEntity.mismosDatosQue(otra: AperturaEntity) =
+    centroCultivo == otra.centroCultivo && fecha == otra.fecha && hora == otra.hora &&
+        buzoAsignado == otra.buzoAsignado && supervisorACargo == otra.supervisorACargo &&
+        condicionesListas == otra.condicionesListas && embarcacionLista == otra.embarcacionLista &&
+        comunicacionesOperativas == otra.comunicacionesOperativas

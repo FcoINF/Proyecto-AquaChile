@@ -55,6 +55,7 @@ class FaenaViewModelPersistenciaTest {
         val vm = faenaConfirmada(registro)
         val id = vm.ui.value.apertura.id
         vm.registrarChecklist(ChecklistFaena(id, emptyList()))
+        advanceUntilIdle()
         vm.registrarEncuesta(encuesta)
         advanceUntilIdle()
         assertEquals(listOf("checklist:$id", "encuesta:$id"), registro.llamadas)

@@ -55,11 +55,11 @@ class FaenaPersistenciaTest {
         assertNotNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
     }
 
-    @Test fun losIndicadoresDeLaAperturaNoCuentanComoCambio() = runTest {
+    @Test fun cambiarCondicionesInicialesInvalidaLasSecciones() = runTest {
         guardarTodo()
-        // En pantalla la apertura trae sus tres indicadores en true, pero Room no los guarda
+        // Las condiciones iniciales forman parte del expediente persistido.
         repo.guardar(apertura.copy(condicionesListas = true, embarcacionLista = true, comunicacionesOperativas = true))
-        assertNotNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
+        assertNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
     }
 
     @Test fun cambiarLaAperturaDejaLasSeccionesEnBlanco() = runTest {
@@ -75,7 +75,7 @@ class FaenaPersistenciaTest {
     @Test fun laDecisionDefineElEstadoYNoSePuedeSobrescribir() = runTest {
         guardarTodo()
         repo.guardarDecision("f1", RegistroDecision(Decision.AUTORIZADA, "", "jefe"))
-        repo.guardarDecision("f1", RegistroDecision(Decision.RECHAZADA, "otro", "jefe"))
+        assertEquals(true, runCatching { repo.guardarDecision("f1", RegistroDecision(Decision.RECHAZADA, "otro", "jefe")) }.isFailure)
         val faena = repo.observarFaena("f1", jefe).first()!!
         assertEquals(EstadoFaena.AUTORIZADA, faena.estado)
         assertEquals(Decision.AUTORIZADA, faena.decision?.decision)
@@ -90,7 +90,7 @@ class FaenaPersistenciaTest {
     }
 
     @Test fun seccionesSobreFaenaInexistenteNoCreanFilas() = runTest {
-        repo.guardarChecklist("no-existe", checklist)
+        assertEquals(true, runCatching { repo.guardarChecklist("no-existe", checklist.copy(idFaena = "no-existe")) }.isFailure)
         assertEquals(0, repo.observarFaenas(jefe).first().size)
     }
 }

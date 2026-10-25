@@ -50,6 +50,8 @@ import com.duoc.aquaflow.viewmodel.AstViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AstScreen(
+    ocupado: Boolean = false,
+    errorExterno: String? = null,
     vm: AstViewModel,
     centro: String,
     fecha: String,
@@ -58,11 +60,12 @@ fun AstScreen(
 ) {
     val ui by vm.ui.collectAsState()
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Formulario AST") },
-                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
+                navigationIcon = { TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") } }
             )
         }
     ) { padding ->
@@ -217,8 +220,9 @@ fun AstScreen(
             }
 
             // El resultado sigue calculándose y se incluye al guardar.
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
+                enabled = !ocupado,
                 onClick = { vm.guardar()?.let(onGuardar) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Guardar AST") }

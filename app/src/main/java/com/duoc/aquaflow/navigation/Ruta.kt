@@ -33,6 +33,7 @@ import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.ui.screens.ResumenFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
+import com.duoc.aquaflow.viewmodel.AstViewModel
 import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
@@ -158,6 +159,7 @@ fun AquaFlowNavHost() {
                         onVolver = { nav.popBackStack() },
                         onFinalizar = { nav.popBackStack() },
                         textoFinalizar = "Volver al historial",
+                        ocupado = state.guardando,
                         errorExterno = state.errorDecision
                     )
                 } else {
@@ -200,11 +202,11 @@ fun AquaFlowNavHost() {
                 val ui by faena.ui.collectAsState()
 
                 ChecklistScreen(
+                    ocupado = ui.ocupado, errorExterno = ui.error,
                     faenaId = ui.apertura.id,
                     checklistInicial = ui.checklist,
                     onGuardar = { checklist ->
-                        faena.registrarChecklist(checklist)
-                        nav.navigate(Ruta.SALUD)
+                        faena.registrarChecklist(checklist) { nav.navigate(Ruta.SALUD) }
                     },
                     onVolver = { nav.popBackStack() }
                 )
@@ -223,7 +225,7 @@ fun AquaFlowNavHost() {
                 }
                 val ui = faena?.ui?.collectAsState()?.value
 
-                val saludVm: EncuestaSaludViewModel = viewModel(key = "EncuestaSaludViewModel")
+                val saludVm: EncuestaSaludViewModel = viewModel(key = "salud-${ui?.apertura?.id}")
                 val encuestaActual = ui?.encuesta ?: ultimaEncuesta
                 LaunchedEffect(encuestaActual) {
                     encuestaActual?.let { saludVm.cargar(it) }
@@ -231,13 +233,15 @@ fun AquaFlowNavHost() {
 
                 EncuestaSaludScreen(
                     vm = saludVm,
+                    ocupado = ui?.ocupado == true, errorExterno = ui?.error,
                     buzo = ui?.apertura?.buzoAsignado?.ifBlank { "Buzo por asignar" } ?: "Buzo por asignar",
                     tabs = usuario?.let { tabsPara(it.rol) } ?: Tab.entries.toList(),
                     onGuardar = { encuesta ->
-                        faena?.registrarEncuesta(encuesta)
-                        ultimaEncuesta = encuesta
                         if (faena != null) {
-                            nav.navigate(Ruta.AST)
+                            faena.registrarEncuesta(encuesta) {
+                                ultimaEncuesta = encuesta
+                                nav.navigate(Ruta.AST)
+                            }
                         } else {
                             nav.popBackStack()
                         }
@@ -252,13 +256,15 @@ fun AquaFlowNavHost() {
                 val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
 
+                val astVm: AstViewModel = viewModel(key = "ast-${ui.apertura.id}")
+                LaunchedEffect(ui.ast) { ui.ast?.let(astVm::cargar) }
                 AstScreen(
-                    vm = viewModel(),
+                    vm = astVm,
+                    ocupado = ui.ocupado, errorExterno = ui.error,
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->
-                        faena.registrarAst(ast)
-                        nav.navigate(Ruta.RESUMEN)
+                        faena.registrarAst(ast) { nav.navigate(Ruta.RESUMEN) }
                     },
                     onVolver = { nav.popBackStack() }
                 )
@@ -282,9 +288,7 @@ fun AquaFlowNavHost() {
                         decision = ui.decision,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
-                        onDecidir = { decision ->
-                            faena.registrarDecision(decision)
-                        },
+                        onDecidir = {},
                         onVolver = { nav.popBackStack() },
                         onFinalizar = {
                             nav.navigate(Ruta.DASHBOARD) {

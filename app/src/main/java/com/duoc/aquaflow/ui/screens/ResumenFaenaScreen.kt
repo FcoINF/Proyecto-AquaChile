@@ -53,6 +53,7 @@ fun ResumenFaenaScreen(
     onFinalizar: () -> Unit,
     textoFinalizar: String = "Ir al inicio",
     // Error que no nace en esta pantalla (por ejemplo, al guardar la decisión en el dispositivo)
+    ocupado: Boolean = false,
     errorExterno: String? = null
 ) {
     val ui by vm.ui.collectAsState()
@@ -60,6 +61,7 @@ fun ResumenFaenaScreen(
     val faltantes = ReglasDecision.faltantes(resumen)
     val apertura = resumen.apertura
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
