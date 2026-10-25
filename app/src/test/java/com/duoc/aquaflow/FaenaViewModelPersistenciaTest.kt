@@ -55,6 +55,7 @@ class FaenaViewModelPersistenciaTest {
         val vm = faenaConfirmada(registro)
         val id = vm.ui.value.apertura.id
         vm.registrarChecklist(ChecklistFaena(id, emptyList()))
+        advanceUntilIdle()
         vm.registrarEncuesta(encuesta)
         advanceUntilIdle()
         assertEquals(listOf("checklist:$id", "encuesta:$id"), registro.llamadas)
@@ -89,7 +90,7 @@ class FaenaViewModelPersistenciaTest {
         repo.guardar(PreChequeo("f2", "Sur", "22/10/2026", "10:00", "Pedro", "Luis"))
         repo.guardarDecision("f2", RegistroDecision(Decision.RECHAZADA, "Falla", "jefe"))
         val vm = HistorialViewModel(repo, jefe)
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         advanceUntilIdle()
         assertEquals(
             mapOf("f1" to EstadoFaena.PRECHEQUEO, "f2" to EstadoFaena.RECHAZADA),
@@ -105,7 +106,7 @@ class FaenaViewModelPersistenciaTest {
         repo.guardar(PreChequeo("f1", "Norte", "22/10/2026", "09:00", "Ana", "Luis"))
         val registro = RegistroMemoria()
         val vm = DetalleAperturaViewModel(repo, jefe, "f1", registro)
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         advanceUntilIdle()
         assertNotNull(vm.state.value.faena)
         vm.decidir(RegistroDecision(Decision.AUTORIZADA, "", "jefe"))

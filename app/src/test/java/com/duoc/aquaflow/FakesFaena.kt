@@ -33,14 +33,25 @@ class DaoMemoria : PreChequeoDao {
     private fun cambiar(id: String, f: (AperturaEntity) -> AperturaEntity) =
         filas.update { m -> m[id]?.let { m + (id to f(it)) } ?: m }
 
+    private fun cambiarEditable(id: String, f: (AperturaEntity) -> AperturaEntity): Int {
+        val actual = filas.value[id] ?: return 0
+        if (actual.decisionJson != null) return 0
+        cambiar(id, f)
+        return 1
+    }
     override suspend fun guardarChecklist(id: String, json: String, ahora: Long) =
-        cambiar(id) { it.copy(checklistJson = json, actualizadoEn = ahora) }
-
+        cambiarEditable(id) { it.copy(checklistJson = json, actualizadoEn = ahora) }
     override suspend fun guardarAst(id: String, json: String, ahora: Long) =
-        cambiar(id) { it.copy(astJson = json, actualizadoEn = ahora) }
-
+        cambiarEditable(id) { it.copy(astJson = json, actualizadoEn = ahora) }
     override suspend fun guardarEncuesta(id: String, json: String, ahora: Long) =
-        cambiar(id) { it.copy(encuestaJson = json, actualizadoEn = ahora) }
+        cambiarEditable(id) { it.copy(encuestaJson = json, actualizadoEn = ahora) }
+
+    override suspend fun guardarCierre(id: String, json: String, ahora: Long, decisionEsperada: String): Int {
+        val actual = filas.value[id] ?: return 0
+        if (actual.cierreJson != null || actual.decisionJson != decisionEsperada) return 0
+        cambiar(id) { it.copy(cierreJson = json, actualizadoEn = ahora) }
+        return 1
+    }
 
     // Igual que el UPDATE real: solo cambia si la faena existe y aún no tiene decisión
     override suspend fun guardarDecision(id: String, json: String, ahora: Long): Int {

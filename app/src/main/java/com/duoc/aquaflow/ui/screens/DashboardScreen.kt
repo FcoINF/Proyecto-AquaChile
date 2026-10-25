@@ -1,13 +1,10 @@
 package com.duoc.aquaflow.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -135,7 +132,7 @@ fun DashboardScreen(
             ultimaEncuesta?.let { encuesta ->
                 AquaSectionCard(
                     title = "Último control de salud",
-                    subtitle = "Registro asociado a la jornada más reciente"
+                    subtitle = "Último control guardado durante esta sesión"
                 ) {
                     Text("Presión arterial", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${encuesta.sistolica}/${encuesta.diastolica} mmHg", style = MaterialTheme.typography.headlineSmall)

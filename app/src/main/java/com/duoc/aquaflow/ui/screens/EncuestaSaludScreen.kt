@@ -40,6 +40,8 @@ import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EncuestaSaludScreen(
+    ocupado: Boolean = false,
+    errorExterno: String? = null,
     vm: EncuestaSaludViewModel,
     buzo: String,
     tabs: List<Tab>,
@@ -50,11 +52,12 @@ fun EncuestaSaludScreen(
     // collectAsState convierte el StateFlow del ViewModel en estado de Compose
     val ui by vm.ui.collectAsState()
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Encuesta de salud") },
-                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
+                navigationIcon = { TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") } }
             )
         },
         bottomBar = { MainBottomBar(Tab.ENCUESTA, tabs, onTab) }
@@ -112,9 +115,10 @@ fun EncuestaSaludScreen(
             }
 
             // Mensaje de validación devuelto por el ViewModel (si lo hay)
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 // Si la validación falla, guardar() deja el mensaje en ui.error y devuelve null
+                enabled = !ocupado,
                 onClick = { vm.guardar()?.let(onGuardar) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Guardar") }

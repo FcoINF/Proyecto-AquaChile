@@ -3,6 +3,8 @@ package com.duoc.aquaflow.data.repository
 import com.duoc.aquaflow.data.local.AperturaEntity
 import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.data.local.PreChequeoDao
+import com.duoc.aquaflow.domain.ReglasCierre
+import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FaenaGuardada
@@ -18,6 +20,8 @@ import kotlinx.coroutines.flow.map
 interface BorradoresApertura {
     suspend fun guardar(apertura: PreChequeo)
     suspend fun recuperar(supervisor: String): PreChequeo?
+    suspend fun recuperarFaena(supervisor: String): FaenaGuardada? =
+        recuperar(supervisor)?.let { FaenaGuardada(ResumenFaena(it, null, null, null)) }
 }
 
 // Guarda cada sección de la faena a medida que el supervisor la completa.
@@ -26,6 +30,14 @@ interface RegistroFaena {
     suspend fun guardarAst(id: String, ast: FormularioAst)
     suspend fun guardarEncuesta(id: String, encuesta: EncuestaSalud)
     suspend fun guardarDecision(id: String, decision: RegistroDecision)
+    suspend fun decidir(id: String, decision: RegistroDecision, usuario: Usuario) {
+        require(usuario.rol == Rol.JEFE) { "Solo la jefatura puede decidir." }
+        guardarDecision(id, decision.copy(decididoPor = usuario.nombre))
+    }
+}
+
+interface CierreFaenas {
+    suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario)
 }
 
 interface ConsultaAperturas {
@@ -40,49 +52,70 @@ interface ConsultaAperturas {
         observarDetalle(id, usuario).map { it?.comoFaenaSinSecciones() }
 }
 
-private fun AperturaEntity.mismosDatosQue(otra: AperturaEntity) =
-    centroCultivo == otra.centroCultivo && fecha == otra.fecha && hora == otra.hora &&
-        buzoAsignado == otra.buzoAsignado && supervisorACargo == otra.supervisorACargo
-
 private fun PreChequeo.comoFaenaSinSecciones() =
     FaenaGuardada(ResumenFaena(apertura = this, checklist = null, ast = null, encuesta = null))
 
 class PreChequeoRepository(private val dao: PreChequeoDao) :
-    BorradoresApertura, ConsultaAperturas, RegistroFaena {
+    BorradoresApertura, ConsultaAperturas, RegistroFaena, CierreFaenas {
 
     // Si la apertura no cambió, conserva las secciones ya guardadas. Si cambió, quedan en blanco:
     // es la misma regla que aplica FaenaViewModel en pantalla al editar la apertura.
-    // Se comparan solo las columnas que Room guarda (no los indicadores de la apertura en pantalla).
+    // La comparación incluye las condiciones iniciales persistidas.
     override suspend fun guardar(apertura: PreChequeo) {
         require(apertura.id.isNotBlank() && apertura.supervisorACargo.isNotBlank())
         val nueva = AperturaEntity.desde(apertura, System.currentTimeMillis())
-        val previa = dao.buscar(apertura.id)
-        dao.guardar(
-            if (previa != null && previa.mismosDatosQue(nueva)) {
-                nueva.copy(
-                    checklistJson = previa.checklistJson,
-                    astJson = previa.astJson,
-                    encuestaJson = previa.encuestaJson,
-                    decisionJson = previa.decisionJson
-                )
-            } else nueva
-        )
+        dao.guardarBorrador(nueva)
     }
 
     override suspend fun recuperar(supervisor: String): PreChequeo? =
         dao.ultimaApertura(supervisor)?.aModelo()
 
-    override suspend fun guardarChecklist(id: String, checklist: ChecklistFaena) =
-        dao.guardarChecklist(id, FaenaCodec.checklistATexto(checklist), System.currentTimeMillis())
+    override suspend fun recuperarFaena(supervisor: String): FaenaGuardada? =
+        dao.ultimaApertura(supervisor)?.aFaena()
 
-    override suspend fun guardarAst(id: String, ast: FormularioAst) =
-        dao.guardarAst(id, FaenaCodec.astATexto(ast), System.currentTimeMillis())
-
-    override suspend fun guardarEncuesta(id: String, encuesta: EncuestaSalud) =
-        dao.guardarEncuesta(id, FaenaCodec.encuestaATexto(encuesta), System.currentTimeMillis())
+    override suspend fun guardarChecklist(id: String, checklist: ChecklistFaena) {
+        require(id == checklist.idFaena) { "El checklist no corresponde a la faena." }
+        check(dao.guardarChecklist(id, FaenaCodec.checklistATexto(checklist), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya fue decidida."
+        }
+    }
+    override suspend fun guardarAst(id: String, ast: FormularioAst) {
+        check(dao.guardarAst(id, FaenaCodec.astATexto(ast), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya fue decidida."
+        }
+    }
+    override suspend fun guardarEncuesta(id: String, encuesta: EncuestaSalud) {
+        check(dao.guardarEncuesta(id, FaenaCodec.encuestaATexto(encuesta), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya fue decidida."
+        }
+    }
+    override suspend fun decidir(id: String, decision: RegistroDecision, usuario: Usuario) {
+        require(usuario.rol == Rol.JEFE) { "Solo la jefatura puede decidir." }
+        val faena = checkNotNull(dao.buscar(id)?.aFaena()) { "La faena no existe." }
+        val resultado = checkNotNull(com.duoc.aquaflow.domain.ReglasDecision.resultado(faena.resumen)) {
+            "Completa las secciones antes de decidir."
+        }
+        val error = com.duoc.aquaflow.domain.ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
+        require(error == null) { error.orEmpty() }
+        guardarDecision(id, decision.copy(decididoPor = usuario.nombre, motivo = decision.motivo.trim()))
+    }
 
     override suspend fun guardarDecision(id: String, decision: RegistroDecision) {
-        dao.guardarDecision(id, FaenaCodec.decisionATexto(decision), System.currentTimeMillis())
+        check(dao.guardarDecision(id, FaenaCodec.decisionATexto(decision), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya tiene una decisión."
+        }
+    }
+
+    override suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario) {
+        val fila = checkNotNull(dao.buscar(id)) { "La faena no existe." }
+        check(ReglasCierre.puedeCerrar(fila.aFaena(), usuario)) { "Solo se puede cerrar una faena autorizada propia o desde jefatura, una vez." }
+        val error = ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
+        require(error == null) { error.orEmpty() }
+        val ahora = System.currentTimeMillis()
+        val registro = cierre.copy(observaciones = cierre.observaciones.trim(), cerradoPor = usuario.nombre, cerradoEn = ahora)
+        check(dao.guardarCierre(id, FaenaCodec.cierreATexto(registro), ahora, requireNotNull(fila.decisionJson)) == 1) {
+            "La faena cambió o ya tiene un cierre. Actualiza el detalle."
+        }
     }
 
     override fun observar(usuario: Usuario): Flow<List<PreChequeo>> =

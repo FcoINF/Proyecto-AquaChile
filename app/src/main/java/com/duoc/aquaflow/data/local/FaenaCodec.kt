@@ -8,6 +8,7 @@ import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.model.NivelSalud
 import com.duoc.aquaflow.model.PasoAst
+import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResultadoAst
 import org.json.JSONArray
@@ -111,6 +112,17 @@ object FaenaCodec {
             motivo = o.optString("motivo", ""),
             decididoPor = o.getString("decididoPor")
         )
+    }.getOrNull()
+
+    fun cierreATexto(c: RegistroCierre): String = JSONObject()
+        .put("duracionMinutos", c.duracionMinutos).put("observaciones", c.observaciones)
+        .put("revisionSalida", c.revisionSalida).put("cerradoPor", c.cerradoPor)
+        .put("cerradoEn", c.cerradoEn).toString()
+
+    fun cierreDesde(texto: String): RegistroCierre? = runCatching {
+        val o = JSONObject(texto)
+        RegistroCierre(o.getInt("duracionMinutos"), o.getString("observaciones"),
+            o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"))
     }.getOrNull()
 
     private fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }

@@ -3,12 +3,23 @@ package com.duoc.aquaflow.data.local
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PreChequeoDao {
     @Upsert
     suspend fun guardar(apertura: AperturaEntity)
+
+    @Transaction
+    suspend fun guardarBorrador(nueva: AperturaEntity) {
+        val previa = buscar(nueva.id)
+        check(previa?.decisionJson == null) { "La faena ya fue decidida; consulta su historial." }
+        guardar(if (previa != null && previa.mismosDatosQue(nueva)) nueva.copy(
+            checklistJson = previa.checklistJson, astJson = previa.astJson,
+            encuestaJson = previa.encuestaJson
+        ) else nueva)
+    }
 
     @Query("SELECT * FROM aperturas WHERE id = :id")
     suspend fun buscar(id: String): AperturaEntity?
@@ -24,17 +35,19 @@ interface PreChequeoDao {
     fun observarApertura(id: String, supervisor: String?): Flow<AperturaEntity?>
 
     // Cada sección se actualiza por separado: guardar el checklist no pisa el AST ni la salud.
-    @Query("UPDATE aperturas SET checklistJson = :json, actualizadoEn = :ahora WHERE id = :id")
-    suspend fun guardarChecklist(id: String, json: String, ahora: Long)
+    @Query("UPDATE aperturas SET checklistJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
+    suspend fun guardarChecklist(id: String, json: String, ahora: Long): Int
 
-    @Query("UPDATE aperturas SET astJson = :json, actualizadoEn = :ahora WHERE id = :id")
-    suspend fun guardarAst(id: String, json: String, ahora: Long)
+    @Query("UPDATE aperturas SET astJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
+    suspend fun guardarAst(id: String, json: String, ahora: Long): Int
 
-    @Query("UPDATE aperturas SET encuestaJson = :json, actualizadoEn = :ahora WHERE id = :id")
-    suspend fun guardarEncuesta(id: String, json: String, ahora: Long)
+    @Query("UPDATE aperturas SET encuestaJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
+    suspend fun guardarEncuesta(id: String, json: String, ahora: Long): Int
 
     // Una decisión ya tomada no se sobrescribe (queda como respaldo de auditoría).
     // Devuelve las filas cambiadas: 0 si la faena no existe o ya estaba decidida.
     @Query("UPDATE aperturas SET decisionJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
     suspend fun guardarDecision(id: String, json: String, ahora: Long): Int
+    @Query("UPDATE aperturas SET cierreJson = :json, actualizadoEn = :ahora WHERE id = :id AND cierreJson IS NULL AND decisionJson = :decisionEsperada")
+    suspend fun guardarCierre(id: String, json: String, ahora: Long, decisionEsperada: String): Int
 }

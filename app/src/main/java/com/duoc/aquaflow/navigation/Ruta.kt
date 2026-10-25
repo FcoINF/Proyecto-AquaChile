@@ -1,12 +1,6 @@
 package com.duoc.aquaflow.navigation
 
 import android.net.Uri
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
-import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
-import com.duoc.aquaflow.viewmodel.HistorialViewModel
-import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -14,16 +8,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.duoc.aquaflow.data.local.AquaFlowDatabase
-import com.duoc.aquaflow.data.repository.PreChequeoRepository
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.duoc.aquaflow.data.local.AquaFlowDatabase
+import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.ResumenFaena
 import com.duoc.aquaflow.ui.navigation.Tab
@@ -35,9 +31,13 @@ import com.duoc.aquaflow.ui.screens.DashboardScreen
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.ui.screens.ResumenFaenaScreen
+import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
+import com.duoc.aquaflow.viewmodel.AstViewModel
+import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
+import com.duoc.aquaflow.viewmodel.HistorialViewModel
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 object Ruta {
@@ -142,7 +142,7 @@ fun AquaFlowNavHost() {
             usuario?.let { actual ->
                 val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
                 val factory = remember(repository, actual, id) {
-                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository) } }
+                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository) } }
                 }
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
                 val state by vm.state.collectAsState()
@@ -153,12 +153,15 @@ fun AquaFlowNavHost() {
                         vm = viewModel(),
                         resumen = faenaGuardada.resumen,
                         decision = faenaGuardada.decision,
+                        cierre = faenaGuardada.cierre,
+                        onCerrar = vm::cerrar,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
                         onDecidir = vm::decidir,
                         onVolver = { nav.popBackStack() },
                         onFinalizar = { nav.popBackStack() },
                         textoFinalizar = "Volver al historial",
+                        ocupado = state.guardando,
                         errorExterno = state.errorDecision
                     )
                 } else {
@@ -201,11 +204,11 @@ fun AquaFlowNavHost() {
                 val ui by faena.ui.collectAsState()
 
                 ChecklistScreen(
+                    ocupado = ui.ocupado, errorExterno = ui.error,
                     faenaId = ui.apertura.id,
                     checklistInicial = ui.checklist,
                     onGuardar = { checklist ->
-                        faena.registrarChecklist(checklist)
-                        nav.navigate(Ruta.SALUD)
+                        faena.registrarChecklist(checklist) { nav.navigate(Ruta.SALUD) }
                     },
                     onVolver = { nav.popBackStack() }
                 )
@@ -224,21 +227,23 @@ fun AquaFlowNavHost() {
                 }
                 val ui = faena?.ui?.collectAsState()?.value
 
-                val saludVm: EncuestaSaludViewModel = viewModel(key = "EncuestaSaludViewModel")
-                val encuestaActual = ui?.encuesta ?: ultimaEncuesta
+                val saludVm: EncuestaSaludViewModel = viewModel(key = "salud-${ui?.apertura?.id}")
+                val encuestaActual = if (faena != null) ui?.encuesta else ultimaEncuesta
                 LaunchedEffect(encuestaActual) {
                     encuestaActual?.let { saludVm.cargar(it) }
                 }
 
                 EncuestaSaludScreen(
                     vm = saludVm,
+                    ocupado = ui?.ocupado == true, errorExterno = ui?.error,
                     buzo = ui?.apertura?.buzoAsignado?.ifBlank { "Buzo por asignar" } ?: "Buzo por asignar",
                     tabs = usuario?.let { tabsPara(it.rol) } ?: Tab.entries.toList(),
                     onGuardar = { encuesta ->
-                        faena?.registrarEncuesta(encuesta)
-                        ultimaEncuesta = encuesta
                         if (faena != null) {
-                            nav.navigate(Ruta.AST)
+                            faena.registrarEncuesta(encuesta) {
+                                ultimaEncuesta = encuesta
+                                nav.navigate(Ruta.AST)
+                            }
                         } else {
                             nav.popBackStack()
                         }
@@ -253,13 +258,15 @@ fun AquaFlowNavHost() {
                 val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
 
+                val astVm: AstViewModel = viewModel(key = "ast-${ui.apertura.id}")
+                LaunchedEffect(ui.ast) { ui.ast?.let(astVm::cargar) }
                 AstScreen(
-                    vm = viewModel(),
+                    vm = astVm,
+                    ocupado = ui.ocupado, errorExterno = ui.error,
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->
-                        faena.registrarAst(ast)
-                        nav.navigate(Ruta.RESUMEN)
+                        faena.registrarAst(ast) { nav.navigate(Ruta.RESUMEN) }
                     },
                     onVolver = { nav.popBackStack() }
                 )
@@ -283,9 +290,7 @@ fun AquaFlowNavHost() {
                         decision = ui.decision,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
-                        onDecidir = { decision ->
-                            faena.registrarDecision(decision)
-                        },
+                        onDecidir = {},
                         onVolver = { nav.popBackStack() },
                         onFinalizar = {
                             nav.navigate(Ruta.DASHBOARD) {

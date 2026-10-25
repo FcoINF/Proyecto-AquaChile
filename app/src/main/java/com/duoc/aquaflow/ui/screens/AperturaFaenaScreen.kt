@@ -69,13 +69,6 @@ fun AperturaFaenaScreen(
         "Alejandro Ruiz"
     )
 
-    val supervisores = listOf(
-        apertura.supervisorACargo.ifBlank { "Carlos Supervisor" },
-        "Ana Torres",
-        "Luis Supervisor",
-        "María Albornoz"
-    ).distinct()
-
     if (confirmarRecuperacion) {
         AlertDialog(
             onDismissRequest = { confirmarRecuperacion = false },
@@ -155,12 +148,13 @@ fun AperturaFaenaScreen(
                         options = buzosAsignados,
                         onSelected = { onCambiar(apertura.copy(buzoAsignado = it)) }
                     )
-                    DropdownField(
-                        label = "Supervisor a cargo",
-                        selectedValue = apertura.supervisorACargo.ifBlank { supervisores.first() },
-                        options = supervisores,
-                        onSelected = { onCambiar(apertura.copy(supervisorACargo = it)) }
+                    OutlinedTextField(
+                        value = apertura.supervisorACargo,
+                        onValueChange = {}, readOnly = true,
+                        label = { Text("Supervisor de la sesión") },
+                        modifier = Modifier.fillMaxWidth()
                     )
+                    Text("Fecha y hora del dispositivo: ${apertura.fecha} ${apertura.hora}")
                 }
 
                 AquaSectionCard(

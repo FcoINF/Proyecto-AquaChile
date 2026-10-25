@@ -1,6 +1,5 @@
 package com.duoc.aquaflow.ui.screens
 
-import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -13,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.ChecklistFaena
@@ -26,39 +24,33 @@ import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistScreen(
+    ocupado: Boolean = false,
+    errorExterno: String? = null,
     faenaId: String,
     checklistInicial: ChecklistFaena?,
     onGuardar: (ChecklistFaena) -> Unit,
     onVolver: () -> Unit
 ) {
-    // Lista inicial de prueba para la revisión DPR-24
-    var equipos by remember {
-        mutableStateOf(
-            checklistInicial?.items?.takeIf { it.isNotEmpty() } ?: listOf(
-                ItemEquipamiento("1", "Compresor y Filtros Carbón", "Test de CO/CO2 con tubo colorimétrico OK"),
-                ItemEquipamiento("2", "Traje Seco, Arnés y Casco KMB", "Prueba de estanqueidad de cremallera estanca"),
-                ItemEquipamiento("3", "Botellón de Rescate (Bail-out)", "Presión 210 BAR verificada en manómetro"),
-                ItemEquipamiento("4", "Manguera Umbilical y Conexiones", "Roce superficial en manga protectora externa")
-            )
-        )
-    }
-
-    var fotosBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            fotosBitmaps = fotosBitmaps + bitmap
-        }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val vm: com.duoc.aquaflow.viewmodel.ChecklistViewModel = androidx.lifecycle.viewmodel.compose.viewModel(key = "checklist-$faenaId")
+    LaunchedEffect(faenaId) { vm.cargar(faenaId, checklistInicial) }
+    val ui by vm.ui.collectAsState()
+    val equipos = ui.items
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { resultado ->
+        val uri = vm.ui.value.pendiente?.let(android.net.Uri::parse)
+        val guardada = resultado && uri != null && com.duoc.aquaflow.data.local.EvidenciasFotos.existe(context, uri)
+        if (!guardada && uri != null) com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, uri)
+        vm.terminarFoto(guardada)
     }
 
     val observacionesCount = equipos.count { it.estado == EstadoEquipo.NO_CUMPLE || it.estado == EstadoEquipo.OBSERVADO }
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Checklist DPR-24 (Equipos)") },
-                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
+                navigationIcon = { TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") } }
             )
         }
     ) { paddingValues ->
@@ -100,9 +92,7 @@ fun ChecklistScreen(
                     ItemChecklist(
                         item = item,
                         onEstadoCambiado = { nuevoEstado ->
-                            equipos = equipos.map {
-                                if (it.id == item.id) it.copy(estado = nuevoEstado) else it
-                            }
+                            vm.cambiarEstado(item.id, nuevoEstado)
                         }
                     )
                 }
@@ -110,50 +100,29 @@ fun ChecklistScreen(
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     SeccionFotos(
-                        cantidadFotos = fotosBitmaps.size,
+                        cantidadFotos = ui.fotos.size,
                         onTomarFotoClick = {
-                            try {
-                                cameraLauncher.launch(null)
-                            } catch (_: Exception) {
-                                // Si no hay app de cámara disponible, simulamos una foto para pruebas
-                                val dummyBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-                                fotosBitmaps = fotosBitmaps + dummyBitmap
-                            }
-                        }
-                    )
-
-                    if (fotosBitmaps.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("Evidencias fotográficas DPR-24:", style = MaterialTheme.typography.titleSmall)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(fotosBitmaps) { bmp ->
-                                Card(
-                                    modifier = Modifier.size(80.dp),
-                                    elevation = CardDefaults.cardElevation(4.dp)
-                                ) {
-                                    Image(
-                                        bitmap = bmp.asImageBitmap(),
-                                        contentDescription = "Evidencia DPR-24",
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                            if (ui.pendiente == null) {
+                                try {
+                                    val uri = com.duoc.aquaflow.data.local.EvidenciasFotos.crear(context)
+                                    vm.prepararFoto(uri.toString())
+                                    cameraLauncher.launch(uri)
+                                } catch (_: Exception) {
+                                    vm.ui.value.pendiente?.let { com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, android.net.Uri.parse(it)) }
+                                    vm.errorCamara()
                                 }
                             }
                         }
-                    }
+                    )
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(ui.fotos, vm::quitarReferencia)
                 }
             }
 
+            (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
+                enabled = !ocupado,
                 onClick = {
-                    val checklist = ChecklistFaena(
-                        idFaena = faenaId,
-                        items = equipos,
-                        fotosEvidencia = fotosBitmaps.mapIndexed { index, _ -> "dpr24_evidencia_$index.jpg" }
-                    )
-                    onGuardar(checklist)
+                    vm.guardar()?.let(onGuardar)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

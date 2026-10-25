@@ -52,16 +52,17 @@ class FaenaViewModel(
                 id = UUID.randomUUID().toString(),
                 fecha = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(ahora),
                 hora = SimpleDateFormat("HH:mm", Locale.ROOT).format(ahora),
-                supervisorACargo = usuario.nombre
+                supervisorACargo = usuario.nombre.ifBlank { "supervisor" }
             )
         )
     }
 
     fun actualizar(apertura: PreChequeo) = _ui.update { actual ->
-        if (actual.ocupado) return@update actual
-        // La identidad proviene de la sesión, pero el supervisor se puede seleccionar del formulario.
+        if (actual.ocupado || actual.decision != null) return@update actual
+        // La identidad pertenece a la sesión; el formulario no puede reasignar el propietario.
         val nueva = apertura.copy(
-            id = actual.apertura.id
+            id = actual.apertura.id,
+            supervisorACargo = actual.apertura.supervisorACargo
         )
         if (nueva == actual.apertura) actual else actual.copy(
             apertura = nueva,
@@ -76,7 +77,7 @@ class FaenaViewModel(
     }
 
     fun confirmarApertura(): Boolean {
-        val actual = _ui.value.apertura
+        val actual = completarFechaHora(_ui.value.apertura)
         val limpia = actual.copy(
             centroCultivo = actual.centroCultivo.trim(),
             fecha = actual.fecha.trim(),
@@ -94,18 +95,24 @@ class FaenaViewModel(
     // Un borrador puede estar incompleto. Para avanzar sí se valida todo.
     fun guardarApertura(continuar: Boolean = false, alGuardar: () -> Unit = {}) {
         if (_ui.value.ocupado || _ui.value.apertura.id.isBlank()) return
-        if (continuar && !confirmarApertura()) return
+        if (_ui.value.decision != null) {
+            _ui.update { it.copy(error = "La faena ya fue decidida. Consulta su historial o inicia otra.") }
+            return
+        }
         val apertura = completarFechaHora(_ui.value.apertura)
-        _ui.update { it.copy(apertura = apertura, ocupado = true, error = null, mensaje = null) }
+        _ui.update { it.copy(apertura = apertura) }
+        if (continuar && !confirmarApertura()) return
+        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
         viewModelScope.launch {
             try {
-                borradores.guardar(apertura)
+                borradores.guardar(_ui.value.apertura)
                 _ui.update { it.copy(mensaje = "Apertura guardada en el dispositivo.") }
                 alGuardar()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _ui.update { it.copy(error = "No se pudo guardar la apertura. Intenta nuevamente.") }
+                val detalle = e.localizedMessage?.ifBlank { null } ?: e.javaClass.simpleName
+                _ui.update { it.copy(error = "No se pudo guardar la apertura: $detalle") }
             } finally {
                 _ui.update { it.copy(ocupado = false) }
             }
@@ -118,63 +125,69 @@ class FaenaViewModel(
         _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
         viewModelScope.launch {
             try {
-                val apertura = borradores.recuperar(actual.apertura.supervisorACargo)
-                _ui.value = if (apertura == null) {
+                val guardada = borradores.recuperarFaena(actual.apertura.supervisorACargo)
+                _ui.value = if (guardada == null) {
                     actual.copy(mensaje = "No tienes aperturas guardadas.")
                 } else {
-                    FaenaUiState(apertura = apertura, mensaje = "Apertura recuperada. Revisa los datos antes de continuar.")
+                    FaenaUiState(
+                        apertura = guardada.resumen.apertura,
+                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast,
+                        encuesta = guardada.resumen.encuesta, decision = guardada.decision,
+                        mensaje = if (guardada.decision == null) "Faena recuperada. Revisa los datos antes de continuar."
+                            else "Esta faena ya fue decidida. Consúltala en Historial o inicia otra."
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _ui.update { it.copy(error = "No se pudo recuperar la apertura. Intenta nuevamente.") }
+                val detalle = e.localizedMessage?.ifBlank { null } ?: e.javaClass.simpleName
+                _ui.update { it.copy(error = "No se pudo recuperar la apertura: $detalle") }
             } finally {
                 _ui.update { it.copy(ocupado = false) }
             }
         }
     }
 
-    fun registrarChecklist(checklist: ChecklistFaena): Boolean {
-        if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(checklist = checklist, decision = null) }
-        persistir("el checklist") { r, id -> r.guardarChecklist(id, checklist) }
-        return true
+    fun registrarChecklist(checklist: ChecklistFaena, alGuardar: () -> Unit = {}): Boolean {
+        if (!puedeRegistrar()) return false
+        _ui.update { it.copy(checklist = checklist) }
+        return persistir("el checklist", alGuardar) { r, id -> r.guardarChecklist(id, checklist) }
     }
 
-    fun registrarEncuesta(encuesta: EncuestaSalud): Boolean {
-        if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(encuesta = encuesta, decision = null) }
-        persistir("la encuesta de salud") { r, id -> r.guardarEncuesta(id, encuesta) }
-        return true
+    fun registrarEncuesta(encuesta: EncuestaSalud, alGuardar: () -> Unit = {}): Boolean {
+        if (!puedeRegistrar()) return false
+        _ui.update { it.copy(encuesta = encuesta) }
+        return persistir("la encuesta de salud", alGuardar) { r, id -> r.guardarEncuesta(id, encuesta) }
     }
 
-    fun registrarAst(ast: FormularioAst): Boolean {
-        if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(ast = ast, decision = null) }
-        persistir("el AST") { r, id -> r.guardarAst(id, ast) }
-        return true
+    fun registrarAst(ast: FormularioAst, alGuardar: () -> Unit = {}): Boolean {
+        if (!puedeRegistrar()) return false
+        _ui.update { it.copy(ast = ast) }
+        return persistir("el AST", alGuardar) { r, id -> r.guardarAst(id, ast) }
     }
 
-    fun registrarDecision(decision: RegistroDecision): Boolean {
-        if (!_ui.value.aperturaConfirmada) return false
-        _ui.update { it.copy(decision = decision) }
-        persistir("la decisión") { r, id -> r.guardarDecision(id, decision) }
-        return true
-    }
+    // El flujo del supervisor registra antecedentes. Las decisiones se toman desde el detalle de jefatura.
+    private fun puedeRegistrar() = _ui.value.aperturaConfirmada && !_ui.value.ocupado && _ui.value.decision == null
 
-    // Guarda en segundo plano. Si falla, la pantalla sigue con los datos en memoria y avisa.
-    private fun persistir(que: String, accion: suspend (RegistroFaena, String) -> Unit) {
-        val r = registro ?: return
+    private fun persistir(que: String, alGuardar: () -> Unit, accion: suspend (RegistroFaena, String) -> Unit): Boolean {
+        val r = registro
+        if (r == null) { alGuardar(); return true }
         val id = _ui.value.apertura.id
+        _ui.update { it.copy(ocupado = true, error = null) }
         viewModelScope.launch {
             try {
                 accion(r, id)
+                _ui.update { it.copy(ocupado = false, mensaje = "Guardado en el dispositivo.") }
+                alGuardar()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _ui.update { it.copy(error = "No se pudo guardar $que en el dispositivo. Intenta nuevamente.") }
+                _ui.update { it.copy(error = "No se pudo guardar $que. ${e.localizedMessage.orEmpty()} Intenta nuevamente.") }
+            } finally {
+                _ui.update { it.copy(ocupado = false) }
             }
         }
+        return true
     }
 
     private fun completarFechaHora(apertura: PreChequeo): PreChequeo {

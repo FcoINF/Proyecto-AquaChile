@@ -53,6 +53,9 @@ fun ResumenFaenaScreen(
     onFinalizar: () -> Unit,
     textoFinalizar: String = "Ir al inicio",
     // Error que no nace en esta pantalla (por ejemplo, al guardar la decisión en el dispositivo)
+    cierre: com.duoc.aquaflow.model.RegistroCierre? = null,
+    onCerrar: ((com.duoc.aquaflow.model.RegistroCierre) -> Unit)? = null,
+    ocupado: Boolean = false,
     errorExterno: String? = null
 ) {
     val ui by vm.ui.collectAsState()
@@ -60,6 +63,7 @@ fun ResumenFaenaScreen(
     val faltantes = ReglasDecision.faltantes(resumen)
     val apertura = resumen.apertura
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -103,7 +107,10 @@ fun ResumenFaenaScreen(
                     Text("${it.titulo} · ${it.estado.texto()}")
                     if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                resumen.checklist?.let { Text("Fotos de evidencia: ${it.fotosEvidencia.size}") }
+                resumen.checklist?.let {
+                    Text("Fotos de evidencia: ${it.fotosEvidencia.size}")
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(it.fotosEvidencia)
+                }
             }
 
             Seccion("AST") {
@@ -125,6 +132,7 @@ fun ResumenFaenaScreen(
                 }
             }
 
+            errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {
                     // Ya decidida: se muestra el registro y se cierra el formulario
@@ -145,7 +153,7 @@ fun ResumenFaenaScreen(
                             label = { Text("Motivo (obligatorio al rechazar)") },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        (ui.error ?: errorExterno)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = { vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir) },
@@ -159,6 +167,20 @@ fun ResumenFaenaScreen(
                     }
                 }
             }
+            if (cierre != null) {
+                Seccion("Faena cerrada") {
+                    Text("Tiempo de inmersión: ${cierre.duracionMinutos} minutos")
+                    Text("Observaciones: ${cierre.observaciones}")
+                    Text("Revisión de salida: ${if (cierre.revisionSalida) "realizada" else "pendiente"}")
+                    Text("Cerrada por ${cierre.cerradoPor}")
+                    Text(java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(cierre.cerradoEn)))
+                }
+            } else if (decision?.decision == Decision.AUTORIZADA && onCerrar != null) {
+                Seccion("Registro posterior y cierre") {
+                    com.duoc.aquaflow.ui.components.CierreFaenaFormulario(apertura.id, onCerrar)
+                }
+            }
+
         }
     }
 }

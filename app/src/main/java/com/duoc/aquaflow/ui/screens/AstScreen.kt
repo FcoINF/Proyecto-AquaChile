@@ -6,18 +6,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -26,7 +32,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.domain.ReglasAst
@@ -34,6 +40,8 @@ import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PREGUNTAS_AST
 import com.duoc.aquaflow.model.TIPOLOGIAS_AST
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.theme.AquaAzul
+import com.duoc.aquaflow.ui.theme.AquaBlanco
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.AstViewModel
 
@@ -42,6 +50,8 @@ import com.duoc.aquaflow.viewmodel.AstViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AstScreen(
+    ocupado: Boolean = false,
+    errorExterno: String? = null,
     vm: AstViewModel,
     centro: String,
     fecha: String,
@@ -50,11 +60,12 @@ fun AstScreen(
 ) {
     val ui by vm.ui.collectAsState()
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Formulario AST") },
-                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
+                navigationIcon = { TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") } }
             )
         }
     ) { padding ->
@@ -84,29 +95,83 @@ fun AstScreen(
                 }
             }
 
-            // 2. Chequeo inicial con una sola casilla por pregunta.
-            AquaSectionCard(title = "2. Chequeo inicial", subtitle = "Pendiente, Sí o No") {
+            // 2. Chequeo inicial utilizando el botón Switch con ícono de verificación.
+            AquaSectionCard(title = "2. Chequeo inicial", subtitle = "Verifica cada condición antes de continuar") {
                 PREGUNTAS_AST.forEachIndexed { i, pregunta ->
-                    Card(Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(pregunta.texto + if (pregunta.critica) " · Crítica" else "", style = MaterialTheme.typography.bodyMedium)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val respuesta = ui.respuestas[i]
-                                TriStateCheckbox(
-                                    state = when (respuesta) {
-                                        null -> ToggleableState.Indeterminate
-                                        true -> ToggleableState.On
-                                        false -> ToggleableState.Off
-                                    },
-                                    onClick = { vm.responder(i, respuesta != true) }
-                                )
+                    val respuesta = ui.respuestas[i]
+                    val estaRespuesta = respuesta == true
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { vm.responder(i, respuesta != true) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
-                                    when (respuesta) {
+                                    text = pregunta.texto,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (pregunta.critica) {
+                                    Text(
+                                        text = "Pregunta crítica",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = when (respuesta) {
                                         null -> "Sin responder"
                                         true -> "Sí"
                                         false -> "No"
                                     },
-                                    style = MaterialTheme.typography.labelMedium
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = when (respuesta) {
+                                        true -> AquaAzul
+                                        false -> MaterialTheme.colorScheme.error
+                                        null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                                Switch(
+                                    checked = estaRespuesta,
+                                    onCheckedChange = { vm.responder(i, it) },
+                                    thumbContent = if (estaRespuesta) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        }
+                                    } else null,
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = AquaBlanco,
+                                        checkedTrackColor = AquaAzul,
+                                        checkedIconColor = AquaAzul,
+                                        uncheckedThumbColor = Color(0xFF6C7A86),
+                                        uncheckedTrackColor = Color(0xFFE2E8ED),
+                                        uncheckedBorderColor = Color(0xFF6C7A86)
+                                    )
                                 )
                             }
                         }
@@ -117,7 +182,10 @@ fun AstScreen(
             // 3. Pasos de la tarea con su peligro y medida de control
             AquaSectionCard(title = "3. Pasos, peligros y controles", subtitle = "Define el control para cada paso de la tarea") {
                 ui.pasos.forEachIndexed { i, paso ->
-                    Card(Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Card(
+                        Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
                             OutlinedTextField(
@@ -151,10 +219,10 @@ fun AstScreen(
                 }
             }
 
-            // El resultado sigue calculándose y se incluye al guardar; no se muestra como tarjeta final.
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            // El resultado sigue calculándose y se incluye al guardar.
+            (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
-                // Si la validación falla, guardar() deja el mensaje en ui.error y devuelve null
+                enabled = !ocupado,
                 onClick = { vm.guardar()?.let(onGuardar) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Guardar AST") }
