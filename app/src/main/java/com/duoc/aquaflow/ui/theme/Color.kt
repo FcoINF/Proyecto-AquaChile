@@ -2,7 +2,7 @@ package com.duoc.aquaflow.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val AquaNaranja = Color(0xFFF65A1B)
+val AquaNaranja = Color(0xFFF57C00)
 val AquaAzul = Color(0xFF263A47)
 val AquaAzulMedio = Color(0xFF425563)
 val AquaBlanco = Color(0xFFFFFFFF)

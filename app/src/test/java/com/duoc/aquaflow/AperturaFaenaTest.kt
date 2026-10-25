@@ -29,6 +29,16 @@ class AperturaFaenaTest {
         assertNull(Reglas.errorApertura(valida))
     }
 
+    @Test fun exigeResponderCondicionesIniciales() {
+        val valida = apertura()
+        listOf(
+            valida.copy(embarcacionLista = null),
+            valida.copy(comunicacionesOperativas = null),
+            valida.copy(embarcacionLista = false),
+            valida.copy(comunicacionesOperativas = false)
+        ).forEach { assertNotNull(Reglas.errorApertura(it)) }
+    }
+
     @Test fun validaCalendarioYHora() {
         assertNull(Reglas.errorApertura(apertura("29/02/2024", "00:00")))
         assertNull(Reglas.errorApertura(apertura(hora = "23:59")))

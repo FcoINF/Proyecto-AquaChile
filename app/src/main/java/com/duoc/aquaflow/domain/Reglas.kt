@@ -34,7 +34,7 @@ object Reglas {
             "Ingresa una hora válida con formato HH:mm"
         apertura.buzoAsignado.isBlank() -> "Ingresa el nombre del buzo"
         apertura.supervisorACargo.isBlank() -> "Falta el supervisor a cargo"
-        !apertura.condicionesListas || !apertura.embarcacionLista || !apertura.comunicacionesOperativas ->
+        !apertura.condicionesListas || apertura.embarcacionLista != true || apertura.comunicacionesOperativas != true ->
             "Debes confirmar todas las condiciones operativas iniciales"
         else -> null
     }

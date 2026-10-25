@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.viewmodel
 
+import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -15,6 +16,7 @@ data class EncuestaSaludUiState(
     val diastolica: String = "",
     val saturacion: String = "",
     val alertas: Set<String> = emptySet(),   // preguntas respondidas "Sí"
+    val respuestas: Map<String, Boolean> = emptyMap(),
     val error: String? = null
 ) {
     // Nivel de salud en vivo (null mientras falten números)
@@ -50,7 +52,8 @@ class EncuestaSaludViewModel : ViewModel() {
             sistolica = encuesta.sistolica.toString(),
             diastolica = encuesta.diastolica.toString(),
             saturacion = encuesta.saturacion.toString(),
-            alertas = encuesta.alertasEncuesta.toSet()
+            alertas = encuesta.alertasEncuesta.toSet(),
+            respuestas = encuesta.alertasEncuesta.associateWith { true }
         )
     }
 
@@ -60,7 +63,21 @@ class EncuestaSaludViewModel : ViewModel() {
 
     // Un "Sí" entra al conjunto de alertas; al desmarcarlo sale
     fun alternarAlerta(pregunta: String) = _ui.update {
-        it.copy(alertas = if (pregunta in it.alertas) it.alertas - pregunta else it.alertas + pregunta, error = null)
+        val afirmativa = pregunta !in it.alertas
+        it.copy(
+            alertas = if (afirmativa) it.alertas + pregunta else it.alertas - pregunta,
+            respuestas = it.respuestas + (pregunta to afirmativa),
+            error = null
+        )
+    }
+
+    fun responderPregunta(pregunta: String, respuestaAfirmativa: Boolean) = _ui.update {
+        val alertas = if (respuestaAfirmativa) it.alertas + pregunta else it.alertas - pregunta
+        it.copy(
+            alertas = alertas,
+            respuestas = it.respuestas + (pregunta to respuestaAfirmativa),
+            error = null
+        )
     }
 
     // Devuelve la encuesta si todo es válido; si no, deja el mensaje en `ui.error` y devuelve null.
@@ -81,6 +98,14 @@ class EncuestaSaludViewModel : ViewModel() {
             return null
         }
         return EncuestaSalud(sis, dia, sat, s.alertas.toList(), Reglas.nivelSalud(sis, dia, sat, s.alertas.size))
+    }
+
+    fun borrador(): EncuestaSalud {
+        val s = _ui.value
+        val sis = s.sistolica.toIntOrNull() ?: 0
+        val dia = s.diastolica.toIntOrNull() ?: 0
+        val sat = s.saturacion.toIntOrNull() ?: 0
+        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL, EstadoSeccion.BORRADOR)
     }
 }
 

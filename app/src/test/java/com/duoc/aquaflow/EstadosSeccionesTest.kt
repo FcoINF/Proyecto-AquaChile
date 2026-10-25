@@ -41,12 +41,12 @@ class EstadosSeccionesTest {
 
     @Test fun jsonAntiguoSeValidaYEstadoDesconocidoNoCompleta() {
         val viejo = JSONObject(FaenaCodec.astATexto(ast)).apply { remove("estado") }
-        assertEquals(EstadoSeccion.COMPLETA, FaenaCodec.astDesde(viejo.toString())!!.estado)
+        assertEquals(EstadoSeccion.BORRADOR, FaenaCodec.astDesde(viejo.toString())!!.estado)
         viejo.put("tipologia", "")
         assertEquals(EstadoSeccion.BORRADOR, FaenaCodec.astDesde(viejo.toString())!!.estado)
         viejo.put("tipologia", "Limpieza").put("estado", "NUEVO_ESTADO")
         assertEquals(EstadoSeccion.BORRADOR, FaenaCodec.astDesde(viejo.toString())!!.estado)
-        viejo.put("estado", "COMPLETA").put("pasos", org.json.JSONArray())
+        viejo.put("estado", "COMPLETA").put("respuestas", org.json.JSONArray())
         assertEquals(EstadoSeccion.BORRADOR, FaenaCodec.astDesde(viejo.toString())!!.estado)
     }
 
@@ -74,6 +74,11 @@ class EstadosSeccionesTest {
             }
             assertNull(repo.recuperarFaena("Luis")!!.decision)
         }
+    }
+
+    @Test fun astDeDevelopPermitePasosVaciosYExigeCriticasConfirmadas() {
+        assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.ast(ast.copy(pasos = emptyList())))
+        assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.ast(ast.copy(respuestas = List(PREGUNTAS_AST.size) { false })))
     }
 
     @Test fun seccionDeOtraFaenaBloqueaResumen() {

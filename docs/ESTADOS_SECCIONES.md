@@ -1,29 +1,33 @@
-# Primera propuesta: estados de secciones y bloqueo de expedientes
+# Estados de secciones y bloqueo de expedientes
 
-Fecha: 25 de octubre de 2026. Rama: `feature/persistencia`.
+Fecha: 25 de octubre de 2026. Rama de entrega: `feature/persistencia`. Base de integración: `origin/develop` en `868808c`.
 
-## Alcance y revisión
+## Base vigente
 
-La rama remota existía y coincidía con el avance local validado (`4befc6d`). El ZIP adjunto contiene una versión anterior sin estados explícitos de sección. Se conservó como referencia, sin reemplazar el repositorio ni el avance de cierre y fotografías.
+La propuesta se integra sobre el contenido actual de `develop`, incluyendo Room v5 y su migración 4→5, apertura con condiciones sin responder, presentación de meteorología, nuevas interfaces de checklist y salud, botones de borrador, edición por ID desde historial y `DetalleFaenaScreen`. Se conserva el historial Git mediante una integración de ramas, sin reescribir commits publicados.
 
-El cambio pertenece a persistencia: checklist, AST y salud incorporan `estado` en su JSON guardado en Room. Al recuperarlos, se conserva un borrador explícito incluso si sus campos están llenos. Un registro marcado completo solo se considera completo si pasa las validaciones existentes. Un estado desconocido se trata como borrador. Una sección ausente o cuyo JSON no puede leerse queda sin registrar.
+Las reglas de salud y AST son exactamente las de esta base. En particular, AST permite pasos vacíos y exige las preguntas críticas confirmadas; esta entrega no restaura la lógica anterior ni agrega nuevas reglas para salud crítica o respuestas.
 
-La apertura conserva sus columnas actuales; su estado se obtiene de esos datos y de las condiciones iniciales persistidas. No se duplican esos valores en una nueva columna. Room sigue en versión 4: no cambia el esquema SQL ni requiere una migración destructiva. Los JSON anteriores, sin `estado`, se clasifican al leer usando las mismas validaciones de los formularios.
+## Guardado y recuperación
 
-## Comportamiento
+Checklist, AST y salud guardan `estado` en su JSON de Room. Los botones Guardar borrador de los tres formularios y sus operaciones en `FaenaViewModel` marcan BORRADOR aunque todos los campos estén llenos. Guardar y continuar / Guardar / Guardar AST producen registros completos si superan las validaciones vigentes. Los borradores no permiten doble envío mientras se guardan ni edición de una faena ya decidida.
 
-- El resumen y el detalle muestran Sin registrar, Borrador o Completa por sección. Completitud y resultado de seguridad son conceptos independientes.
-- Falta completar el expediente si la apertura es inválida, hay equipos pendientes, AST o salud no pasan sus validaciones actuales, alguna sección está ausente o marcada como borrador, o el checklist corresponde a otra faena.
-- Autorizar y Rechazar permanecen desactivados cuando el expediente está incompleto o hay un guardado en curso. El ViewModel también rechaza la solicitud.
-- Ambas operaciones del repositorio para guardar decisiones verifican el expediente persistido dentro de una transacción Room. La comprobación y el guardado no dejan un intervalo en el que otra edición pueda invalidar los antecedentes.
-- Guardar la misma apertura conserva las secciones y sus estados; modificarla invalida sus secciones como antes. Una decisión existente no se sobrescribe.
+Al recuperar por supervisor o por ID se conserva ese estado. Una marca COMPLETA no basta si los datos son inválidos; un estado desconocido se trata como borrador. Un JSON ilegible o una sección ausente queda sin registrar. Se conservan categorías, badges y fotografías del checklist de develop.
 
-## Límites de esta propuesta
+La apertura mantiene sus columnas de Room v5 y obtiene su estado de esos datos y de sus condiciones iniciales. Cargarla por ID no la confirma si sigue incompleta. Esta propuesta no agrega una versión SQL ni altera las migraciones de develop.
 
-Se mantienen los formularios y sus validaciones actuales: no se agregan respuestas de salud de tres estados, no se modifica el cálculo AST, no se cambian umbrales de salud ni la autorización con motivo de resultados que requieren revisión. Una salud crítica puede estar completa; conserva el tratamiento anterior. Los cambios específicos de respuestas y salud crítica quedan para los siguientes pasos.
+## Compatibilidad con registros anteriores
 
-Esta entrega agrega representación, persistencia, recuperación y bloqueo de estados; no incorpora nuevos botones para guardar formularios parciales de AST o salud ni persistencia automática de cada pulsación. Las decisiones históricas se conservan para auditoría.
+Develop también guardaba borradores sin un indicador de estado. Por ello, los JSON sin `estado` se recuperan como BORRADOR: tener campos llenos no demuestra que el usuario confirmó la sección. El supervisor debe abrir y confirmar esas secciones antes de una nueva decisión. No se eliminan sus datos ni se modifica una decisión o cierre histórico.
+
+## Bloqueo y presentación
+
+- Resumen y nuevo detalle de historial muestran Sin registrar, Borrador o Completa. Completitud y resultado de seguridad son independientes.
+- Un expediente incompleto no permite Autorizar ni Rechazar. Ambos botones quedan desactivados también durante el guardado; el ViewModel y el repositorio vuelven a comprobar la condición.
+- En persistencia, lectura, validación y guardado de la decisión se ejecutan en una sola transacción Room, protegiendo frente a ediciones concurrentes.
+- No se muestran semáforos de secciones incompletas como si fueran definitivos. Las métricas de salud del detalle requieren una encuesta completa.
+- Guardar la misma apertura conserva las secciones; modificarla las invalida como en develop. Las decisiones no se sobrescriben.
 
 ## Validación
 
-Los resultados ejecutados se registran en [Validación del MVP](VALIDACION_MVP.md). Incluyen pruebas de estados, compatibilidad de JSON, bloqueo de ambas vías del repositorio, reapertura de Room, transición de borrador a completa y botones de decisión en Compose, además de las regresiones existentes de salud, AST, migraciones, navegación y cierre.
+Ver [Validación del MVP](VALIDACION_MVP.md) para los resultados de esta integración. Se comprueban borradores con datos completos, transición a completa, recuperación por ID y reapertura de Room, compatibilidad conservadora de JSON anterior, categorías del checklist, migraciones hasta v5 y bloqueo de decisiones en ambas pantallas. Se ejecutan también las pruebas de apertura, salud y navegación de develop.

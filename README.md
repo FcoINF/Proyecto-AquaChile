@@ -57,8 +57,8 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 ### Estado actual: avance funcional local
 
 - **Flujo integrado:** apertura → DPR-24 → salud → AST → resumen → revisión de jefatura → cierre desde el historial.
-- **Room v4:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4 sin recuperación destructiva.
-- **Estados de sección:** distingue borrador, completa y sin registrar al guardar y recuperar. Bloquea autorizar y rechazar expedientes incompletos en pantalla y en la transacción de persistencia. Ver [alcance de la primera propuesta](docs/ESTADOS_SECCIONES.md).
+- **Room v5:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4→5 sin recuperación destructiva.
+- **Estados de sección:** distingue borrador, completa y sin registrar al guardar y recuperar; integra los botones de borrador y el detalle de historial de `develop`. Las secciones antiguas sin estado requieren reconfirmación. Bloquea autorizar y rechazar expedientes incompletos en pantalla y en la transacción de persistencia. Ver [alcance de la primera propuesta](docs/ESTADOS_SECCIONES.md).
 - **Guardado confirmado:** se avanza después de persistir; los errores quedan visibles y permiten reintentar. Recuperar una faena restaura sus secciones.
 - **Identidad local:** el supervisor pertenece a la sesión y no puede cambiarse en el formulario. Las faenas decididas no se pueden editar; los cierres no se sobrescriben.
 - **Fotografías:** captura a archivo interno con `TakePicture` y `FileProvider`; referencias en Room y miniaturas en checklist y detalle. Cancelar o fallar la cámara no agrega evidencias simuladas. Los nombres ficticios guardados por versiones antiguas no contienen imágenes recuperables: la app informa cuando la vista previa no está disponible.

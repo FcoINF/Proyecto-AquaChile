@@ -1,6 +1,8 @@
 package com.duoc.aquaflow.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,8 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -22,12 +26,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.EncuestaSalud
+import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.ui.components.AquaSectionCard
@@ -42,13 +51,16 @@ import com.duoc.aquaflow.ui.theme.AquaNaranja
 fun DashboardScreen(
     usuario: Usuario,
     tabs: List<Tab>,
+    faenas: List<FaenaGuardada> = emptyList(),
     ultimaEncuesta: EncuestaSalud?,
     onNuevaFaena: () -> Unit,
+    onEditarBorrador: (String) -> Unit = {},
     onTab: (Tab) -> Unit,
     onSalir: () -> Unit
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
     val nombre = usuario.nombre.substringBefore(" ")
+    var mostrarMenuPerfil by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -71,16 +83,44 @@ fun DashboardScreen(
                     Text("AquaChile", style = MaterialTheme.typography.titleLarge, color = AquaAzul)
                     Text("AquaFlow · Operaciones", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Text(
-                        usuario.rol.texto,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = AquaAzul
-                    )
+                Box {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.clickable { mostrarMenuPerfil = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                usuario.nombre,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = AquaAzul
+                            )
+                            Text(
+                                "· ${usuario.rol.texto}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = mostrarMenuPerfil,
+                        onDismissRequest = { mostrarMenuPerfil = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Cerrar sesión") },
+                            onClick = {
+                                mostrarMenuPerfil = false
+                                onSalir()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -129,6 +169,61 @@ fun DashboardScreen(
                 }
             }
 
+            if (faenas.isNotEmpty()) {
+                AquaSectionCard(
+                    title = "Borradores guardados",
+                    subtitle = "${faenas.size} borrador(es) pendiente(s)"
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        faenas.forEach { faena ->
+                            val resumen = faena.resumen
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = resumen.apertura.centroCultivo.ifBlank { "Centro por completar" },
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = AquaAzul
+                                        )
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                                            shape = RoundedCornerShape(50)
+                                        ) {
+                                            Text(
+                                                text = "Borrador",
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    }
+                                    Text("Código · ${resumen.apertura.id.take(8).uppercase()}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Buzo · ${resumen.apertura.buzoAsignado.ifBlank { "Por completar" }}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("${resumen.apertura.fecha} · ${resumen.apertura.hora}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    OutlinedButton(
+                                        onClick = { onEditarBorrador(resumen.apertura.id) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Editar borrador")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             ultimaEncuesta?.let { encuesta ->
                 AquaSectionCard(
                     title = "Último control de salud",
@@ -139,11 +234,6 @@ fun DashboardScreen(
                     Text("Saturación de oxígeno · ${encuesta.saturacion}%", style = MaterialTheme.typography.bodyMedium)
                     SemaforoSalud(encuesta.nivel)
                 }
-            }
-
-            OutlinedButton(onClick = onSalir, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                Text("Cerrar sesión", modifier = Modifier.padding(start = 8.dp))
             }
         }
     }
@@ -156,8 +246,10 @@ fun DashboardScreenPreview() {
         DashboardScreen(
             usuario = Usuario("Carlos Supervisor", "1234", Rol.SUPERVISOR),
             tabs = listOf(Tab.INICIO, Tab.HISTORIAL),
+            faenas = emptyList(),
             ultimaEncuesta = null,
             onNuevaFaena = {},
+            onEditarBorrador = {},
             onTab = {},
             onSalir = {}
         )

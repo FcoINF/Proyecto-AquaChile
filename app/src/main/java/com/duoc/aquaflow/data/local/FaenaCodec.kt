@@ -29,6 +29,7 @@ object FaenaCodec {
                     JSONObject()
                         .put("id", it.id).put("titulo", it.titulo).put("descripcion", it.descripcion)
                         .put("estado", it.estado.name).put("notas", it.notas)
+                        .put("categoria", it.categoria).put("badge", it.badge)
                 )
             }
         })
@@ -45,7 +46,9 @@ object FaenaCodec {
                     titulo = it.getString("titulo"),
                     descripcion = it.getString("descripcion"),
                     estado = EstadoEquipo.valueOf(it.getString("estado")),
-                    notas = it.optString("notas", "")
+                    notas = it.optString("notas", ""),
+                    categoria = it.optString("categoria", ""),
+                    badge = it.optString("badge", "")
                 )
             },
             fotosEvidencia = o.getJSONArray("fotos").textos(),
@@ -133,9 +136,9 @@ object FaenaCodec {
             o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"))
     }.getOrNull()
 
-    // Los JSON anteriores se validan con las reglas actuales; un estado desconocido nunca habilita decisiones.
+    // develop guardaba también borradores sin estado: los registros antiguos necesitan reconfirmación.
     private fun estadoDesde(o: JSONObject): EstadoSeccion =
-        if (!o.has("estado")) EstadoSeccion.COMPLETA
+        if (!o.has("estado")) EstadoSeccion.BORRADOR
         else runCatching { EstadoSeccion.valueOf(o.getString("estado")) }.getOrDefault(EstadoSeccion.BORRADOR)
 
     private fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }

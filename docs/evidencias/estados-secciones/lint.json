@@ -1,5 +1,6 @@
 {
   "fecha": "2026-10-25",
+  "baseDevelop": "868808c",
   "resultado": "BUILD SUCCESSFUL",
   "conteos": {
     "Warning": 37

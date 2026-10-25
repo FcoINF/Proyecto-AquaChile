@@ -1,8 +1,9 @@
 {
   "fecha": "2026-10-25",
   "rama": "feature/persistencia",
+  "baseDevelop": "868808c",
   "totales": {
-    "tests": 105,
+    "tests": 113,
     "failures": 0,
     "errors": 0,
     "skipped": 0
@@ -10,11 +11,11 @@
   "suites": [
     {
       "name": "com.duoc.aquaflow.AperturaFaenaTest",
-      "tests": "7",
+      "tests": "8",
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.019"
+      "time": "0.149"
     },
     {
       "name": "com.duoc.aquaflow.AstViewModelTest",
@@ -22,7 +23,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.008"
+      "time": "0.013"
     },
     {
       "name": "com.duoc.aquaflow.BorradorAperturaTest",
@@ -30,7 +31,15 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.036"
+      "time": "0.222"
+    },
+    {
+      "name": "com.duoc.aquaflow.BorradoresDevelopTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.066"
     },
     {
       "name": "com.duoc.aquaflow.ChecklistViewModelTest",
@@ -38,7 +47,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.028"
+      "time": "0.006"
     },
     {
       "name": "com.duoc.aquaflow.CierreFaenaTest",
@@ -46,11 +55,11 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.033"
+      "time": "0.024"
     },
     {
       "name": "com.duoc.aquaflow.EncuestaSaludViewModelTest",
-      "tests": "6",
+      "tests": "8",
       "failures": "0",
       "errors": "0",
       "skipped": "0",
@@ -58,11 +67,11 @@
     },
     {
       "name": "com.duoc.aquaflow.EstadosSeccionesTest",
-      "tests": "5",
+      "tests": "6",
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.084"
+      "time": "0.031"
     },
     {
       "name": "com.duoc.aquaflow.ExampleUnitTest",
@@ -78,7 +87,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.002"
+      "time": "0.003"
     },
     {
       "name": "com.duoc.aquaflow.FaenaPersistenciaTest",
@@ -86,7 +95,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.027"
+      "time": "0.036"
     },
     {
       "name": "com.duoc.aquaflow.FaenaViewModelPersistenciaTest",
@@ -94,7 +103,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.982"
+      "time": "0.149"
     },
     {
       "name": "com.duoc.aquaflow.GuardadoSeguroTest",
@@ -102,7 +111,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.018"
+      "time": "0.014"
     },
     {
       "name": "com.duoc.aquaflow.HistorialRoomViewModelTest",
@@ -110,7 +119,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.083"
+      "time": "0.067"
     },
     {
       "name": "com.duoc.aquaflow.ReglasAstTest",
@@ -118,7 +127,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.001"
+      "time": "0.002"
     },
     {
       "name": "com.duoc.aquaflow.ReglasDecisionTest",
@@ -126,7 +135,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.016"
+      "time": "0.013"
     },
     {
       "name": "com.duoc.aquaflow.ReglasTest",
@@ -134,7 +143,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.002"
+      "time": "0.001"
     },
     {
       "name": "com.duoc.aquaflow.ResumenFaenaViewModelTest",
@@ -142,7 +151,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.006"
+      "time": "0.005"
     },
     {
       "name": "com.duoc.aquaflow.SesionViewModelTest",
@@ -150,7 +159,7 @@
       "failures": "0",
       "errors": "0",
       "skipped": "0",
-      "time": "0.003"
+      "time": "0.004"
     }
   ]
 }

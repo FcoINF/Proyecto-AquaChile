@@ -2,26 +2,33 @@
 
 Fecha de registro: 24 de octubre de 2026. Código validado: `3967dcf` y sus antecesores. Los commits posteriores de documentación no cambian la aplicación.
 
-## Primera propuesta: estados de sección (25 de octubre de 2026)
+## Integración vigente sobre develop (25 de octubre de 2026)
 
-Rama `feature/persistencia`. Alcance: [estados persistidos y bloqueo de expedientes incompletos](ESTADOS_SECCIONES.md).
+Rama de entrega: `feature/persistencia`. Base: `origin/develop` en `868808c`. Esta ejecución reemplaza como evidencia vigente las pruebas de la primera implementación sobre la base antigua.
 
 Comando final: `./gradlew.bat testDebugUnitTest lintDebug connectedDebugAndroidTest`, con JDK 17 y Pixel 7 Pro / Android 13 (API 33). Resultado: **BUILD SUCCESSFUL** antes de publicar.
 
 | Verificación | Resultado |
 |---|---|
-| Pruebas unitarias | 105, 0 fallos, 0 errores, 0 omitidas |
-| Pruebas Android | 10, 0 fallos, 0 errores, 0 omitidas |
+| Pruebas unitarias | 113, 0 fallos, 0 errores, 0 omitidas |
+| Pruebas Android | 21, 0 fallos, 0 errores, 0 omitidas |
 | Lint | 0 errores; 37 advertencias, sin supresiones nuevas |
-| Compatibilidad | Migraciones 1→4 y reapertura de Room verificadas |
+| Compatibilidad | Migraciones hasta Room v5 y reapertura de base verificadas |
 
-Evidencia extraída de los informes finales de Gradle: [unitarias](evidencias/estados-secciones/unitarias.json), [Android](evidencias/estados-secciones/android.json) y [Lint](evidencias/estados-secciones/lint.json).
+Evidencia extraída de los informes finales: [unitarias](evidencias/estados-secciones/unitarias.json), [Android](evidencias/estados-secciones/android.json) y [Lint](evidencias/estados-secciones/lint.json).
 
-Las pruebas nuevas verifican los estados de cada sección, borradores explícitos con datos válidos, JSON antiguo o inconsistente, rechazo de autorizaciones y rechazos sobre expedientes incompletos, recuperación tras reabrir la base y habilitación de botones al completar. Continúan pasando las regresiones de salud y AST con sus reglas originales.
+Cobertura específica de integración:
 
-Durante la ejecución se ajustaron datos de preparación de pruebas que antes decidían expedientes incompletos. La prueba nueva de UI necesita volver a desplazar al botón después de cambiar el contenido del resumen. La prueba existente de navegación tuvo un timeout en la primera ejecución; pasó sin cambios en la suite final completa. Se conserva esta observación para seguimiento de estabilidad.
+- Los botones de borrador de checklist, salud y AST mantienen BORRADOR incluso con campos válidos; la confirmación posterior produce COMPLETA.
+- Recuperación por ID del flujo actual de develop, conservando estados, categoría y badge del checklist. Aperturas incompletas no se confirman al cargar.
+- Compatibilidad conservadora: JSON anterior sin estado requiere reconfirmación, porque develop guardaba también borradores sin distinguirlos.
+- Bloqueo de ambas decisiones en el resumen y en `DetalleFaenaScreen`, además del repositorio transaccional.
+- AST admite pasos vacíos y exige críticas confirmadas según develop. `Reglas.kt`, `ReglasAst.kt` y `AquaFlowDatabase.kt` no presentan diferencias respecto de esa base.
+- Regresiones de apertura, encuesta de salud, navegación, migraciones, evidencias y cierre incluidas.
 
-El APK previo no sustituye estas pruebas: la ejecución instrumentada compiló los artefactos debug necesarios. No se publica una release ni se adjunta un APK al repositorio.
+Ver [alcance completo](ESTADOS_SECCIONES.md). La ejecución instrumentada compiló los artefactos debug necesarios; no publica una release ni incorpora APK al repositorio.
+
+## Validación histórica del 24 de octubre
 
 ## Resultado ejecutado
 
