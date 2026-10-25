@@ -8,6 +8,7 @@ data class PreChequeo(
     val buzoAsignado: String = "",
     val supervisorACargo: String = "",
     val condicionesListas: Boolean = false,
-    val embarcacionLista: Boolean = false,
-    val comunicacionesOperativas: Boolean = false
+    // null = sin responder; false = el usuario respondió "No".
+    val embarcacionLista: Boolean? = null,
+    val comunicacionesOperativas: Boolean? = null
 )

@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 // Paleta fija del MVP: no depende del fondo de pantalla del teléfono.
 private val AquaFlowColors = lightColorScheme(
     primary = AquaNaranja,
-    onPrimary = AquaAzul,
+    onPrimary = AquaBlanco,
     primaryContainer = AquaNaranjaSuave,
     onPrimaryContainer = Color(0xFF81350E),
     secondary = AquaAzul,

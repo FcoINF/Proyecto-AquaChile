@@ -121,9 +121,10 @@ class AperturaFaenaUiTest {
         val boundsNo = botonNo.fetchSemanticsNode().boundsInRoot
         assertEquals(boundsNo.width, boundsSi.width, 1.5f)
         assertEquals(boundsNo.height, boundsSi.height, 1.5f)
-        botonNo.assertIsSelected()
+        // Sin respuesta, ninguna de las dos opciones debe aparecer seleccionada.
+        botonNo.assertIsNotSelected()
         compose.onNodeWithTag("embarcacion-si").assertIsNotSelected()
-        compose.onNodeWithTag("comunicaciones-no").performScrollTo().assertIsSelected()
+        compose.onNodeWithTag("comunicaciones-no").performScrollTo().assertIsNotSelected()
         compose.onNodeWithTag("comunicaciones-si").assertIsNotSelected()
 
         compose.onNodeWithTag("embarcacion-si").performScrollTo().performClick()

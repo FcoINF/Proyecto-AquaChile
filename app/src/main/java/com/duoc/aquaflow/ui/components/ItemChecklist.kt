@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.ui.theme.AquaNaranja
 
 @Composable
 fun ItemChecklist(
@@ -104,7 +105,7 @@ fun ItemChecklist(
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
                             letterSpacing = 0.5.sp,
-                            color = Color(0xFFF25A1C)
+                            color = AquaNaranja
                         )
                     )
 

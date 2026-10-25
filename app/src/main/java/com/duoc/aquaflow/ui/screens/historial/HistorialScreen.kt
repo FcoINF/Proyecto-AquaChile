@@ -23,7 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -79,7 +78,7 @@ fun HistorialScreen(
                     OutlinedTextField(
                         value = filtro.texto,
                         onValueChange = onTexto,
-                        label = { Text("Código, buzo, centro o supervisor") },
+                        label = { Text("Buzo, centro o supervisor") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -153,14 +152,7 @@ fun HistorialScreen(
 @Composable
 private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
     AquaSectionCard(title = item.centroCultivo.ifBlank { "Centro por completar" }) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Código · ${item.codigo}", style = MaterialTheme.typography.titleSmall)
-            EstadoChip(item.estado)
-        }
+        EstadoChip(item.estado)
         Text("Buzo · ${item.buzoAsignado.ifBlank { "Por completar" }}")
         Text("Supervisor · ${item.supervisorACargo.ifBlank { "Por completar" }}")
         Text(

@@ -32,6 +32,7 @@ import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.ui.screens.ResumenFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
+import com.duoc.aquaflow.ui.screens.historial.DetalleFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
 import com.duoc.aquaflow.viewmodel.AstViewModel
 import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
@@ -154,18 +155,15 @@ fun AquaFlowNavHost() {
                 val state by vm.state.collectAsState()
                 val faenaGuardada = state.faena
                 if (faenaGuardada != null) {
-                    ResumenFaenaScreen(
+                    DetalleFaenaScreen(
                         vm = viewModel(),
-                        resumen = faenaGuardada.resumen,
-                        decision = faenaGuardada.decision,
-                        cierre = faenaGuardada.cierre,
-                        onCerrar = vm::cerrar,
+                        faena = faenaGuardada,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
                         onDecidir = vm::decidir,
                         onVolver = { nav.popBackStack() },
                         onFinalizar = { nav.popBackStack() },
-                        textoFinalizar = "Volver al historial",
+                        onCerrar = vm::cerrar,
                         ocupado = state.guardando,
                         errorExterno = state.errorDecision
                     )

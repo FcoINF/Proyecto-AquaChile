@@ -208,13 +208,13 @@ fun AperturaFaenaScreen(
                 ) {
                     CondicionSiNoRow(
                         texto = "Embarcación o plataforma de apoyo lista",
-                        marcada = apertura.embarcacionLista,
+                        respuesta = apertura.embarcacionLista,
                         testTag = "embarcacion",
                         onCambiar = { onCambiar(apertura.copy(embarcacionLista = it)) }
                     )
                     CondicionSiNoRow(
                         texto = "Comunicaciones y respuesta de emergencia operativas",
-                        marcada = apertura.comunicacionesOperativas,
+                        respuesta = apertura.comunicacionesOperativas,
                         testTag = "comunicaciones",
                         onCambiar = { onCambiar(apertura.copy(comunicacionesOperativas = it)) }
                     )
@@ -493,7 +493,7 @@ private fun CondicionRow(
 @Composable
 private fun CondicionSiNoRow(
     texto: String,
-    marcada: Boolean,
+    respuesta: Boolean?,
     testTag: String,
     onCambiar: (Boolean) -> Unit
 ) {
@@ -508,7 +508,7 @@ private fun CondicionSiNoRow(
         ) {
             CondicionChoice(
                 texto = "Sí",
-                seleccionada = marcada,
+                seleccionada = respuesta == true,
                 positiva = true,
                 testTag = "$testTag-si",
                 modifier = Modifier.weight(1f),
@@ -516,7 +516,7 @@ private fun CondicionSiNoRow(
             )
             CondicionChoice(
                 texto = "No",
-                seleccionada = !marcada,
+                seleccionada = respuesta == false,
                 positiva = false,
                 testTag = "$testTag-no",
                 modifier = Modifier.weight(1f),
