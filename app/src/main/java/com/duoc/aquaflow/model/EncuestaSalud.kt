@@ -21,5 +21,6 @@ data class EncuestaSalud(
     val diastolica: Int,
     val saturacion: Int,
     val alertasEncuesta: List<String>,
-    val nivel: NivelSalud
+    val nivel: NivelSalud,
+    val estado: EstadoSeccion = EstadoSeccion.COMPLETA
 )

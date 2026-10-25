@@ -24,7 +24,7 @@ class CicloFaenaRoomTest {
             repo.guardar(apertura)
             repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
             repo.guardarEncuesta("f1", EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
-            repo.guardarAst("f1", FormularioAst("Limpieza", false, listOf(true), listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
+            repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
             repo.decidir("f1", RegistroDecision(Decision.AUTORIZADA, "", "ignorado"), jefe)
             repo.cerrar("f1", RegistroCierre(25, "Sin novedades", true), supervisor)
             db.close()

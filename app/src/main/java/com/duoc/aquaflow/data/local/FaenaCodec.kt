@@ -11,6 +11,8 @@ import com.duoc.aquaflow.model.PasoAst
 import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResultadoAst
+import com.duoc.aquaflow.model.EstadoSeccion
+import com.duoc.aquaflow.domain.ReglasSecciones
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -19,6 +21,7 @@ import org.json.JSONObject
 object FaenaCodec {
 
     fun checklistATexto(c: ChecklistFaena): String = JSONObject()
+        .put("estado", ReglasSecciones.checklist(c).name)
         .put("idFaena", c.idFaena)
         .put("items", JSONArray().also { arr ->
             c.items.forEach {
@@ -45,11 +48,13 @@ object FaenaCodec {
                     notas = it.optString("notas", "")
                 )
             },
-            fotosEvidencia = o.getJSONArray("fotos").textos()
+            fotosEvidencia = o.getJSONArray("fotos").textos(),
+            estado = estadoDesde(o)
         )
-    }.getOrNull()
+    }.getOrNull()?.let { it.copy(estado = ReglasSecciones.checklist(it)) }
 
     fun astATexto(a: FormularioAst): String = JSONObject()
+        .put("estado", ReglasSecciones.ast(a).name)
         .put("tipologia", a.tipologia)
         .put("requiereNuevoAst", a.requiereNuevoAst)
         .put("respuestas", JSONArray(a.respuestas))
@@ -80,11 +85,13 @@ object FaenaCodec {
                     critico = it.optBoolean("critico", false)
                 )
             },
-            resultado = ResultadoAst.valueOf(o.getString("resultado"))
+            resultado = ResultadoAst.valueOf(o.getString("resultado")),
+            estado = estadoDesde(o)
         )
-    }.getOrNull()
+    }.getOrNull()?.let { it.copy(estado = ReglasSecciones.ast(it)) }
 
     fun encuestaATexto(e: EncuestaSalud): String = JSONObject()
+        .put("estado", ReglasSecciones.encuesta(e).name)
         .put("sistolica", e.sistolica).put("diastolica", e.diastolica).put("saturacion", e.saturacion)
         .put("alertas", JSONArray(e.alertasEncuesta))
         .put("nivel", e.nivel.name)
@@ -97,9 +104,10 @@ object FaenaCodec {
             diastolica = o.getInt("diastolica"),
             saturacion = o.getInt("saturacion"),
             alertasEncuesta = o.getJSONArray("alertas").textos(),
-            nivel = NivelSalud.valueOf(o.getString("nivel"))
+            nivel = NivelSalud.valueOf(o.getString("nivel")),
+            estado = estadoDesde(o)
         )
-    }.getOrNull()
+    }.getOrNull()?.let { it.copy(estado = ReglasSecciones.encuesta(it)) }
 
     fun decisionATexto(d: RegistroDecision): String = JSONObject()
         .put("decision", d.decision.name).put("motivo", d.motivo).put("decididoPor", d.decididoPor)
@@ -124,6 +132,11 @@ object FaenaCodec {
         RegistroCierre(o.getInt("duracionMinutos"), o.getString("observaciones"),
             o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"))
     }.getOrNull()
+
+    // Los JSON anteriores se validan con las reglas actuales; un estado desconocido nunca habilita decisiones.
+    private fun estadoDesde(o: JSONObject): EstadoSeccion =
+        if (!o.has("estado")) EstadoSeccion.COMPLETA
+        else runCatching { EstadoSeccion.valueOf(o.getString("estado")) }.getOrDefault(EstadoSeccion.BORRADOR)
 
     private fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
     private fun JSONArray.textos(): List<String> = (0 until length()).map { getString(it) }

@@ -5,6 +5,8 @@ import androidx.room.Query
 import androidx.room.Upsert
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
+import com.duoc.aquaflow.domain.ReglasDecision
+import com.duoc.aquaflow.model.RegistroDecision
 
 @Dao
 interface PreChequeoDao {
@@ -43,6 +45,20 @@ interface PreChequeoDao {
 
     @Query("UPDATE aperturas SET encuestaJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
     suspend fun guardarEncuesta(id: String, json: String, ahora: Long): Int
+
+    @Transaction
+    suspend fun guardarDecisionValidada(id: String, decision: RegistroDecision) {
+        val fila = checkNotNull(buscar(id)) { "La faena no existe." }
+        check(fila.decisionJson == null) { "La faena ya tiene una decisión." }
+        val resultado = checkNotNull(ReglasDecision.resultado(fila.aFaena().resumen)) {
+            "Completa las secciones antes de decidir."
+        }
+        val error = ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
+        require(error == null) { error.orEmpty() }
+        check(guardarDecision(id, FaenaCodec.decisionATexto(decision.copy(motivo = decision.motivo.trim())), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya tiene una decisión."
+        }
+    }
 
     // Una decisión ya tomada no se sobrescribe (queda como respaldo de auditoría).
     // Devuelve las filas cambiadas: 0 si la faena no existe o ya estaba decidida.

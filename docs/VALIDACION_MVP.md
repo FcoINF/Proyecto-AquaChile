@@ -2,6 +2,27 @@
 
 Fecha de registro: 24 de octubre de 2026. Código validado: `3967dcf` y sus antecesores. Los commits posteriores de documentación no cambian la aplicación.
 
+## Primera propuesta: estados de sección (25 de octubre de 2026)
+
+Rama `feature/persistencia`. Alcance: [estados persistidos y bloqueo de expedientes incompletos](ESTADOS_SECCIONES.md).
+
+Comando final: `./gradlew.bat testDebugUnitTest lintDebug connectedDebugAndroidTest`, con JDK 17 y Pixel 7 Pro / Android 13 (API 33). Resultado: **BUILD SUCCESSFUL** antes de publicar.
+
+| Verificación | Resultado |
+|---|---|
+| Pruebas unitarias | 105, 0 fallos, 0 errores, 0 omitidas |
+| Pruebas Android | 10, 0 fallos, 0 errores, 0 omitidas |
+| Lint | 0 errores; 37 advertencias, sin supresiones nuevas |
+| Compatibilidad | Migraciones 1→4 y reapertura de Room verificadas |
+
+Evidencia extraída de los informes finales de Gradle: [unitarias](evidencias/estados-secciones/unitarias.json), [Android](evidencias/estados-secciones/android.json) y [Lint](evidencias/estados-secciones/lint.json).
+
+Las pruebas nuevas verifican los estados de cada sección, borradores explícitos con datos válidos, JSON antiguo o inconsistente, rechazo de autorizaciones y rechazos sobre expedientes incompletos, recuperación tras reabrir la base y habilitación de botones al completar. Continúan pasando las regresiones de salud y AST con sus reglas originales.
+
+Durante la ejecución se ajustaron datos de preparación de pruebas que antes decidían expedientes incompletos. La prueba nueva de UI necesita volver a desplazar al botón después de cambiar el contenido del resumen. La prueba existente de navegación tuvo un timeout en la primera ejecución; pasó sin cambios en la suite final completa. Se conserva esta observación para seguimiento de estabilidad.
+
+El APK previo no sustituye estas pruebas: la ejecución instrumentada compiló los artefactos debug necesarios. No se publica una release ni se adjunta un APK al repositorio.
+
 ## Resultado ejecutado
 
 | Verificación | Resultado |

@@ -6,18 +6,15 @@ import com.duoc.aquaflow.model.NivelSalud
 import com.duoc.aquaflow.model.ResultadoAst
 import com.duoc.aquaflow.model.ResultadoFaena
 import com.duoc.aquaflow.model.ResumenFaena
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.Rol
 
 // Reglas de la toma de decisión (Kotlin puro, sin Android).
 object ReglasDecision {
 
     // Partes de la faena que todavía no están completas
-    fun faltantes(resumen: ResumenFaena): List<String> = buildList {
-        val items = resumen.checklist?.items.orEmpty()
-        if (items.isEmpty() || items.any { it.estado == EstadoEquipo.PENDIENTE }) add("Checklist")
-        if (resumen.ast == null) add("AST")
-        if (resumen.encuesta == null) add("Encuesta de salud")
-    }
+    fun faltantes(resumen: ResumenFaena): List<String> =
+        ReglasSecciones.estados(resumen).filterValues { it != EstadoSeccion.COMPLETA }.keys.toList()
 
     // Semáforo global: gana el peor de checklist, AST y salud.
     // Es null mientras falte alguna parte, para no mostrar un verde engañoso.

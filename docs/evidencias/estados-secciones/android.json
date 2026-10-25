@@ -1,0 +1,20 @@
+{
+  "fecha": "2026-10-25",
+  "rama": "feature/persistencia",
+  "totales": {
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "com.duoc.aquaflow.AperturaRoomTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "30.123"
+    }
+  ]
+}

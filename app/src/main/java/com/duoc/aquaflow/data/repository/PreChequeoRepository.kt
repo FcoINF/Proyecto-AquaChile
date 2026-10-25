@@ -91,19 +91,11 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
     }
     override suspend fun decidir(id: String, decision: RegistroDecision, usuario: Usuario) {
         require(usuario.rol == Rol.JEFE) { "Solo la jefatura puede decidir." }
-        val faena = checkNotNull(dao.buscar(id)?.aFaena()) { "La faena no existe." }
-        val resultado = checkNotNull(com.duoc.aquaflow.domain.ReglasDecision.resultado(faena.resumen)) {
-            "Completa las secciones antes de decidir."
-        }
-        val error = com.duoc.aquaflow.domain.ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
-        require(error == null) { error.orEmpty() }
         guardarDecision(id, decision.copy(decididoPor = usuario.nombre, motivo = decision.motivo.trim()))
     }
 
     override suspend fun guardarDecision(id: String, decision: RegistroDecision) {
-        check(dao.guardarDecision(id, FaenaCodec.decisionATexto(decision), System.currentTimeMillis()) == 1) {
-            "La faena no existe o ya tiene una decisión."
-        }
+        dao.guardarDecisionValidada(id, decision)
     }
 
     override suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario) {

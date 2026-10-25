@@ -27,9 +27,9 @@ class FaenaPersistenciaTest {
     private val repo = PreChequeoRepository(dao)
     private val jefe = Usuario("jefe", "1234", Rol.JEFE)
     private val luis = Usuario("Luis", "1234", Rol.SUPERVISOR)
-    private val apertura = PreChequeo("f1", "Centro Norte", "22/10/2026", "09:00", "Ana", "Luis")
+    private val apertura = PreChequeo("f1", "Centro Norte", "22/10/2026", "09:00", "Ana", "Luis", true, true, true)
     private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Compresor", "ok", EstadoEquipo.CUMPLE)))
-    private val ast = FormularioAst("Limpieza de fondos", false, listOf(true), listOf(PasoAst("t", "p", "c")), ResultadoAst.CUMPLE)
+    private val ast = FormularioAst("Limpieza de fondos", false, List(com.duoc.aquaflow.model.PREGUNTAS_AST.size) { true }, listOf(PasoAst("t", "p", "c")), ResultadoAst.CUMPLE)
     private val encuesta = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
 
     private suspend fun guardarTodo() {
@@ -58,7 +58,7 @@ class FaenaPersistenciaTest {
     @Test fun cambiarCondicionesInicialesInvalidaLasSecciones() = runTest {
         guardarTodo()
         // Las condiciones iniciales forman parte del expediente persistido.
-        repo.guardar(apertura.copy(condicionesListas = true, embarcacionLista = true, comunicacionesOperativas = true))
+        repo.guardar(apertura.copy(condicionesListas = false))
         assertNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
     }
 
