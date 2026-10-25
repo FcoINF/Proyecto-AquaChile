@@ -90,10 +90,6 @@ fun AstScreen(
                         Text(tipo, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = ui.requiereNuevoAst, onCheckedChange = { vm.alternarNuevoAst() })
-                    Text("Requiere un nuevo AST (cambiaron los registros)", style = MaterialTheme.typography.bodyMedium)
-                }
             }
 
             // 2. Chequeo inicial utilizando el botón Switch con ícono de verificación.
