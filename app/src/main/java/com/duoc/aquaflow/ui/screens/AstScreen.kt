@@ -43,6 +43,7 @@ import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.theme.AquaAzul
 import com.duoc.aquaflow.ui.theme.AquaBlanco
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
+import com.duoc.aquaflow.ui.theme.AquaVerde
 import com.duoc.aquaflow.viewmodel.AstViewModel
 
 // Solo dibuja y avisa los clics: la validación y el semáforo los resuelven el ViewModel y ReglasAst.
@@ -146,8 +147,8 @@ fun AstScreen(
                                 } else null,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = AquaBlanco,
-                                    checkedTrackColor = AquaAzul,
-                                    checkedIconColor = AquaAzul,
+                                    checkedTrackColor = AquaVerde,
+                                    checkedIconColor = AquaVerde,
                                     uncheckedThumbColor = Color(0xFF6C7A86),
                                     uncheckedTrackColor = Color(0xFFE2E8ED),
                                     uncheckedBorderColor = Color(0xFF6C7A86)
