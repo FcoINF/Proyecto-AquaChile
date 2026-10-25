@@ -228,7 +228,7 @@ fun AquaFlowNavHost() {
                 val ui = faena?.ui?.collectAsState()?.value
 
                 val saludVm: EncuestaSaludViewModel = viewModel(key = "salud-${ui?.apertura?.id}")
-                val encuestaActual = ui?.encuesta ?: ultimaEncuesta
+                val encuestaActual = if (faena != null) ui?.encuesta else ultimaEncuesta
                 LaunchedEffect(encuestaActual) {
                     encuestaActual?.let { saludVm.cargar(it) }
                 }

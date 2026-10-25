@@ -15,6 +15,6 @@ enum class Tab(val ruta: String, val etiqueta: String, val icono: ImageVector) {
     ENCUESTA(Ruta.SALUD, "Encuesta", Icons.Filled.Favorite)
 }
 
-/** El jefe solo consulta: no ve la pestaña de encuesta. */
+/** La encuesta forma parte de una faena; no se inicia aislada desde una pestaña. */
 fun tabsPara(rol: Rol): List<Tab> =
-    if (rol == Rol.SUPERVISOR) Tab.entries.toList() else listOf(Tab.INICIO, Tab.HISTORIAL)
+    listOf(Tab.INICIO, Tab.HISTORIAL)

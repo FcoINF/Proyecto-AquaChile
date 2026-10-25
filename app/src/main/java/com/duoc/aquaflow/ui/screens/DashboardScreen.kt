@@ -132,7 +132,7 @@ fun DashboardScreen(
             ultimaEncuesta?.let { encuesta ->
                 AquaSectionCard(
                     title = "Último control de salud",
-                    subtitle = "Registro asociado a la jornada más reciente"
+                    subtitle = "Último control guardado durante esta sesión"
                 ) {
                     Text("Presión arterial", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${encuesta.sistolica}/${encuesta.diastolica} mmHg", style = MaterialTheme.typography.headlineSmall)
