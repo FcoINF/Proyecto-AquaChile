@@ -137,45 +137,27 @@ fun AstScreen(
                                     )
                                 }
                             }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = when (respuesta) {
-                                        null -> "Sin responder"
-                                        true -> "Sí"
-                                        false -> "No"
-                                    },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = when (respuesta) {
-                                        true -> AquaAzul
-                                        false -> MaterialTheme.colorScheme.error
-                                        null -> MaterialTheme.colorScheme.onSurfaceVariant
+                            Switch(
+                                checked = estaRespuesta,
+                                onCheckedChange = { vm.responder(i, it) },
+                                thumbContent = if (estaRespuesta) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                                        )
                                     }
+                                } else null,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = AquaBlanco,
+                                    checkedTrackColor = AquaAzul,
+                                    checkedIconColor = AquaAzul,
+                                    uncheckedThumbColor = Color(0xFF6C7A86),
+                                    uncheckedTrackColor = Color(0xFFE2E8ED),
+                                    uncheckedBorderColor = Color(0xFF6C7A86)
                                 )
-                                Switch(
-                                    checked = estaRespuesta,
-                                    onCheckedChange = { vm.responder(i, it) },
-                                    thumbContent = if (estaRespuesta) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Filled.Check,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(SwitchDefaults.IconSize)
-                                            )
-                                        }
-                                    } else null,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = AquaBlanco,
-                                        checkedTrackColor = AquaAzul,
-                                        checkedIconColor = AquaAzul,
-                                        uncheckedThumbColor = Color(0xFF6C7A86),
-                                        uncheckedTrackColor = Color(0xFFE2E8ED),
-                                        uncheckedBorderColor = Color(0xFF6C7A86)
-                                    )
-                                )
-                            }
+                            )
                         }
                     }
                 }
