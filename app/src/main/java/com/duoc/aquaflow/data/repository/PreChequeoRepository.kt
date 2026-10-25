@@ -22,6 +22,7 @@ interface BorradoresApertura {
     suspend fun recuperar(supervisor: String): PreChequeo?
     suspend fun recuperarFaena(supervisor: String): FaenaGuardada? =
         recuperar(supervisor)?.let { FaenaGuardada(ResumenFaena(it, null, null, null)) }
+    suspend fun recuperarFaenaPorId(id: String): FaenaGuardada? = null
 }
 
 // Guarda cada sección de la faena a medida que el supervisor la completa.
@@ -72,6 +73,9 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
 
     override suspend fun recuperarFaena(supervisor: String): FaenaGuardada? =
         dao.ultimaApertura(supervisor)?.aFaena()
+
+    override suspend fun recuperarFaenaPorId(id: String): FaenaGuardada? =
+        dao.buscar(id)?.aFaena()
 
     override suspend fun guardarChecklist(id: String, checklist: ChecklistFaena) {
         require(id == checklist.idFaena) { "El checklist no corresponde a la faena." }

@@ -12,7 +12,9 @@ data class ItemEquipamiento(
     val titulo: String,
     val descripcion: String,
     val estado: EstadoEquipo = EstadoEquipo.PENDIENTE,
-    val notas: String = ""
+    val notas: String = "",
+    val categoria: String = "",
+    val badge: String = ""
 )
 
 data class ChecklistFaena(

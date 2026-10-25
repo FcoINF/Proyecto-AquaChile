@@ -26,6 +26,7 @@ object FaenaCodec {
                     JSONObject()
                         .put("id", it.id).put("titulo", it.titulo).put("descripcion", it.descripcion)
                         .put("estado", it.estado.name).put("notas", it.notas)
+                        .put("categoria", it.categoria).put("badge", it.badge)
                 )
             }
         })
@@ -42,7 +43,9 @@ object FaenaCodec {
                     titulo = it.getString("titulo"),
                     descripcion = it.getString("descripcion"),
                     estado = EstadoEquipo.valueOf(it.getString("estado")),
-                    notas = it.optString("notas", "")
+                    notas = it.optString("notas", ""),
+                    categoria = it.optString("categoria", ""),
+                    badge = it.optString("badge", "")
                 )
             },
             fotosEvidencia = o.getJSONArray("fotos").textos()

@@ -83,4 +83,15 @@ class AstViewModel : ViewModel() {
             resultado = ReglasAst.resultado(s.respuestas, s.pasos, s.requiereNuevoAst)
         )
     }
+
+    fun borrador(): FormularioAst {
+        val s = _ui.value
+        return FormularioAst(
+            tipologia = s.tipologia,
+            requiereNuevoAst = s.requiereNuevoAst,
+            respuestas = s.respuestas.map { it == true },
+            pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
+            resultado = s.resultado ?: ResultadoAst.OBSERVADO
+        )
+    }
 }
