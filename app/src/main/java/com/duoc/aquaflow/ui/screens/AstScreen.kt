@@ -20,7 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -36,11 +35,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.duoc.aquaflow.domain.ReglasAst
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PREGUNTAS_AST
 import com.duoc.aquaflow.model.TIPOLOGIAS_AST
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.theme.AquaAzul
 import com.duoc.aquaflow.ui.theme.AquaBlanco
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -62,7 +61,7 @@ fun AstScreen(
 ) {
     val ui by vm.ui.collectAsState()
 
-    com.duoc.aquaflow.ui.components.Guardando(ocupado)
+    Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -160,46 +159,6 @@ fun AstScreen(
                             )
                         }
                     }
-                }
-            }
-
-            // 3. Pasos de la tarea con su peligro y medida de control
-            AquaSectionCard(title = "3. Pasos, peligros y controles", subtitle = "Define el control para cada paso de la tarea") {
-                ui.pasos.forEachIndexed { i, paso ->
-                    Card(
-                        Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
-                            OutlinedTextField(
-                                value = paso.tarea,
-                                onValueChange = { vm.cambiarPaso(i, paso.copy(tarea = it)) },
-                                label = { Text("Tarea") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = paso.peligro,
-                                onValueChange = { vm.cambiarPaso(i, paso.copy(peligro = it)) },
-                                label = { Text("Peligro") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = paso.control,
-                                onValueChange = { vm.cambiarPaso(i, paso.copy(control = it)) },
-                                label = { Text("Medida de control") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = paso.critico, onCheckedChange = { vm.cambiarPaso(i, paso.copy(critico = it)) })
-                                Text("Riesgo crítico", style = MaterialTheme.typography.bodyMedium)
-                            }
-                            if (ui.pasos.size > 1) TextButton(onClick = { vm.quitarPaso(i) }) { Text("Quitar paso") }
-                        }
-                    }
-                }
-                if (ui.pasos.size < ReglasAst.MAX_PASOS) {
-                    OutlinedButton(onClick = vm::agregarPaso, modifier = Modifier.fillMaxWidth()) { Text("Agregar paso") }
                 }
             }
 
