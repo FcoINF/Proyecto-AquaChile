@@ -14,22 +14,23 @@ object ReglasAst {
         respuestas.size == PREGUNTAS_AST.size && respuestas.none { it == null }
 
     // Mensaje de error del formulario; null si está completo. La primera falla define el mensaje.
-    fun error(tipologia: String, respuestas: List<Boolean?>, pasos: List<PasoAst> = emptyList()): String? = when {
-        tipologia.isBlank() -> "Elige la tipología de la tarea"
-        !respuestasCompletas(respuestas) -> "Responde todas las preguntas del chequeo inicial"
-        pasos.isNotEmpty() && pasos.any { it.tarea.isBlank() || it.peligro.isBlank() } -> "Cada paso necesita tarea y peligro"
-        pasos.isNotEmpty() && pasos.any { it.control.isBlank() } -> "Cada peligro necesita su medida de control"
-        else -> null
+    fun error(tipologia: String, respuestas: List<Boolean?>, pasos: List<PasoAst> = emptyList()): String? {
+        val criticaFalla = PREGUNTAS_AST.zip(respuestas).any { (p, r) -> p.critica && r != true }
+        return when {
+            tipologia.isBlank() -> "Elige la tipología de la tarea"
+            !respuestasCompletas(respuestas) -> "Responde todas las preguntas del chequeo inicial"
+            criticaFalla -> "Debes confirmar todas las preguntas críticas para continuar"
+            pasos.isNotEmpty() && pasos.any { it.tarea.isBlank() || it.peligro.isBlank() } -> "Cada paso necesita tarea y peligro"
+            pasos.isNotEmpty() && pasos.any { it.control.isBlank() } -> "Cada peligro necesita su medida de control"
+            else -> null
+        }
     }
 
     // Misma lógica de semáforo que el resto de la app: rojo > amarillo > verde
     fun resultado(respuestas: List<Boolean?>, pasos: List<PasoAst> = emptyList(), requiereNuevoAst: Boolean = false): ResultadoAst {
-        // ¿Alguna pregunta crítica respondida "No"? (zip junta cada pregunta con su respuesta)
-        val criticaFalla = PREGUNTAS_AST.zip(respuestas).any { (p, r) -> p.critica && r == false }
         val hayNo = respuestas.any { it == false }
         val hayRiesgoCritico = pasos.any { it.critico }
         return when {
-            criticaFalla -> ResultadoAst.REQUIERE_REVISION
             hayNo || hayRiesgoCritico || requiereNuevoAst -> ResultadoAst.OBSERVADO
             else -> ResultadoAst.CUMPLE
         }

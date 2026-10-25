@@ -31,6 +31,10 @@ class ReglasAstTest {
             ReglasAst.error(TIPOLOGIAS_AST[0], incompletas, listOf(PASO_OK)))
     }
 
+    @Test fun preguntaCriticaNo_esError() =
+        assertEquals("Debes confirmar todas las preguntas críticas para continuar",
+            ReglasAst.error(TIPOLOGIAS_AST[0], conNo(0), listOf(PASO_OK)))
+
     @Test fun pasoSinPeligro_esError() =
         assertEquals("Cada paso necesita tarea y peligro",
             ReglasAst.error(TIPOLOGIAS_AST[0], TODO_SI, listOf(PASO_OK.copy(peligro = ""))))
@@ -41,9 +45,6 @@ class ReglasAstTest {
 
     @Test fun todoSi_esCumple() =
         assertEquals(ResultadoAst.CUMPLE, ReglasAst.resultado(TODO_SI, listOf(PASO_OK), false))
-
-    @Test fun preguntaCriticaNo_requiereRevision() =
-        assertEquals(ResultadoAst.REQUIERE_REVISION, ReglasAst.resultado(conNo(0), listOf(PASO_OK), false))
 
     @Test fun preguntaNoCriticaNo_esObservado() =
         assertEquals(ResultadoAst.OBSERVADO, ReglasAst.resultado(conNo(3), listOf(PASO_OK), false))
