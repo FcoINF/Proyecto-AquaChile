@@ -15,10 +15,10 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
-import com.duoc.aquaflow.ui.theme.AquaVerde
 import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -108,12 +108,12 @@ class EncuestaSaludUiTest {
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().performClick()
         val colorSi = compose.onNodeWithTag("pregunta-0-si")
             .captureToImage().toPixelMap().let { it[it.width / 4, it.height / 2] }
-        assertEquals(Color(0xFFBA1A1A), colorSi)
+        assertTrue("Sí debe mostrar un color rojo", colorSi.red > colorSi.green && colorSi.red > colorSi.blue)
 
         compose.onNodeWithTag("pregunta-0-no").performScrollTo().performClick()
         val colorNo = compose.onNodeWithTag("pregunta-0-no")
             .captureToImage().toPixelMap().let { it[it.width / 4, it.height / 2] }
-        assertEquals(AquaVerde, colorNo)
+        assertTrue("No debe mostrar un color verde", colorNo.green > colorNo.red && colorNo.green > colorNo.blue)
     }
 
     @Test

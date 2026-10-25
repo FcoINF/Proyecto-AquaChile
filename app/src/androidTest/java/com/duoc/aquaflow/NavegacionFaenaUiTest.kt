@@ -3,6 +3,7 @@ package com.duoc.aquaflow
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
+import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import com.duoc.aquaflow.navigation.AquaFlowNavHost
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import org.junit.Assert.assertTrue
@@ -24,7 +25,9 @@ class NavegacionFaenaUiTest {
         click("Centro Punta de Tralca")
         click("Buzo asignado", true)
         click("Juan Pérez")
-        listOf("Mar y meteorología aptas", "Embarcación o plataforma de apoyo lista", "Comunicaciones y respuesta de emergencia operativas").forEach { click(it, true) }
+        click("Confirmo la verificación meteorológica real en terreno", true)
+        compose.onNodeWithTag("embarcacion-si").performScrollTo().performClick()
+        compose.onNodeWithTag("comunicaciones-si").performScrollTo().performClick()
         click("Continuar al checklist", true)
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Inspección de equipos").fetchSemanticsNodes().isNotEmpty() }
         for (id in 1..4) {
@@ -33,6 +36,16 @@ class NavegacionFaenaUiTest {
         }
         click("Guardar y continuar")
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Control preventivo").fetchSemanticsNodes().isNotEmpty() }
+        PREGUNTAS_SALUD.indices.forEach { indice ->
+            assertTrue(
+                compose.onNodeWithTag("pregunta-$indice-si")
+                    .performScrollTo().fetchSemanticsNode().config[SemanticsProperties.Selected] != true
+            )
+            assertTrue(
+                compose.onNodeWithTag("pregunta-$indice-no")
+                    .performScrollTo().fetchSemanticsNode().config[SemanticsProperties.Selected] != true
+            )
+        }
     }
 
     @Test fun nuevaFaenaNoHeredaSaludDeLaAnterior() {
@@ -56,4 +69,3 @@ class NavegacionFaenaUiTest {
         }
     }
 }
-
