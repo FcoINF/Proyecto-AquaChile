@@ -2,6 +2,7 @@ package com.duoc.aquaflow.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
@@ -16,9 +17,13 @@ data class ChecklistUiState(
 )
 
 class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
-    private val _ui = MutableStateFlow(ChecklistUiState())
+    private val restaurado = saved.get<String>("checklist")?.let(FaenaCodec::checklistDesde)
+    private val _ui = MutableStateFlow(ChecklistUiState(
+        items = restaurado?.items.orEmpty(), fotos = restaurado?.fotosEvidencia.orEmpty(),
+        pendiente = saved["pendiente"]
+    ))
     val ui = _ui.asStateFlow()
-    private var id = ""
+    private var id = restaurado?.idFaena.orEmpty()
 
     fun cargar(faenaId: String, inicial: ChecklistFaena?) {
         if (id == faenaId) return
@@ -84,6 +89,7 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     }
 
     private fun conservar() {
+        saved["checklist"] = FaenaCodec.checklistATexto(ChecklistFaena(id, _ui.value.items, _ui.value.fotos))
         saved["faena"] = id
         saved["estados"] = ArrayList(_ui.value.items.map { it.estado.name })
         saved["fotos"] = ArrayList(_ui.value.fotos)

@@ -21,6 +21,19 @@ class ChecklistViewModelTest {
         assertNull(restaurado.ui.value.pendiente)
     }
 
+    @Test fun resultadoDeCamaraAntesDeComponerNoPierdeLaCapturaPendiente() {
+        val saved = SavedStateHandle()
+        val vm = ChecklistViewModel(saved)
+        vm.cargar("f1", null)
+        vm.prepararFoto("content://aquaflow.evidencias/restaurada.jpg")
+        val restaurado = ChecklistViewModel(saved)
+        // Android puede entregar el resultado antes del LaunchedEffect que carga la pantalla.
+        restaurado.terminarFoto(true)
+        restaurado.cargar("f1", null)
+        assertEquals(listOf("content://aquaflow.evidencias/restaurada.jpg"), restaurado.ui.value.fotos)
+        assertEquals(4, restaurado.ui.value.items.size)
+    }
+
     @Test fun cancelarCamaraNoInventaFotosYExigeRevisarTodosLosEquipos() {
         val vm = ChecklistViewModel(SavedStateHandle())
         vm.cargar("f1", null)
