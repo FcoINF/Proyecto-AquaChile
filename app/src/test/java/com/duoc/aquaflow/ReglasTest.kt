@@ -63,6 +63,25 @@ class EncuestaSaludViewModelTest {
         assertEquals(listOf(PREGUNTAS_SALUD[0]), encuesta.alertasEncuesta)
     }
 
+    @Test fun responderSi_agregaLaAlertaDeLaPregunta() {
+        val vm = vmCon("120", "80", "98")
+
+        vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = true)
+
+        assertEquals(setOf(PREGUNTAS_SALUD[0]), vm.ui.value.alertas)
+        assertEquals(NivelSalud.ATENCION, vm.ui.value.salud)
+    }
+
+    @Test fun responderNo_quitaLaAlertaDeLaPregunta() {
+        val vm = vmCon("120", "80", "98")
+        vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = true)
+
+        vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = false)
+
+        assertEquals(emptySet<String>(), vm.ui.value.alertas)
+        assertEquals(NivelSalud.NORMAL, vm.ui.value.salud)
+    }
+
     @Test fun saturacionFueraDeRango_noGuarda() {
         val vm = vmCon("120", "80", "150")
         assertNull(vm.guardar())

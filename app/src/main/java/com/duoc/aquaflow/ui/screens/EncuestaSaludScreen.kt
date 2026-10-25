@@ -4,31 +4,43 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
-import com.duoc.aquaflow.ui.components.CampoSalud
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.ParametroSaludStepper
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
@@ -79,32 +91,73 @@ fun EncuestaSaludScreen(
                 }
             }
 
-            AquaSectionCard(title = "Parámetros de salud", subtitle = "Ingresa los valores medidos") {
+            AquaSectionCard(title = "Presión arterial", subtitle = "Valores medidos · mmHg") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CampoSalud(
-                        ui.sistolica, vm::cambiarSistolica, "Sistólica",
-                        "${Reglas.RANGO_SISTOLICA.first}-${Reglas.RANGO_SISTOLICA.last} mmHg",
-                        ui.sistolicaFuera, Modifier.weight(1f)
+                    ParametroSaludStepper(
+                        valor = ui.sistolica,
+                        alCambiar = vm::cambiarSistolica,
+                        etiqueta = "Sistólica",
+                        rango = Reglas.RANGO_SISTOLICA,
+                        unidad = "mmHg",
+                        fueraDeRango = ui.sistolicaFuera,
+                        modifier = Modifier.weight(1f)
                     )
-                    CampoSalud(
-                        ui.diastolica, vm::cambiarDiastolica, "Diastólica",
-                        "${Reglas.RANGO_DIASTOLICA.first}-${Reglas.RANGO_DIASTOLICA.last} mmHg",
-                        ui.diastolicaFuera, Modifier.weight(1f)
+                    ParametroSaludStepper(
+                        valor = ui.diastolica,
+                        alCambiar = vm::cambiarDiastolica,
+                        etiqueta = "Diastólica",
+                        rango = Reglas.RANGO_DIASTOLICA,
+                        unidad = "mmHg",
+                        fueraDeRango = ui.diastolicaFuera,
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                CampoSalud(
-                    ui.saturacion, vm::cambiarSaturacion, "Saturación O₂ (%)",
-                    "${Reglas.RANGO_SATURACION.first}-${Reglas.RANGO_SATURACION.last} %",
-                    ui.saturacionFuera
+            }
+
+            AquaSectionCard(title = "SPO2", subtitle = "Saturación de oxígeno") {
+                ParametroSaludStepper(
+                    valor = ui.saturacion,
+                    alCambiar = vm::cambiarSaturacion,
+                    etiqueta = "Saturación O₂",
+                    rango = Reglas.RANGO_SATURACION,
+                    unidad = "%",
+                    fueraDeRango = ui.saturacionFuera
                 )
             }
 
-            AquaSectionCard(title = "Encuesta preventiva", subtitle = "Marca Sí cuando la condición esté presente") {
-                // Cada "Sí" marcado entra al conjunto de alertas (se agrega o se quita al tocar)
-                PREGUNTAS_SALUD.forEach { pregunta ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = pregunta in ui.alertas, onCheckedChange = { vm.alternarAlerta(pregunta) })
-                        Text(pregunta, style = MaterialTheme.typography.bodyMedium)
+            AquaSectionCard(
+                title = "Encuesta preventiva",
+                subtitle = "Sí agrega una alerta; No indica que la condición no está presente."
+            ) {
+                PREGUNTAS_SALUD.forEachIndexed { indice, pregunta ->
+                    if (indice > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "${indice + 1}. $pregunta",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.selectableGroup()
+                        ) {
+                            RespuestaSaludChip(
+                                texto = "Sí",
+                                seleccionada = pregunta in ui.alertas,
+                                respuestaAfirmativa = true,
+                                tag = "pregunta-$indice-si",
+                                modifier = Modifier.weight(1f),
+                                onClick = { vm.responderPregunta(pregunta, respuestaAfirmativa = true) }
+                            )
+                            RespuestaSaludChip(
+                                texto = "No",
+                                seleccionada = pregunta !in ui.alertas,
+                                respuestaAfirmativa = false,
+                                tag = "pregunta-$indice-no",
+                                modifier = Modifier.weight(1f),
+                                onClick = { vm.responderPregunta(pregunta, respuestaAfirmativa = false) }
+                            )
+                        }
                     }
                 }
             }
@@ -122,6 +175,58 @@ fun EncuestaSaludScreen(
                 onClick = { vm.guardar()?.let(onGuardar) },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Guardar") }
+        }
+    }
+}
+
+@Composable
+private fun RespuestaSaludChip(
+    texto: String,
+    seleccionada: Boolean,
+    respuestaAfirmativa: Boolean,
+    tag: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val colorSeleccionado = if (respuestaAfirmativa) {
+        MaterialTheme.colorScheme.tertiary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+    val colorContenidoSeleccionado = if (respuestaAfirmativa) {
+        MaterialTheme.colorScheme.onTertiary
+    } else {
+        MaterialTheme.colorScheme.onError
+    }
+
+    Surface(
+        modifier = modifier
+            .heightIn(min = 56.dp)
+            .selectable(
+                selected = seleccionada,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .testTag(tag),
+        shape = RoundedCornerShape(12.dp),
+        color = if (seleccionada) colorSeleccionado else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (seleccionada) {
+            colorContenidoSeleccionado
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (respuestaAfirmativa) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                contentDescription = if (respuestaAfirmativa) "Check positivo de Si" else "X de No",
+                modifier = Modifier.size(20.dp)
+            )
+            Text(texto, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

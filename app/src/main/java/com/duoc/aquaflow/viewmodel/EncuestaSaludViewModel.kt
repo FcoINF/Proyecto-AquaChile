@@ -63,6 +63,11 @@ class EncuestaSaludViewModel : ViewModel() {
         it.copy(alertas = if (pregunta in it.alertas) it.alertas - pregunta else it.alertas + pregunta, error = null)
     }
 
+    fun responderPregunta(pregunta: String, respuestaAfirmativa: Boolean) = _ui.update {
+        val alertas = if (respuestaAfirmativa) it.alertas + pregunta else it.alertas - pregunta
+        it.copy(alertas = alertas, error = null)
+    }
+
     // Devuelve la encuesta si todo es válido; si no, deja el mensaje en `ui.error` y devuelve null.
     fun guardar(): EncuestaSalud? {
         val s = _ui.value
