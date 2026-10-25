@@ -144,7 +144,7 @@ fun EncuestaSaludScreen(
                         ) {
                             RespuestaSaludChip(
                                 texto = "Sí",
-                                seleccionada = pregunta in ui.alertas,
+                                seleccionada = ui.respuestas[pregunta] == true,
                                 respuestaAfirmativa = true,
                                 tag = "pregunta-$indice-si",
                                 modifier = Modifier.weight(1f),
@@ -152,7 +152,7 @@ fun EncuestaSaludScreen(
                             )
                             RespuestaSaludChip(
                                 texto = "No",
-                                seleccionada = pregunta !in ui.alertas,
+                                seleccionada = ui.respuestas[pregunta] == false,
                                 respuestaAfirmativa = false,
                                 tag = "pregunta-$indice-no",
                                 modifier = Modifier.weight(1f),
@@ -197,14 +197,14 @@ private fun RespuestaSaludChip(
     onClick: () -> Unit
 ) {
     val colorSeleccionado = if (respuestaAfirmativa) {
-        MaterialTheme.colorScheme.tertiary
-    } else {
         MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.tertiary
     }
     val colorContenidoSeleccionado = if (respuestaAfirmativa) {
-        MaterialTheme.colorScheme.onTertiary
-    } else {
         MaterialTheme.colorScheme.onError
+    } else {
+        MaterialTheme.colorScheme.onTertiary
     }
 
     Surface(
@@ -226,7 +226,7 @@ private fun RespuestaSaludChip(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
