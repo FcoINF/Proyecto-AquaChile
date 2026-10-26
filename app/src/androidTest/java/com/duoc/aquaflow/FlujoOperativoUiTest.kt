@@ -43,14 +43,14 @@ class FlujoOperativoUiTest {
                 onIniciar = { faena.value = faena.value.copy(inicio = RegistroInicio("supervisor", 1)) })
         } }
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Volver al historial"))
-        compose.onNodeWithText("Iniciar faena").assertDoesNotExist()
+        compose.onNodeWithText("Cierre faena").assertDoesNotExist()
         compose.onNodeWithText("Cerrar faena").assertDoesNotExist()
         compose.runOnIdle { faena.value = faena.value.copy(decision = RegistroDecision(Decision.AUTORIZADA, "", "jefe")) }
-        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Iniciar faena"))
-        compose.onNodeWithText("Iniciar faena").assertIsEnabled().performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Cierre faena"))
+        compose.onNodeWithText("Cierre faena").assertIsEnabled().performClick()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Cerrar faena"))
         compose.onNodeWithText("Cerrar faena").assertExists()
         compose.onNodeWithText("Presión sistólica de salida").assertExists()
-        compose.onNodeWithText("Iniciar faena").assertDoesNotExist()
+        compose.onNodeWithText("Cierre faena").assertDoesNotExist()
     }
 }
