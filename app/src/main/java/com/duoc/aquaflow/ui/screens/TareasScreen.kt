@@ -25,22 +25,27 @@ fun TareasScreen(id: String, inicial: ChecklistTareas?, ocupado: Boolean, errorE
         Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Registra las tareas previstas y confirma su preparación antes de solicitar autorización.")
             items.forEachIndexed { i, tarea ->
-                OutlinedTextField(tarea.descripcion, { vm.cambiar(i, it); error = null },
-                    label = { Text("Tarea ${i + 1}") }, enabled = !ocupado, modifier = Modifier.fillMaxWidth())
-                Row {
-                    Checkbox(tarea.verificada, { vm.verificar(i, it); error = null }, enabled = !ocupado)
-                    Text("Preparación verificada")
-                    TextButton(onClick = { vm.quitar(i) }, enabled = !ocupado) { Text("Quitar") }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(tarea.descripcion, { vm.cambiar(i, it); error = null },
+                        label = { Text("Tarea ${i + 1}") }, enabled = !ocupado, modifier = Modifier.fillMaxWidth())
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Checkbox(tarea.verificada, { vm.verificar(i, it); error = null }, enabled = !ocupado)
+                        Text("Preparación verificada", modifier = Modifier.weight(1f))
+                        TextButton(onClick = { vm.quitar(i) }, enabled = !ocupado) { Text("Quitar") }
+                    }
                 }
             }
             OutlinedButton(onClick = vm::agregar, enabled = !ocupado && items.size < 50) { Text("Agregar tarea") }
             (errorExterno ?: error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            OutlinedButton(onClick = { onBorrador(vm.borrador()) }, enabled = !ocupado) { Text("Guardar borrador") }
-            Button(onClick = {
-                val tareas = vm.validar()
-                if (tareas == null) error = "Registra y verifica al menos una tarea; completa todas las tareas agregadas."
-                else onGuardar(tareas)
-            }, enabled = !ocupado) { Text("Guardar tareas y revisar") }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(modifier = Modifier.fillMaxWidth(), onClick = {
+                    val tareas = vm.validar()
+                    if (tareas == null) error = "Registra y verifica al menos una tarea; completa todas las tareas agregadas."
+                    else onGuardar(tareas)
+                }, enabled = !ocupado) { Text("Guardar tareas y revisar") }
+                OutlinedButton(onClick = { onBorrador(vm.borrador()) }, enabled = !ocupado,
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.End)) { Text("Guardar borrador") }
+            }
         }
     }
 }

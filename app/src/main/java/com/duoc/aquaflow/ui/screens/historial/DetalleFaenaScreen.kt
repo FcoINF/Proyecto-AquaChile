@@ -136,6 +136,11 @@ fun DetalleFaenaScreen(
             item { SeccionAst(resumen.ast) }
 
             item {
+                SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
+                    resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
+                }
+            }
+            item {
                 SeccionDecision(
                     vm = vm,
                     resumen = resumen,
@@ -149,11 +154,6 @@ fun DetalleFaenaScreen(
                 )
             }
 
-            item {
-                SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
-                    resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
-                }
-            }
             val propietario = rol == Rol.SUPERVISOR && apertura.supervisorACargo == nombreUsuario
             if (faena.inicio != null) item { Text("Inicio: ${formatearFecha(faena.inicio.iniciadoEn)} · ${faena.inicio.iniciadoPor}") }
             if (propietario && faena.estado == EstadoFaena.AUTORIZADA && onIniciar != null) item {
@@ -181,8 +181,8 @@ fun DetalleFaenaScreen(
 
             if (decision != null || !ReglasDecision.puedeDecidir(rol)) {
                 item {
-                    Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) {
-                        Text("Volver al historial")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        Button(onClick = onFinalizar) { Text("Volver al historial") }
                     }
                 }
             }

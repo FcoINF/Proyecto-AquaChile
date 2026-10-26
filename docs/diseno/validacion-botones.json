@@ -1,0 +1,23 @@
+{
+  "fecha": "2026-10-26",
+  "rama": "feature/persistencia",
+  "base": "641abd9",
+  "resultado": "BUILD SUCCESSFUL",
+  "pruebas": {
+    "unitarias": {
+      "tests": 118,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "android": {
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "lint": {
+    "Warning": 37
+  }
+}

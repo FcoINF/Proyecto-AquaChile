@@ -104,15 +104,10 @@ fun HistorialScreen(
                             )
                         }
                     }
-                }
-            }
-            if (filtro.texto.isNotBlank() || filtro.estado != null || filtro.fecha.isNotBlank()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        OutlinedButton(onClick = onLimpiar) { Text("Limpiar filtros") }
+                    if (filtro.texto.isNotBlank() || filtro.estado != null || filtro.fecha.isNotBlank()) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            OutlinedButton(onClick = onLimpiar) { Text("Limpiar filtros") }
+                        }
                     }
                 }
             }

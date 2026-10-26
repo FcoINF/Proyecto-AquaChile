@@ -160,18 +160,20 @@ fun AstScreen(
 
             // El resultado sigue calculándose y se incluye al guardar.
             (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            OutlinedButton(
-                enabled = !ocupado,
-                onClick = { onGuardarBorrador(vm.borrador()) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) { Text("Guardar borrador") }
-            Button(
-                enabled = !ocupado,
-                onClick = { vm.guardar()?.let(onGuardar) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) { Text("Guardar AST") }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = !ocupado,
+                    onClick = { vm.guardar()?.let(onGuardar) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Guardar AST") }
+                OutlinedButton(
+                    enabled = !ocupado,
+                    onClick = { onGuardarBorrador(vm.borrador()) },
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.End),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Guardar borrador") }
+            }
         }
     }
 }

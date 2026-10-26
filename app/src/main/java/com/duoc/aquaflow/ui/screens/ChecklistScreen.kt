@@ -229,33 +229,34 @@ fun ChecklistScreenContent(
                 )
             }
 
-            OutlinedButton(
-                enabled = !ocupado,
-                onClick = onGuardarBorradorClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Guardar borrador")
-            }
-
-            Button(
-                enabled = !ocupado,
-                onClick = onGuardarClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
-            ) {
-                Text(
-                    text = "Guardar y continuar",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = !ocupado,
+                    onClick = onGuardarClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                ) {
+                    Text(
+                        text = "Guardar y continuar",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
                     )
-                )
+                }
+                OutlinedButton(
+                    enabled = !ocupado,
+                    onClick = onGuardarBorradorClick,
+                    modifier = Modifier
+                        .align(androidx.compose.ui.Alignment.End)
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Guardar borrador")
+                }
             }
         }
     }
