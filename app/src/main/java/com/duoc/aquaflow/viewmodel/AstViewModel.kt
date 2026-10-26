@@ -44,7 +44,7 @@ class AstViewModel : ViewModel() {
             requiereNuevoAst = f.requiereNuevoAst,
             respuestas = if (f.versionPreguntas >= 2) f.respuestas else List(PREGUNTAS_AST.size) { null },
             antecedentes = f.antecedentes,
-            pasos = f.pasos
+            pasos = emptyList()
         )
     }
 
@@ -85,7 +85,7 @@ class AstViewModel : ViewModel() {
             tipologia = s.tipologia,
             antecedentes = s.antecedentes,
             requiereNuevoAst = s.requiereNuevoAst,
-            respuestas = s.respuestas.map { it == true },
+            respuestas = s.respuestas,
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
             resultado = ReglasAst.resultado(s.respuestas, s.pasos, s.requiereNuevoAst)
         )
@@ -97,7 +97,7 @@ class AstViewModel : ViewModel() {
             tipologia = s.tipologia,
             antecedentes = s.antecedentes,
             requiereNuevoAst = s.requiereNuevoAst,
-            respuestas = s.respuestas.map { it == true },
+            respuestas = s.respuestas,
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
             resultado = s.resultado ?: ResultadoAst.OBSERVADO,
             estado = EstadoSeccion.BORRADOR

@@ -6,6 +6,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import com.duoc.aquaflow.ui.theme.AquaVerde
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.*
@@ -22,13 +27,14 @@ fun AstScreen(
     fecha: String,
     onGuardar: (FormularioAst) -> Unit,
     onGuardarBorrador: (FormularioAst) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    hora: String = ""
 ) {
     val ui by vm.ui.collectAsState()
     val a = ui.antecedentes
-    LaunchedEffect(centro, fecha) {
+    LaunchedEffect(centro, fecha, hora, a.horaInicio) {
         vm.antecedentes(vm.ui.value.antecedentes.let {
-            it.copy(fechaInicio = it.fechaInicio.ifBlank { fecha }, ubicacion = it.ubicacion.ifBlank { centro })
+            it.copy(horaInicio = hora, fechaInicio = it.fechaInicio.ifBlank { fecha }, ubicacion = it.ubicacion.ifBlank { centro })
         })
     }
     Guardando(ocupado)
@@ -45,10 +51,11 @@ fun AstScreen(
                 style = MaterialTheme.typography.bodySmall)
             AquaSectionCard(title = "1. Antecedentes generales") {
                 CampoAst("Fecha de inicio del trabajo", a.fechaInicio, ocupado) { vm.antecedentes(a.copy(fechaInicio = it)) }
+                OutlinedTextField(value = hora, onValueChange = {}, readOnly = true,
+                    label = { Text("Hora de inicio del trabajo") }, modifier = Modifier.fillMaxWidth())
                 CampoAst("Turno de inicio", a.turnoInicio, ocupado) { vm.antecedentes(a.copy(turnoInicio = it)) }
                 CampoAst("Fecha de cierre del trabajo", a.fechaCierre, ocupado) { vm.antecedentes(a.copy(fechaCierre = it)) }
                 CampoAst("Turno de cierre", a.turnoCierre, ocupado) { vm.antecedentes(a.copy(turnoCierre = it)) }
-                Text("El AST es diario; excepcionalmente puede extenderse hasta 6 días si no cambia la nómina inicial de trabajadores ni las condiciones del entorno, métodos de trabajo, nuevos procesos o intervención de terceros. Si existen cambios, se debe confeccionar un nuevo AST inmediatamente.")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(ui.requiereNuevoAst, { vm.alternarNuevoAst() }, enabled = !ocupado)
                     Text("Existen cambios: requiere un nuevo AST", Modifier.weight(1f))
@@ -64,7 +71,6 @@ fun AstScreen(
                 }
                 if (a.ejecucion == "Ejecución empresa prestadora de servicio") {
                     CampoAst("Nombre de la empresa prestadora de servicio", a.empresa, ocupado) { vm.antecedentes(a.copy(empresa = it)) }
-                    CampoAst("RUT empresa prestadora de servicio", a.rutEmpresa, ocupado) { vm.antecedentes(a.copy(rutEmpresa = it)) }
                 }
             }
             AquaSectionCard(title = "2. Tipología del trabajo", subtitle = "Marca las que correspondan") {
@@ -86,25 +92,31 @@ fun AstScreen(
                     Column {
                         Text(pregunta.texto)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(ui.respuestas.getOrNull(i) == true, { vm.responder(i, true) }, enabled = !ocupado)
-                            Text("Sí")
-                            RadioButton(ui.respuestas.getOrNull(i) == false, { vm.responder(i, false) }, enabled = !ocupado)
-                            Text("No")
+                            val respuesta = ui.respuestas.getOrNull(i)
+                            val estado = when (respuesta) { true -> "Sí"; false -> "No"; null -> "Sin responder" }
+                            val colorInactivo = if (respuesta == false) Color(0xFFB3261E) else Color(0xFF757575)
+                            Switch(
+                                checked = respuesta == true,
+                                onCheckedChange = { vm.responder(i, it) },
+                                enabled = !ocupado,
+                                modifier = Modifier.semantics {
+                                    contentDescription = pregunta.texto
+                                    stateDescription = estado
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = AquaVerde,
+                                    checkedBorderColor = AquaVerde,
+                                    uncheckedThumbColor = Color.White,
+                                    uncheckedTrackColor = colorInactivo,
+                                    uncheckedBorderColor = colorInactivo
+                                )
+                            )
+                            Text(estado, Modifier.padding(start = 8.dp))
                         }
                     }
                 }
                 Text("Si una respuesta es NO, repórtelo a su jefatura directa y NO inicie sus labores hasta que todas sus respuestas sean SÍ.")
-            }
-            AquaSectionCard(title = "4. Identificación y control de peligros") {
-                ui.pasos.forEachIndexed { i, paso ->
-                    Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
-                    CampoAst("Paso del trabajo", paso.tarea, ocupado) { vm.cambiarPaso(i, paso.copy(tarea = it)) }
-                    CampoAst("Peligros", paso.peligro, ocupado) { vm.cambiarPaso(i, paso.copy(peligro = it)) }
-                    CampoAst("Medidas de control", paso.control, ocupado) { vm.cambiarPaso(i, paso.copy(control = it)) }
-                    FechasRevisionAst(paso.fechasRevision, ocupado) { vm.cambiarPaso(i, paso.copy(fechasRevision = it)) }
-                    TextButton(onClick = { vm.quitarPaso(i) }, enabled = !ocupado && ui.pasos.size > 1) { Text("Quitar paso") }
-                }
-                OutlinedButton(onClick = vm::agregarPaso, enabled = !ocupado && ui.pasos.size < com.duoc.aquaflow.domain.ReglasAst.MAX_PASOS) { Text("Agregar paso") }
             }
             (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(onClick = { vm.guardar()?.let(onGuardar) }, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) { Text("Guardar AST") }
@@ -119,12 +131,3 @@ internal fun CampoAst(titulo: String, valor: String, ocupado: Boolean, cambiar: 
         enabled = !ocupado, modifier = Modifier.fillMaxWidth())
 }
 
-@Composable
-internal fun FechasRevisionAst(fechas: List<String>, ocupado: Boolean, cambiar: (List<String>) -> Unit) {
-    Text("Verificaciones del supervisor ejecutante · Fechas de revisión", style = MaterialTheme.typography.titleSmall)
-    repeat(4) { i ->
-        CampoAst("Revisión ${i + 1} (dd/mm/aaaa)", fechas.getOrElse(i) { "" }, ocupado) { valor ->
-            cambiar(List(4) { indice -> if (indice == i) valor else fechas.getOrElse(indice) { "" } })
-        }
-    }
-}

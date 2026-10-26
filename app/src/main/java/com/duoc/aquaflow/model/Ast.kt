@@ -41,7 +41,7 @@ data class AntecedentesAst(
     val ubicacion: String = "",
     val ejecucion: String = "",
     val empresa: String = "",
-    val rutEmpresa: String = "",
+    val horaInicio: String = "",
     val otraTipologia: String = ""
 )
 
@@ -66,7 +66,7 @@ data class PasoAst(
 data class FormularioAst(
     val tipologia: String,
     val requiereNuevoAst: Boolean,
-    val respuestas: List<Boolean>,
+    val respuestas: List<Boolean?>,
     val pasos: List<PasoAst>,
     val resultado: ResultadoAst,
     val estado: EstadoSeccion = EstadoSeccion.COMPLETA,

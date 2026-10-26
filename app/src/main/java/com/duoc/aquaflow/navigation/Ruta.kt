@@ -305,6 +305,7 @@ fun AquaFlowNavHost() {
                     vm = astVm,
                     ocupado = ui.ocupado, errorExterno = ui.error,
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
+                    hora = ui.apertura.hora,
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->
                         faena.registrarAst(ast) { nav.navigate(Ruta.RESUMEN) }

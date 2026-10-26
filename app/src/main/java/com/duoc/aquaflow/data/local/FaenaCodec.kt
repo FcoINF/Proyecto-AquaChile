@@ -70,12 +70,12 @@ object FaenaCodec {
             .put("ubicacion", a.antecedentes.ubicacion)
             .put("ejecucion", a.antecedentes.ejecucion)
             .put("empresa", a.antecedentes.empresa)
-            .put("rutEmpresa", a.antecedentes.rutEmpresa)
+            .put("horaInicio", a.antecedentes.horaInicio)
             .put("otraTipologia", a.antecedentes.otraTipologia)
         )
         .put("tipologia", a.tipologia)
         .put("requiereNuevoAst", a.requiereNuevoAst)
-        .put("respuestas", JSONArray(a.respuestas))
+        .put("respuestas", JSONArray().also { arr -> a.respuestas.forEach { arr.put(it ?: JSONObject.NULL) } })
         .put("pasos", JSONArray().also { arr ->
             a.pasos.forEach {
                 arr.put(
@@ -105,12 +105,12 @@ object FaenaCodec {
                     ubicacion = datos.optString("ubicacion", ""),
                     ejecucion = datos.optString("ejecucion", ""),
                     empresa = datos.optString("empresa", ""),
-                    rutEmpresa = datos.optString("rutEmpresa", ""),
+                    horaInicio = datos.optString("horaInicio", ""),
                     otraTipologia = datos.optString("otraTipologia", "")
                 )
             },
             requiereNuevoAst = o.getBoolean("requiereNuevoAst"),
-            respuestas = (0 until respuestas.length()).map { respuestas.getBoolean(it) },
+            respuestas = (0 until respuestas.length()).map { if (respuestas.isNull(it)) null else respuestas.getBoolean(it) },
             pasos = o.getJSONArray("pasos").objetos().map {
                 PasoAst(
                     tarea = it.optString("tarea", ""),
