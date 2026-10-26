@@ -44,6 +44,7 @@ fun HistorialScreen(
     state: HistorialUiState,
     tabs: List<Tab>,
     onTexto: (String) -> Unit,
+    onFecha: (String) -> Unit = {},
     onEstado: (EstadoFaena?) -> Unit,
     onLimpiar: () -> Unit,
     onReintentar: () -> Unit,
@@ -75,6 +76,9 @@ fun HistorialScreen(
                     title = "Buscar y filtrar",
                     subtitle = "${state.total} apertura(s) guardada(s)"
                 ) {
+                    OutlinedTextField(value = filtro.fecha, onValueChange = onFecha, label = { Text("Fecha (dd/MM/aaaa)") },
+                        isError = filtro.errorFecha != null, modifier = Modifier.fillMaxWidth())
+                    filtro.errorFecha?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     OutlinedTextField(
                         value = filtro.texto,
                         onValueChange = onTexto,
@@ -100,15 +104,10 @@ fun HistorialScreen(
                             )
                         }
                     }
-                }
-            }
-            if (filtro.texto.isNotBlank() || filtro.estado != null) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        OutlinedButton(onClick = onLimpiar) { Text("Limpiar filtros") }
+                    if (filtro.texto.isNotBlank() || filtro.estado != null || filtro.fecha.isNotBlank()) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            OutlinedButton(onClick = onLimpiar) { Text("Limpiar filtros") }
+                        }
                     }
                 }
             }

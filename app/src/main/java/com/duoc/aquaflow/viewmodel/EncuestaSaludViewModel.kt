@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.viewmodel
 
+import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -104,7 +105,7 @@ class EncuestaSaludViewModel : ViewModel() {
         val sis = s.sistolica.toIntOrNull() ?: 0
         val dia = s.diastolica.toIntOrNull() ?: 0
         val sat = s.saturacion.toIntOrNull() ?: 0
-        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL)
+        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL, EstadoSeccion.BORRADOR)
     }
 }
 

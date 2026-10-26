@@ -37,6 +37,7 @@ class HistorialViewModel(consulta: ConsultaAperturas, usuario: Usuario) : ViewMo
         datos.copy(filtro = filtro, faenas = filtro.aplicar(datos.faenas))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistorialUiState())
 
+    fun onFecha(fecha: String) = filtro.update { it.copy(fecha = fecha.take(10)) }
     fun onTexto(texto: String) = filtro.update { it.copy(texto = texto.take(60)) }
     fun onEstado(estado: EstadoFaena?) = filtro.update { it.copy(estado = estado) }
     fun limpiar() { filtro.value = HistorialFiltro() }

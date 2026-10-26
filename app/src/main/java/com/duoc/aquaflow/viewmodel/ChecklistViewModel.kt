@@ -1,6 +1,7 @@
 package com.duoc.aquaflow.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
+import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.model.ChecklistFaena
@@ -112,7 +113,7 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         return ChecklistFaena(id, _ui.value.items, _ui.value.fotos)
     }
 
-    fun borrador(): ChecklistFaena = ChecklistFaena(id, _ui.value.items, _ui.value.fotos)
+    fun borrador(): ChecklistFaena = ChecklistFaena(id, _ui.value.items, _ui.value.fotos, EstadoSeccion.BORRADOR)
 
     private fun conservar() {
         saved["checklist"] = FaenaCodec.checklistATexto(ChecklistFaena(id, _ui.value.items, _ui.value.fotos))

@@ -39,6 +39,8 @@ class DaoMemoria : PreChequeoDao {
         cambiar(id, f)
         return 1
     }
+    override suspend fun guardarTareas(id: String, json: String, ahora: Long) =
+        cambiarEditable(id) { it.copy(tareasJson = json, actualizadoEn = ahora) }
     override suspend fun guardarChecklist(id: String, json: String, ahora: Long) =
         cambiarEditable(id) { it.copy(checklistJson = json, actualizadoEn = ahora) }
     override suspend fun guardarAst(id: String, json: String, ahora: Long) =
@@ -67,6 +69,9 @@ class RegistroMemoria : RegistroFaena {
     val llamadas = mutableListOf<String>()
     var fallar = false
 
+    override suspend fun guardarTareas(id: String, tareas: com.duoc.aquaflow.model.ChecklistTareas) {
+        check(!fallar); llamadas += "tareas:$id"
+    }
     override suspend fun guardarChecklist(id: String, checklist: ChecklistFaena) {
         check(!fallar); llamadas += "checklist:$id"
     }

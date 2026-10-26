@@ -14,7 +14,7 @@ class MigracionesRoomTest {
     @Test fun conservaRegistrosDesdeCadaVersionPublicada() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        for (version in 1..4) {
+        for (version in 1..5) {
             val nombre = "migracion-${UUID.randomUUID()}.db"
             val archivo = context.getDatabasePath(nombre)
             archivo.parentFile!!.mkdirs()
@@ -38,7 +38,8 @@ class MigracionesRoomTest {
                         AquaFlowDatabase.MIGRACION_1_2,
                         AquaFlowDatabase.MIGRACION_2_3,
                         AquaFlowDatabase.MIGRACION_3_4,
-                        AquaFlowDatabase.MIGRACION_4_5
+                        AquaFlowDatabase.MIGRACION_4_5,
+                        AquaFlowDatabase.MIGRACION_5_6
                     ).build()
                 try {
                     val registro = db.preChequeoDao().buscar("f1")!!
@@ -51,6 +52,8 @@ class MigracionesRoomTest {
                         assertNull(registro.embarcacionLista)
                         assertNull(registro.comunicacionesOperativas)
                     }
+                    assertNull(registro.inicioJson)
+                    assertNull(registro.tareasJson)
                     assertNull(registro.cierreJson)
                     assertNull(registro.decisionJson)
                 } finally { db.close() }

@@ -27,6 +27,7 @@ interface BorradoresApertura {
 
 // Guarda cada sección de la faena a medida que el supervisor la completa.
 interface RegistroFaena {
+    suspend fun guardarTareas(id: String, tareas: com.duoc.aquaflow.model.ChecklistTareas)
     suspend fun guardarChecklist(id: String, checklist: ChecklistFaena)
     suspend fun guardarAst(id: String, ast: FormularioAst)
     suspend fun guardarEncuesta(id: String, encuesta: EncuestaSalud)
@@ -38,6 +39,7 @@ interface RegistroFaena {
 }
 
 interface CierreFaenas {
+    suspend fun iniciar(id: String, usuario: Usuario)
     suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario)
 }
 
@@ -95,30 +97,21 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
     }
     override suspend fun decidir(id: String, decision: RegistroDecision, usuario: Usuario) {
         require(usuario.rol == Rol.JEFE) { "Solo la jefatura puede decidir." }
-        val faena = checkNotNull(dao.buscar(id)?.aFaena()) { "La faena no existe." }
-        val resultado = checkNotNull(com.duoc.aquaflow.domain.ReglasDecision.resultado(faena.resumen)) {
-            "Completa las secciones antes de decidir."
-        }
-        val error = com.duoc.aquaflow.domain.ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
-        require(error == null) { error.orEmpty() }
         guardarDecision(id, decision.copy(decididoPor = usuario.nombre, motivo = decision.motivo.trim()))
     }
 
     override suspend fun guardarDecision(id: String, decision: RegistroDecision) {
-        check(dao.guardarDecision(id, FaenaCodec.decisionATexto(decision), System.currentTimeMillis()) == 1) {
-            "La faena no existe o ya tiene una decisión."
-        }
+        dao.guardarDecisionValidada(id, decision)
     }
 
-    override suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario) {
-        val fila = checkNotNull(dao.buscar(id)) { "La faena no existe." }
-        check(ReglasCierre.puedeCerrar(fila.aFaena(), usuario)) { "Solo se puede cerrar una faena autorizada propia o desde jefatura, una vez." }
-        val error = ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
-        require(error == null) { error.orEmpty() }
-        val ahora = System.currentTimeMillis()
-        val registro = cierre.copy(observaciones = cierre.observaciones.trim(), cerradoPor = usuario.nombre, cerradoEn = ahora)
-        check(dao.guardarCierre(id, FaenaCodec.cierreATexto(registro), ahora, requireNotNull(fila.decisionJson)) == 1) {
-            "La faena cambió o ya tiene un cierre. Actualiza el detalle."
+    override suspend fun iniciar(id: String, usuario: Usuario) = dao.iniciarValidada(id, usuario)
+
+    override suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario) =
+        dao.cerrarValidada(id, cierre, usuario)
+
+    override suspend fun guardarTareas(id: String, tareas: com.duoc.aquaflow.model.ChecklistTareas) {
+        check(dao.guardarTareas(id, FaenaCodec.tareasATexto(tareas), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya fue decidida."
         }
     }
 

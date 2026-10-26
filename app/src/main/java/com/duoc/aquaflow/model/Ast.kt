@@ -43,5 +43,6 @@ data class FormularioAst(
     val requiereNuevoAst: Boolean,
     val respuestas: List<Boolean>,
     val pasos: List<PasoAst>,
-    val resultado: ResultadoAst
+    val resultado: ResultadoAst,
+    val estado: EstadoSeccion = EstadoSeccion.COMPLETA
 )

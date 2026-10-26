@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.duoc.aquaflow.domain.Reglas
+import com.duoc.aquaflow.domain.ReglasSecciones
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.ui.components.CierreFaenaFormulario
@@ -67,6 +68,7 @@ fun DetalleFaenaScreen(
     onVolver: () -> Unit,
     onFinalizar: () -> Unit,
     onCerrar: ((RegistroCierre) -> Unit)? = null,
+    onIniciar: (() -> Unit)? = null,
     ocupado: Boolean = false,
     errorExterno: String? = null
 ) {
@@ -76,6 +78,7 @@ fun DetalleFaenaScreen(
     val decision = faena.decision
     val resultado = ReglasDecision.resultado(resumen)
     val faltantes = ReglasDecision.faltantes(resumen)
+    val estados = ReglasSecciones.estados(resumen)
 
     Guardando(ocupado)
 
@@ -129,9 +132,14 @@ fun DetalleFaenaScreen(
 
             item { SeccionSalud(resumen.encuesta) }
             item { SeccionCondiciones(apertura) }
-            item { SeccionChecklist(resumen.checklist) }
+            item { SeccionChecklist(resumen.checklist, estados.getValue("Checklist")) }
             item { SeccionAst(resumen.ast) }
 
+            item {
+                SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
+                    resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
+                }
+            }
             item {
                 SeccionDecision(
                     vm = vm,
@@ -141,28 +149,40 @@ fun DetalleFaenaScreen(
                     nombreUsuario = nombreUsuario,
                     onDecidir = onDecidir,
                     motivo = ui.motivo,
-                    uiError = ui.error
+                    uiError = ui.error,
+                    puedeDecidir = resultado != null && !ocupado
                 )
             }
 
+            val propietario = rol == Rol.SUPERVISOR && apertura.supervisorACargo == nombreUsuario
+            if (faena.inicio != null) item { Text("Inicio: ${formatearFecha(faena.inicio.iniciadoEn)} · ${faena.inicio.iniciadoPor}") }
+            if (propietario && faena.estado == EstadoFaena.AUTORIZADA && onIniciar != null) item {
+                Button(onClick = onIniciar, enabled = !ocupado && faltantes.isEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Iniciar faena") }
+            }
             val cierre = faena.cierre
             when {
-                cierre != null -> item { SeccionCierre(cierre) }
-                decision?.decision == Decision.AUTORIZADA && onCerrar != null -> item {
+                cierre != null -> item {
+                    SeccionCierre(cierre)
+                    Text("Salud de salida · Buzo: ${apertura.buzoAsignado}")
+                    if (cierre.saludSalida != null) SeccionSalud(cierre.saludSalida)
+                    else Text("Cierre histórico sin encuesta de salida registrada.")
+                }
+                propietario && faena.estado == EstadoFaena.EN_EJECUCION && onCerrar != null -> item {
                     SeccionDetalle(
                         titulo = "Registro posterior y cierre",
                         icono = Icons.Filled.AccessTime,
                         subtitulo = "Completa los datos al finalizar la inmersión"
                     ) {
-                        CierreFaenaFormulario(apertura.id) { onCerrar(it) }
+                        Text("Encuesta de salud de salida · Buzo: ${apertura.buzoAsignado}")
+                        CierreFaenaFormulario(apertura.id, ocupado = ocupado) { onCerrar(it) }
                     }
                 }
             }
 
             if (decision != null || !ReglasDecision.puedeDecidir(rol)) {
                 item {
-                    Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) {
-                        Text("Volver al historial")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        Button(onClick = onFinalizar) { Text("Volver al historial") }
                     }
                 }
             }
@@ -312,7 +332,7 @@ private fun PersonaCabecera(etiqueta: String, nombre: String, modifier: Modifier
 
 private fun colorEstado(estado: EstadoFaena): Color = when (estado) {
     EstadoFaena.PRECHEQUEO -> AquaNaranja
-    EstadoFaena.AUTORIZADA -> AquaVerde
+    EstadoFaena.EN_EJECUCION, EstadoFaena.AUTORIZADA -> AquaVerde
     EstadoFaena.RECHAZADA -> Color(0xFFFF8A80)
     EstadoFaena.CERRADA -> Color(0xFFB0BEC5)
 }
@@ -323,7 +343,7 @@ private fun colorEstado(estado: EstadoFaena): Color = when (estado) {
 
 @Composable
 private fun FilaMetricas(faena: FaenaGuardada) {
-    val encuesta = faena.resumen.encuesta
+    val encuesta = faena.resumen.encuesta?.takeIf { ReglasSecciones.encuesta(it) == EstadoSeccion.COMPLETA }
     val cierre = faena.cierre
 
     Row(
@@ -410,10 +430,11 @@ private fun MetricaResumen(
 
 @Composable
 private fun SeccionSalud(encuesta: EncuestaSalud?) {
+    val estado = ReglasSecciones.encuesta(encuesta)
     SeccionDetalle(
         titulo = "Chequeo médico",
         icono = Icons.Filled.Favorite,
-        subtitulo = "Signos vitales antes de la inmersión"
+        subtitulo = "Estado: ${estado.texto} · Signos vitales antes de la inmersión"
     ) {
         if (encuesta == null) {
             TextoVacio("Sin registro de presión ni saturación para esta faena.")
@@ -436,7 +457,7 @@ private fun SeccionSalud(encuesta: EncuestaSalud?) {
                 )
             }
 
-            SemaforoSalud(
+            if (estado == EstadoSeccion.COMPLETA) SemaforoSalud(
                 Reglas.nivelSalud(
                     encuesta.sistolica,
                     encuesta.diastolica,
@@ -483,7 +504,7 @@ private fun SeccionCondiciones(apertura: PreChequeo) {
     SeccionDetalle(
         titulo = "Condiciones iniciales",
         icono = Icons.Filled.CheckCircle,
-        subtitulo = "Verificación previa a la faena"
+        subtitulo = "Apertura: ${ReglasSecciones.apertura(apertura).texto} · Verificación previa a la faena"
     ) {
         FilaCondicion("Condiciones generales listas", apertura.condicionesListas)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -494,7 +515,7 @@ private fun SeccionCondiciones(apertura: PreChequeo) {
 }
 
 @Composable
-private fun SeccionChecklist(checklist: ChecklistFaena?) {
+private fun SeccionChecklist(checklist: ChecklistFaena?, estado: EstadoSeccion) {
     val items = checklist?.items.orEmpty()
     val conformes = items.count { it.estado == EstadoEquipo.CUMPLE }
     val fotos = checklist?.fotosEvidencia.orEmpty()
@@ -502,7 +523,7 @@ private fun SeccionChecklist(checklist: ChecklistFaena?) {
     SeccionDetalle(
         titulo = "Checklist de equipos",
         icono = Icons.Filled.CheckCircle,
-        subtitulo = if (items.isEmpty()) "Sin registrar" else "$conformes de ${items.size} equipos conformes"
+        subtitulo = "Estado: ${estado.texto} · $conformes de ${items.size} equipos conformes"
     ) {
         if (items.isEmpty()) {
             TextoVacio("El checklist de equipos aún no está registrado.")
@@ -526,11 +547,13 @@ private fun SeccionChecklist(checklist: ChecklistFaena?) {
 
 @Composable
 private fun SeccionAst(ast: FormularioAst?) {
+    val estado = ReglasSecciones.ast(ast)
     SeccionDetalle(
         titulo = "Análisis de seguridad (AST)",
         icono = Icons.AutoMirrored.Filled.Assignment,
         subtitulo = "Riesgos y controles de la tarea"
     ) {
+        Text("Estado: ${estado.texto}", style = MaterialTheme.typography.bodySmall)
         if (ast == null) {
             TextoVacio("El AST aún no está registrado.")
         } else {
@@ -545,7 +568,7 @@ private fun SeccionAst(ast: FormularioAst?) {
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f)
                 )
-                SemaforoAst(ast.resultado)
+                if (estado == EstadoSeccion.COMPLETA) SemaforoAst(ast.resultado)
             }
 
             Text(
@@ -622,7 +645,8 @@ private fun SeccionDecision(
     nombreUsuario: String,
     onDecidir: (RegistroDecision) -> Unit,
     motivo: String,
-    uiError: String?
+    uiError: String?,
+    puedeDecidir: Boolean
 ) {
     SeccionDetalle(
         titulo = "Decisión",
@@ -709,12 +733,14 @@ private fun SeccionDecision(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
+                        enabled = puedeDecidir,
                         onClick = {
                             vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("Autorizar") }
                     OutlinedButton(
+                        enabled = puedeDecidir,
                         onClick = {
                             vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },

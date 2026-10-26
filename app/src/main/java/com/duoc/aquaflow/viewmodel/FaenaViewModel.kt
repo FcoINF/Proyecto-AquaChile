@@ -7,6 +7,7 @@ import com.duoc.aquaflow.data.repository.RegistroFaena
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.duoc.aquaflow.domain.Reglas
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FormularioAst
@@ -28,6 +29,7 @@ data class FaenaUiState(
     val aperturaConfirmada: Boolean = false,
     val checklist: ChecklistFaena? = null,
     val ast: FormularioAst? = null,
+    val tareas: com.duoc.aquaflow.model.ChecklistTareas? = null,
     val encuesta: EncuestaSalud? = null,
     val decision: RegistroDecision? = null,
     val error: String? = null,
@@ -73,9 +75,9 @@ class FaenaViewModel(
                 } else {
                     FaenaUiState(
                         apertura = guardada.resumen.apertura,
-                        aperturaConfirmada = true,
+                        aperturaConfirmada = Reglas.errorApertura(guardada.resumen.apertura) == null,
                         checklist = guardada.resumen.checklist,
-                        ast = guardada.resumen.ast,
+                        ast = guardada.resumen.ast, tareas = guardada.resumen.tareas,
                         encuesta = guardada.resumen.encuesta,
                         decision = guardada.decision,
                         mensaje = "Borrador cargado para editar."
@@ -101,7 +103,7 @@ class FaenaViewModel(
             aperturaConfirmada = false,
             checklist = null,
             encuesta = null,
-            ast = null,
+            ast = null, tareas = null,
             decision = null,
             error = null,
             mensaje = null
@@ -163,7 +165,7 @@ class FaenaViewModel(
                 } else {
                     FaenaUiState(
                         apertura = guardada.resumen.apertura,
-                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast,
+                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast, tareas = guardada.resumen.tareas,
                         encuesta = guardada.resumen.encuesta, decision = guardada.decision,
                         mensaje = if (guardada.decision == null) "Faena recuperada. Revisa los datos antes de continuar."
                             else "Esta faena ya fue decidida. Consúltala en Historial o inicia otra."
@@ -198,59 +200,42 @@ class FaenaViewModel(
         return persistir("el AST", alGuardar) { r, id -> r.guardarAst(id, ast) }
     }
 
+    fun registrarTareas(tareas: com.duoc.aquaflow.model.ChecklistTareas, alGuardar: () -> Unit = {}): Boolean {
+        if (!puedeRegistrar()) return false
+        _ui.update { it.copy(tareas = tareas) }
+        return persistir("el checklist de tareas", alGuardar) { r, id -> r.guardarTareas(id, tareas) }
+    }
+
+    fun guardarBorradorTareas(tareas: com.duoc.aquaflow.model.ChecklistTareas, alGuardar: () -> Unit = {}) {
+        if (!puedeGuardarBorrador()) return
+        val borrador = tareas.copy(estado = EstadoSeccion.BORRADOR)
+        _ui.update { it.copy(tareas = borrador) }
+        persistir("el borrador de tareas", alGuardar) { r, id -> r.guardarTareas(id, borrador) }
+    }
+
     fun guardarBorradorChecklist(checklist: ChecklistFaena, alGuardar: () -> Unit = {}) {
-        _ui.update { it.copy(checklist = checklist) }
-        val r = registro
-        if (r == null) { alGuardar(); return }
-        val id = _ui.value.apertura.id
-        if (id.isBlank()) { alGuardar(); return }
-        _ui.update { it.copy(ocupado = true, error = null) }
-        viewModelScope.launch {
-            try {
-                r.guardarChecklist(id, checklist)
-                _ui.update { it.copy(ocupado = false, mensaje = "Borrador guardado en el dispositivo.") }
-                alGuardar()
-            } catch (e: Exception) {
-                _ui.update { it.copy(ocupado = false, error = "No se pudo guardar el borrador: ${e.localizedMessage}") }
-            }
-        }
+        if (!puedeGuardarBorrador()) return
+        val borrador = checklist.copy(estado = EstadoSeccion.BORRADOR)
+        _ui.update { it.copy(checklist = borrador) }
+        persistir("el borrador del checklist", alGuardar) { r, id -> r.guardarChecklist(id, borrador) }
     }
 
     fun guardarBorradorEncuesta(encuesta: EncuestaSalud, alGuardar: () -> Unit = {}) {
-        _ui.update { it.copy(encuesta = encuesta) }
-        val r = registro
-        if (r == null) { alGuardar(); return }
-        val id = _ui.value.apertura.id
-        if (id.isBlank()) { alGuardar(); return }
-        _ui.update { it.copy(ocupado = true, error = null) }
-        viewModelScope.launch {
-            try {
-                r.guardarEncuesta(id, encuesta)
-                _ui.update { it.copy(ocupado = false, mensaje = "Borrador guardado en el dispositivo.") }
-                alGuardar()
-            } catch (e: Exception) {
-                _ui.update { it.copy(ocupado = false, error = "No se pudo guardar el borrador: ${e.localizedMessage}") }
-            }
-        }
+        if (!puedeGuardarBorrador()) return
+        val borrador = encuesta.copy(estado = EstadoSeccion.BORRADOR)
+        _ui.update { it.copy(encuesta = borrador) }
+        persistir("el borrador de salud", alGuardar) { r, id -> r.guardarEncuesta(id, borrador) }
     }
 
     fun guardarBorradorAst(ast: FormularioAst, alGuardar: () -> Unit = {}) {
-        _ui.update { it.copy(ast = ast) }
-        val r = registro
-        if (r == null) { alGuardar(); return }
-        val id = _ui.value.apertura.id
-        if (id.isBlank()) { alGuardar(); return }
-        _ui.update { it.copy(ocupado = true, error = null) }
-        viewModelScope.launch {
-            try {
-                r.guardarAst(id, ast)
-                _ui.update { it.copy(ocupado = false, mensaje = "Borrador guardado en el dispositivo.") }
-                alGuardar()
-            } catch (e: Exception) {
-                _ui.update { it.copy(ocupado = false, error = "No se pudo guardar el borrador: ${e.localizedMessage}") }
-            }
-        }
+        if (!puedeGuardarBorrador()) return
+        val borrador = ast.copy(estado = EstadoSeccion.BORRADOR)
+        _ui.update { it.copy(ast = borrador) }
+        persistir("el borrador del AST", alGuardar) { r, id -> r.guardarAst(id, borrador) }
     }
+
+    private fun puedeGuardarBorrador() =
+        _ui.value.apertura.id.isNotBlank() && !_ui.value.ocupado && _ui.value.decision == null
 
     // El flujo del supervisor registra antecedentes. Las decisiones se toman desde el detalle de jefatura.
     private fun puedeRegistrar() = _ui.value.aperturaConfirmada && !_ui.value.ocupado && _ui.value.decision == null

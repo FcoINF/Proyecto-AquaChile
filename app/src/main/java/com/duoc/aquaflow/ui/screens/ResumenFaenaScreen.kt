@@ -23,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.duoc.aquaflow.domain.ReglasSecciones
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.Decision
@@ -62,6 +64,7 @@ fun ResumenFaenaScreen(
     val resultado = ReglasDecision.resultado(resumen)
     val faltantes = ReglasDecision.faltantes(resumen)
     val apertura = resumen.apertura
+    val estados = ReglasSecciones.estados(resumen)
 
     com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
@@ -94,6 +97,7 @@ fun ResumenFaenaScreen(
             }
 
             Seccion("Apertura") {
+                Text("Estado: ${estados.getValue("Apertura").texto}")
                 Text(apertura.centroCultivo.ifBlank { "Centro sin definir" })
                 Text("${apertura.fecha} ${apertura.hora}".trim())
                 Text("Buzo: ${apertura.buzoAsignado.ifBlank { "sin asignar" }}")
@@ -101,8 +105,9 @@ fun ResumenFaenaScreen(
             }
 
             Seccion("Checklist de equipos") {
+                Text("Estado: ${estados.getValue("Checklist").texto}")
                 val items = resumen.checklist?.items.orEmpty()
-                if (items.isEmpty()) Text("Sin registrar")
+                if (resumen.checklist != null && items.isEmpty()) Text("Sin equipos registrados")
                 items.forEach {
                     Text("${it.titulo} · ${it.estado.texto()}")
                     if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -114,22 +119,29 @@ fun ResumenFaenaScreen(
             }
 
             Seccion("AST") {
+                Text("Estado: ${estados.getValue("AST").texto}")
                 val ast = resumen.ast
-                if (ast == null) Text("Sin registrar") else {
+                if (ast != null) {
                     Text(ast.tipologia)
                     Text("Pasos: ${ast.pasos.size} · Riesgos críticos: ${ast.pasos.count { it.critico }}")
                     if (ast.requiereNuevoAst) Text("Requiere un nuevo AST")
-                    SemaforoAst(ast.resultado)
+                    if (estados.getValue("AST") == EstadoSeccion.COMPLETA) SemaforoAst(ast.resultado)
                 }
             }
 
             Seccion("Salud (ficticia)") {
+                Text("Estado: ${estados.getValue("Encuesta de salud").texto}")
                 val e = resumen.encuesta
-                if (e == null) Text("Sin registrar") else {
+                if (e != null) {
                     Text("Presión ${e.sistolica}/${e.diastolica} · Saturación ${e.saturacion}%")
                     e.alertasEncuesta.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
-                    SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
+                    if (estados.getValue("Encuesta de salud") == EstadoSeccion.COMPLETA) SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
                 }
+            }
+
+            Seccion("Checklist de tareas") {
+                Text("Estado: ${estados.getValue("Checklist de tareas").texto}")
+                resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
             }
 
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -156,10 +168,12 @@ fun ResumenFaenaScreen(
                         ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
+                                enabled = resultado != null && !ocupado,
                                 onClick = { vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir) },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Autorizar") }
                             OutlinedButton(
+                                enabled = resultado != null && !ocupado,
                                 onClick = { vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir) },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Rechazar") }
@@ -174,10 +188,6 @@ fun ResumenFaenaScreen(
                     Text("Revisión de salida: ${if (cierre.revisionSalida) "realizada" else "pendiente"}")
                     Text("Cerrada por ${cierre.cerradoPor}")
                     Text(java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(cierre.cerradoEn)))
-                }
-            } else if (decision?.decision == Decision.AUTORIZADA && onCerrar != null) {
-                Seccion("Registro posterior y cierre") {
-                    com.duoc.aquaflow.ui.components.CierreFaenaFormulario(apertura.id, onCerrar)
                 }
             }
 

@@ -5,6 +5,8 @@ import androidx.room.Query
 import androidx.room.Upsert
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
+import com.duoc.aquaflow.domain.ReglasDecision
+import com.duoc.aquaflow.model.RegistroDecision
 
 @Dao
 interface PreChequeoDao {
@@ -17,7 +19,7 @@ interface PreChequeoDao {
         check(previa?.decisionJson == null) { "La faena ya fue decidida; consulta su historial." }
         guardar(if (previa != null && previa.mismosDatosQue(nueva)) nueva.copy(
             checklistJson = previa.checklistJson, astJson = previa.astJson,
-            encuestaJson = previa.encuestaJson
+            encuestaJson = previa.encuestaJson, tareasJson = previa.tareasJson
         ) else nueva)
     }
 
@@ -43,6 +45,51 @@ interface PreChequeoDao {
 
     @Query("UPDATE aperturas SET encuestaJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
     suspend fun guardarEncuesta(id: String, json: String, ahora: Long): Int
+
+    @Query("UPDATE aperturas SET tareasJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
+    suspend fun guardarTareas(id: String, json: String, ahora: Long): Int
+
+    @Transaction
+    suspend fun iniciarValidada(id: String, usuario: com.duoc.aquaflow.model.Usuario) {
+        val fila = checkNotNull(buscar(id)) { "La faena no existe." }
+        val faena = fila.aFaena()
+        check(com.duoc.aquaflow.domain.ReglasCierre.puedeIniciar(faena, usuario)) {
+            "Solo el supervisor propietario puede iniciar una faena autorizada, una vez."
+        }
+        check(ReglasDecision.faltantes(faena.resumen).isEmpty()) { "El expediente está incompleto." }
+        val ahora = System.currentTimeMillis()
+        guardar(fila.copy(inicioJson = FaenaCodec.inicioATexto(com.duoc.aquaflow.model.RegistroInicio(usuario.nombre, ahora)), actualizadoEn = ahora))
+    }
+
+    @Transaction
+    suspend fun cerrarValidada(id: String, cierre: com.duoc.aquaflow.model.RegistroCierre, usuario: com.duoc.aquaflow.model.Usuario) {
+        val fila = checkNotNull(buscar(id)) { "La faena no existe." }
+        check(com.duoc.aquaflow.domain.ReglasCierre.puedeCerrar(fila.aFaena(), usuario)) {
+            "Solo el supervisor propietario puede cerrar una faena en ejecución, una vez."
+        }
+        val error = com.duoc.aquaflow.domain.ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
+        require(error == null) { error.orEmpty() }
+        require(com.duoc.aquaflow.domain.ReglasSecciones.encuesta(cierre.saludSalida) == com.duoc.aquaflow.model.EstadoSeccion.COMPLETA) {
+            "Completa la encuesta de salud de salida."
+        }
+        val ahora = System.currentTimeMillis()
+        val registro = cierre.copy(observaciones = cierre.observaciones.trim(), cerradoPor = usuario.nombre, cerradoEn = ahora)
+        guardar(fila.copy(cierreJson = FaenaCodec.cierreATexto(registro), actualizadoEn = ahora))
+    }
+
+    @Transaction
+    suspend fun guardarDecisionValidada(id: String, decision: RegistroDecision) {
+        val fila = checkNotNull(buscar(id)) { "La faena no existe." }
+        check(fila.decisionJson == null) { "La faena ya tiene una decisión." }
+        val resultado = checkNotNull(ReglasDecision.resultado(fila.aFaena().resumen)) {
+            "Completa las secciones antes de decidir."
+        }
+        val error = ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
+        require(error == null) { error.orEmpty() }
+        check(guardarDecision(id, FaenaCodec.decisionATexto(decision.copy(motivo = decision.motivo.trim())), System.currentTimeMillis()) == 1) {
+            "La faena no existe o ya tiene una decisión."
+        }
+    }
 
     // Una decisión ya tomada no se sobrescribe (queda como respaldo de auditoría).
     // Devuelve las filas cambiadas: 0 si la faena no existe o ya estaba decidida.

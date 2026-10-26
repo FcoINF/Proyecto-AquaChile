@@ -20,5 +20,6 @@ data class ItemEquipamiento(
 data class ChecklistFaena(
     val idFaena: String,
     val items: List<ItemEquipamiento>,
-    val fotosEvidencia: List<String> = emptyList()
+    val fotosEvidencia: List<String> = emptyList(),
+    val estado: EstadoSeccion = EstadoSeccion.COMPLETA
 )

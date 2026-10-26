@@ -73,6 +73,19 @@ class DetalleAperturaViewModel(
             }
         }
     }
+    fun iniciar() {
+        val servicio = cierres ?: return
+        if (guardando.value) return
+        guardando.value = true
+        errorDecision.value = null
+        viewModelScope.launch {
+            try { servicio.iniciar(id, usuario) }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { errorDecision.value = "No se pudo iniciar la faena. ${e.localizedMessage.orEmpty()}" }
+            finally { guardando.value = false }
+        }
+    }
+
     fun cerrar(cierre: RegistroCierre) {
         val servicio = cierres ?: return
         if (guardando.value) return

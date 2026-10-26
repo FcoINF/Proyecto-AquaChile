@@ -11,7 +11,12 @@ object ReglasCierre {
         else -> null
     }
 
+    fun puedeIniciar(faena: FaenaGuardada, usuario: Usuario) =
+        faena.decision?.decision == Decision.AUTORIZADA && faena.inicio == null && faena.cierre == null && propietario(faena, usuario)
+
     fun puedeCerrar(faena: FaenaGuardada, usuario: Usuario) =
-        faena.decision?.decision == Decision.AUTORIZADA && faena.cierre == null &&
-            (usuario.rol == Rol.JEFE || faena.resumen.apertura.supervisorACargo == usuario.nombre)
+        faena.decision?.decision == Decision.AUTORIZADA && faena.inicio != null && faena.cierre == null && propietario(faena, usuario)
+
+    private fun propietario(faena: FaenaGuardada, usuario: Usuario) =
+        usuario.rol == Rol.SUPERVISOR && faena.resumen.apertura.supervisorACargo == usuario.nombre
 }

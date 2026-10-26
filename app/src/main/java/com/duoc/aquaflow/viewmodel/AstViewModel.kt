@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.viewmodel
 
+import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.ReglasAst
 import com.duoc.aquaflow.model.FormularioAst
@@ -91,7 +92,8 @@ class AstViewModel : ViewModel() {
             requiereNuevoAst = s.requiereNuevoAst,
             respuestas = s.respuestas.map { it == true },
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
-            resultado = s.resultado ?: ResultadoAst.OBSERVADO
+            resultado = s.resultado ?: ResultadoAst.OBSERVADO,
+            estado = EstadoSeccion.BORRADOR
         )
     }
 }
