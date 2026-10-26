@@ -53,9 +53,6 @@ fun AstScreen(
                 CampoAst("Fecha de inicio del trabajo", a.fechaInicio, ocupado) { vm.antecedentes(a.copy(fechaInicio = it)) }
                 OutlinedTextField(value = hora, onValueChange = {}, readOnly = true,
                     label = { Text("Hora de inicio del trabajo") }, modifier = Modifier.fillMaxWidth())
-                CampoAst("Turno de inicio", a.turnoInicio, ocupado) { vm.antecedentes(a.copy(turnoInicio = it)) }
-                CampoAst("Fecha de cierre del trabajo", a.fechaCierre, ocupado) { vm.antecedentes(a.copy(fechaCierre = it)) }
-                CampoAst("Turno de cierre", a.turnoCierre, ocupado) { vm.antecedentes(a.copy(turnoCierre = it)) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(ui.requiereNuevoAst, { vm.alternarNuevoAst() }, enabled = !ocupado)
                     Text("Existen cambios: requiere un nuevo AST", Modifier.weight(1f))
