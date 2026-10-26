@@ -29,6 +29,7 @@ data class FaenaUiState(
     val aperturaConfirmada: Boolean = false,
     val checklist: ChecklistFaena? = null,
     val ast: FormularioAst? = null,
+    val tareas: com.duoc.aquaflow.model.ChecklistTareas? = null,
     val encuesta: EncuestaSalud? = null,
     val decision: RegistroDecision? = null,
     val error: String? = null,
@@ -76,7 +77,7 @@ class FaenaViewModel(
                         apertura = guardada.resumen.apertura,
                         aperturaConfirmada = Reglas.errorApertura(guardada.resumen.apertura) == null,
                         checklist = guardada.resumen.checklist,
-                        ast = guardada.resumen.ast,
+                        ast = guardada.resumen.ast, tareas = guardada.resumen.tareas,
                         encuesta = guardada.resumen.encuesta,
                         decision = guardada.decision,
                         mensaje = "Borrador cargado para editar."
@@ -102,7 +103,7 @@ class FaenaViewModel(
             aperturaConfirmada = false,
             checklist = null,
             encuesta = null,
-            ast = null,
+            ast = null, tareas = null,
             decision = null,
             error = null,
             mensaje = null
@@ -164,7 +165,7 @@ class FaenaViewModel(
                 } else {
                     FaenaUiState(
                         apertura = guardada.resumen.apertura,
-                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast,
+                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast, tareas = guardada.resumen.tareas,
                         encuesta = guardada.resumen.encuesta, decision = guardada.decision,
                         mensaje = if (guardada.decision == null) "Faena recuperada. Revisa los datos antes de continuar."
                             else "Esta faena ya fue decidida. Consúltala en Historial o inicia otra."
@@ -197,6 +198,19 @@ class FaenaViewModel(
         if (!puedeRegistrar()) return false
         _ui.update { it.copy(ast = ast) }
         return persistir("el AST", alGuardar) { r, id -> r.guardarAst(id, ast) }
+    }
+
+    fun registrarTareas(tareas: com.duoc.aquaflow.model.ChecklistTareas, alGuardar: () -> Unit = {}): Boolean {
+        if (!puedeRegistrar()) return false
+        _ui.update { it.copy(tareas = tareas) }
+        return persistir("el checklist de tareas", alGuardar) { r, id -> r.guardarTareas(id, tareas) }
+    }
+
+    fun guardarBorradorTareas(tareas: com.duoc.aquaflow.model.ChecklistTareas, alGuardar: () -> Unit = {}) {
+        if (!puedeGuardarBorrador()) return
+        val borrador = tareas.copy(estado = EstadoSeccion.BORRADOR)
+        _ui.update { it.copy(tareas = borrador) }
+        persistir("el borrador de tareas", alGuardar) { r, id -> r.guardarTareas(id, borrador) }
     }
 
     fun guardarBorradorChecklist(checklist: ChecklistFaena, alGuardar: () -> Unit = {}) {

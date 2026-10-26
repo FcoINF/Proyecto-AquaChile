@@ -68,6 +68,7 @@ fun DetalleFaenaScreen(
     onVolver: () -> Unit,
     onFinalizar: () -> Unit,
     onCerrar: ((RegistroCierre) -> Unit)? = null,
+    onIniciar: (() -> Unit)? = null,
     ocupado: Boolean = false,
     errorExterno: String? = null
 ) {
@@ -148,16 +149,32 @@ fun DetalleFaenaScreen(
                 )
             }
 
+            item {
+                SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
+                    resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
+                }
+            }
+            val propietario = rol == Rol.SUPERVISOR && apertura.supervisorACargo == nombreUsuario
+            if (faena.inicio != null) item { Text("Inicio: ${formatearFecha(faena.inicio.iniciadoEn)} · ${faena.inicio.iniciadoPor}") }
+            if (propietario && faena.estado == EstadoFaena.AUTORIZADA && onIniciar != null) item {
+                Button(onClick = onIniciar, enabled = !ocupado && faltantes.isEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Iniciar faena") }
+            }
             val cierre = faena.cierre
             when {
-                cierre != null -> item { SeccionCierre(cierre) }
-                decision?.decision == Decision.AUTORIZADA && onCerrar != null -> item {
+                cierre != null -> item {
+                    SeccionCierre(cierre)
+                    Text("Salud de salida · Buzo: ${apertura.buzoAsignado}")
+                    if (cierre.saludSalida != null) SeccionSalud(cierre.saludSalida)
+                    else Text("Cierre histórico sin encuesta de salida registrada.")
+                }
+                propietario && faena.estado == EstadoFaena.EN_EJECUCION && onCerrar != null -> item {
                     SeccionDetalle(
                         titulo = "Registro posterior y cierre",
                         icono = Icons.Filled.AccessTime,
                         subtitulo = "Completa los datos al finalizar la inmersión"
                     ) {
-                        CierreFaenaFormulario(apertura.id) { onCerrar(it) }
+                        Text("Encuesta de salud de salida · Buzo: ${apertura.buzoAsignado}")
+                        CierreFaenaFormulario(apertura.id, ocupado = ocupado) { onCerrar(it) }
                     }
                 }
             }
@@ -315,7 +332,7 @@ private fun PersonaCabecera(etiqueta: String, nombre: String, modifier: Modifier
 
 private fun colorEstado(estado: EstadoFaena): Color = when (estado) {
     EstadoFaena.PRECHEQUEO -> AquaNaranja
-    EstadoFaena.AUTORIZADA -> AquaVerde
+    EstadoFaena.EN_EJECUCION, EstadoFaena.AUTORIZADA -> AquaVerde
     EstadoFaena.RECHAZADA -> Color(0xFFFF8A80)
     EstadoFaena.CERRADA -> Color(0xFFB0BEC5)
 }

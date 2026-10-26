@@ -13,6 +13,9 @@ import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResultadoAst
 import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.domain.ReglasSecciones
+import com.duoc.aquaflow.model.ChecklistTareas
+import com.duoc.aquaflow.model.TareaFaena
+import com.duoc.aquaflow.model.RegistroInicio
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -128,12 +131,35 @@ object FaenaCodec {
     fun cierreATexto(c: RegistroCierre): String = JSONObject()
         .put("duracionMinutos", c.duracionMinutos).put("observaciones", c.observaciones)
         .put("revisionSalida", c.revisionSalida).put("cerradoPor", c.cerradoPor)
-        .put("cerradoEn", c.cerradoEn).toString()
+        .put("cerradoEn", c.cerradoEn)
+        .put("saludSalida", c.saludSalida?.let { JSONObject(encuestaATexto(it)) }).toString()
 
     fun cierreDesde(texto: String): RegistroCierre? = runCatching {
         val o = JSONObject(texto)
         RegistroCierre(o.getInt("duracionMinutos"), o.getString("observaciones"),
-            o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"))
+            o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"),
+            o.optJSONObject("saludSalida")?.let { encuestaDesde(it.toString()) })
+    }.getOrNull()
+
+    fun tareasATexto(t: ChecklistTareas): String = JSONObject()
+        .put("estado", ReglasSecciones.tareas(t).name)
+        .put("items", JSONArray().also { arr -> t.items.forEach {
+            arr.put(JSONObject().put("descripcion", it.descripcion).put("verificada", it.verificada))
+        } }).toString()
+
+    fun tareasDesde(texto: String): ChecklistTareas? = runCatching {
+        val o = JSONObject(texto)
+        ChecklistTareas(o.getJSONArray("items").objetos().map {
+            TareaFaena(it.getString("descripcion"), it.getBoolean("verificada"))
+        }, estadoDesde(o))
+    }.getOrNull()?.let { it.copy(estado = ReglasSecciones.tareas(it)) }
+
+    fun inicioATexto(i: RegistroInicio): String = JSONObject()
+        .put("iniciadoPor", i.iniciadoPor).put("iniciadoEn", i.iniciadoEn).toString()
+
+    fun inicioDesde(texto: String): RegistroInicio? = runCatching {
+        val o = JSONObject(texto)
+        RegistroInicio(o.getString("iniciadoPor"), o.getLong("iniciadoEn"))
     }.getOrNull()
 
     // develop guardaba también borradores sin estado: los registros antiguos necesitan reconfirmación.

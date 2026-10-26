@@ -25,6 +25,7 @@ class EstadosSeccionesRoomTest {
             repo.guardar(apertura)
             repo.guardarChecklist("f1", c.copy(estado = EstadoSeccion.BORRADOR))
             repo.guardarAst("f1", a.copy(estado = EstadoSeccion.BORRADOR))
+            repo.guardarTareas("f1", tareasCompletas())
             repo.guardarEncuesta("f1", e.copy(estado = EstadoSeccion.BORRADOR))
             repo.guardar(apertura) // Guardar la misma apertura no borra los estados.
             db.close()
@@ -39,6 +40,7 @@ class EstadosSeccionesRoomTest {
             }
             repo.guardarChecklist("f1", c)
             repo.guardarAst("f1", a)
+            repo.guardarTareas("f1", tareasCompletas())
             repo.guardarEncuesta("f1", e)
             assertNotNull(ReglasDecision.resultado(repo.recuperarFaena("Luis")!!.resumen))
             repo.decidir("f1", RegistroDecision(Decision.AUTORIZADA, "", "ignorado"), Usuario("jefe", "1234", Rol.JEFE))

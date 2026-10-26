@@ -36,6 +36,7 @@ class FaenaPersistenciaTest {
         repo.guardar(apertura)
         repo.guardarChecklist("f1", checklist)
         repo.guardarAst("f1", ast)
+        repo.guardarTareas("f1", tareasCompletas())
         repo.guardarEncuesta("f1", encuesta)
     }
 

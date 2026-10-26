@@ -24,7 +24,9 @@ data class AperturaEntity(
     val astJson: String? = null,
     val encuestaJson: String? = null,
     val decisionJson: String? = null,
-    val cierreJson: String? = null
+    val cierreJson: String? = null,
+    val tareasJson: String? = null,
+    val inicioJson: String? = null
 ) {
     fun aModelo() = PreChequeo(
         id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo,
@@ -36,10 +38,12 @@ data class AperturaEntity(
             apertura = aModelo(),
             checklist = checklistJson?.let(FaenaCodec::checklistDesde),
             ast = astJson?.let(FaenaCodec::astDesde),
-            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde)
+            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde),
+            tareas = tareasJson?.let(FaenaCodec::tareasDesde)
         ),
         decision = decisionJson?.let(FaenaCodec::decisionDesde),
-        cierre = cierreJson?.let(FaenaCodec::cierreDesde)
+        cierre = cierreJson?.let(FaenaCodec::cierreDesde),
+        inicio = inicioJson?.let(FaenaCodec::inicioDesde)
     )
 
     companion object {

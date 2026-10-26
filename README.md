@@ -56,14 +56,16 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 
 ### Estado actual: avance funcional local
 
-- **Flujo integrado:** apertura → DPR-24 → salud → AST → resumen → revisión de jefatura → cierre desde el historial.
-- **Room v5:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4→5 sin recuperación destructiva.
+- **Flujo integrado:** apertura → DPR-24 y fotos → salud inicial → AST → tareas → resumen → autorización de jefatura → inicio por supervisor → salud de salida y cierre desde el historial.
+- **Room v6:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4→5→6 sin recuperación destructiva.
 - **Estados de sección:** distingue borrador, completa y sin registrar al guardar y recuperar; integra los botones de borrador y el detalle de historial de `develop`. Las secciones antiguas sin estado requieren reconfirmación. Bloquea autorizar y rechazar expedientes incompletos en pantalla y en la transacción de persistencia. Ver [alcance de la primera propuesta](docs/ESTADOS_SECCIONES.md).
 - **Guardado confirmado:** se avanza después de persistir; los errores quedan visibles y permiten reintentar. Recuperar una faena restaura sus secciones.
 - **Identidad local:** el supervisor pertenece a la sesión y no puede cambiarse en el formulario. Las faenas decididas no se pueden editar; los cierres no se sobrescriben.
 - **Fotografías:** captura a archivo interno con `TakePicture` y `FileProvider`; referencias en Room y miniaturas en checklist y detalle. Cancelar o fallar la cámara no agrega evidencias simuladas. Los nombres ficticios guardados por versiones antiguas no contienen imágenes recuperables: la app informa cuando la vista previa no está disponible.
 - **Dos recursos del dispositivo:** cámara y fecha/hora automática, visible en apertura y detalle. La captura se delega a la app de cámara con acceso temporal al URI; AquaFlow no solicita el permiso de cámara para usar directamente el hardware.
-- **Cierre:** desde el detalle de una faena autorizada, el supervisor propietario o jefatura registra minutos de inmersión, observaciones y confirmación de revisión de salida. Se guarda responsable y fecha/hora; el historial muestra el estado Cerrada.
+- **Inicio:** solo el supervisor propietario inicia una faena autorizada; se registra responsable y fecha/hora, con estado En ejecución.
+- **Tareas e historial:** checklist de tareas independiente del DPR-24; búsqueda por centro o buzo combinable con fecha exacta y estado. Ver [flujo operativo completo](docs/FLUJO_OPERATIVO.md).
+- **Cierre:** desde el detalle de una faena en ejecución, el supervisor propietario registra minutos de inmersión, observaciones, confirmación de revisión de salida y una segunda encuesta de salud independiente. Se guarda responsable y fecha/hora; el historial muestra el estado Cerrada.
 - **MVVM:** pantallas → ViewModels/StateFlow → repositorio → DAO → Room. Checklist y formulario de cierre conservan su borrador mediante `SavedStateHandle`.
 
 ### Ejecución y pruebas

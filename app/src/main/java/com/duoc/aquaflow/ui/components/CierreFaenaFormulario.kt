@@ -11,7 +11,7 @@ import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.viewmodel.CierreFaenaViewModel
 
 @Composable
-fun CierreFaenaFormulario(id: String, onCerrar: (RegistroCierre) -> Unit) {
+fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, onCerrar: (RegistroCierre) -> Unit) {
     val vm: CierreFaenaViewModel = viewModel(key = "cierre-$id")
     val ui by vm.ui.collectAsState()
     var confirmar by remember { mutableStateOf(false) }
@@ -23,14 +23,24 @@ fun CierreFaenaFormulario(id: String, onCerrar: (RegistroCierre) -> Unit) {
         Checkbox(ui.revisionSalida, vm::revision)
         Text("Revisión de salida realizada")
     }
+    Text("Salud posterior a la inmersión", style = MaterialTheme.typography.titleMedium)
+    OutlinedTextField(ui.sistolica, vm::sistolica, label = { Text("Presión sistólica de salida") }, enabled = !ocupado,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(ui.diastolica, vm::diastolica, label = { Text("Presión diastólica de salida") }, enabled = !ocupado,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(ui.saturacion, vm::saturacion, label = { Text("Saturación de salida (%)") }, enabled = !ocupado,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+    com.duoc.aquaflow.model.PREGUNTAS_SALUD.forEach { p ->
+        Row { Checkbox(p in ui.alertas, { vm.alerta(p, it) }, enabled = !ocupado); Text(p) }
+    }
     ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Button(onClick = { if (vm.validar() != null) confirmar = true }, modifier = Modifier.fillMaxWidth()) {
+    Button(enabled = !ocupado, onClick = { if (vm.validar() != null) confirmar = true }, modifier = Modifier.fillMaxWidth()) {
         Text("Cerrar faena")
     }
     if (confirmar) AlertDialog(
         onDismissRequest = { confirmar = false }, title = { Text("¿Confirmar cierre?") },
         text = { Text("El cierre quedará registrado con tu usuario y la fecha y hora del dispositivo. No se podrá sobrescribir.") },
-        confirmButton = { TextButton(onClick = { confirmar = false; vm.validar()?.let(onCerrar) }) { Text("Confirmar cierre") } },
+        confirmButton = { TextButton(enabled = !ocupado, onClick = { confirmar = false; vm.validar()?.let(onCerrar) }) { Text("Confirmar cierre") } },
         dismissButton = { TextButton(onClick = { confirmar = false }) { Text("Volver") } }
     )
 }

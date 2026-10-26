@@ -139,6 +139,11 @@ fun ResumenFaenaScreen(
                 }
             }
 
+            Seccion("Checklist de tareas") {
+                Text("Estado: ${estados.getValue("Checklist de tareas").texto}")
+                resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
+            }
+
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {
@@ -183,10 +188,6 @@ fun ResumenFaenaScreen(
                     Text("Revisión de salida: ${if (cierre.revisionSalida) "realizada" else "pendiente"}")
                     Text("Cerrada por ${cierre.cerradoPor}")
                     Text(java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(cierre.cerradoEn)))
-                }
-            } else if (decision?.decision == Decision.AUTORIZADA && onCerrar != null) {
-                Seccion("Registro posterior y cierre") {
-                    com.duoc.aquaflow.ui.components.CierreFaenaFormulario(apertura.id, onCerrar)
                 }
             }
 

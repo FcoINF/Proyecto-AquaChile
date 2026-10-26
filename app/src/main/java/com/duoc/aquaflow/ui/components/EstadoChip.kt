@@ -15,13 +15,13 @@ import com.duoc.aquaflow.model.EstadoFaena
 fun EstadoChip(estado: EstadoFaena) {
     val fondo = when (estado) {
         EstadoFaena.PRECHEQUEO -> MaterialTheme.colorScheme.secondaryContainer
-        EstadoFaena.AUTORIZADA -> MaterialTheme.colorScheme.primaryContainer
+        EstadoFaena.EN_EJECUCION, EstadoFaena.AUTORIZADA -> MaterialTheme.colorScheme.primaryContainer
         EstadoFaena.RECHAZADA -> MaterialTheme.colorScheme.errorContainer
         EstadoFaena.CERRADA -> MaterialTheme.colorScheme.surfaceVariant
     }
     val contenido = when (estado) {
         EstadoFaena.PRECHEQUEO -> MaterialTheme.colorScheme.onSecondaryContainer
-        EstadoFaena.AUTORIZADA -> MaterialTheme.colorScheme.onPrimaryContainer
+        EstadoFaena.EN_EJECUCION, EstadoFaena.AUTORIZADA -> MaterialTheme.colorScheme.onPrimaryContainer
         EstadoFaena.RECHAZADA -> MaterialTheme.colorScheme.onErrorContainer
         EstadoFaena.CERRADA -> MaterialTheme.colorScheme.onSurfaceVariant
     }

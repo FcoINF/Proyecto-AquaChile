@@ -92,6 +92,7 @@ class FaenaViewModelPersistenciaTest {
         repo.guardarChecklist("f2", ChecklistFaena("f2", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
         repo.guardarEncuesta("f2", encuesta)
         repo.guardarAst("f2", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
+        repo.guardarTareas("f2", tareasCompletas())
         repo.guardarDecision("f2", RegistroDecision(Decision.RECHAZADA, "Falla", "jefe"))
         val vm = HistorialViewModel(repo, jefe)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }

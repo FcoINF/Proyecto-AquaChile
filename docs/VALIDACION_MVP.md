@@ -1,8 +1,25 @@
 # Validación del avance local de AquaFlow
 
-Fecha de registro: 24 de octubre de 2026. Código validado: `3967dcf` y sus antecesores. Los commits posteriores de documentación no cambian la aplicación.
+## Flujo operativo completo — 26 de octubre de 2026
 
-## Integración vigente sobre develop (25 de octubre de 2026)
+Evidencia vigente de `feature/persistencia`, que conserva `develop` (`868808c`) y agrega [el ciclo operativo completo](FLUJO_OPERATIVO.md). Los resultados anteriores se mantienen debajo como registros históricos.
+
+Comando ejecutado: `./gradlew.bat testDebugUnitTest lintDebug connectedDebugAndroidTest`. **BUILD SUCCESSFUL** antes de subir los cambios. Entorno: JDK 17, Pixel 7 Pro / Android 13 (API 33).
+
+| Verificación | Resultado |
+|---|---|
+| Unitarias | 118 pruebas, 0 fallos, 0 errores, 0 omitidas |
+| Android | 23 pruebas, 0 fallos, 0 errores, 0 omitidas |
+| Lint | 0 errores, 37 advertencias |
+| Room | Migraciones de versiones 1–5 a v6, sin borrado de datos |
+
+Evidencias: [unitarias](evidencias/flujo-operativo/unitarias.json), [Android](evidencias/flujo-operativo/android.json), [Lint](evidencias/flujo-operativo/lint.json).
+
+Se comprueban tareas obligatorias y borradores, autorización previa al inicio, propiedad y rol del supervisor, rechazo de doble inicio concurrente en Room, cierre obligatorio con salud de salida válida, preservación de la salud inicial, recuperación tras reabrir en ejecución y tras cerrar, filtros combinados de fecha/centro/buzo/estado y controles de pantalla. Pasan también las regresiones de apertura, DPR-24, fotografías, salud, AST y navegación existentes. Las reglas de salud y AST no tienen diferencias respecto de develop.
+
+La prueba de fotografías existente utiliza un archivo de prueba; la captura con cámara física sigue siendo una comprobación manual. La operación entre roles permanece local al mismo dispositivo.
+
+## Validación histórica: integración sobre develop (25 de octubre de 2026)
 
 Rama de entrega: `feature/persistencia`. Base: `origin/develop` en `868808c`. Esta ejecución reemplaza como evidencia vigente las pruebas de la primera implementación sobre la base antigua.
 

@@ -27,6 +27,7 @@ class BorradoresDevelopTest {
     @Test fun botonesBorradorPersistenSuEstadoYReabrirPorIdLoConserva() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         repo.guardar(apertura)
+        repo.guardarTareas("f1", tareasCompletas())
         val vm = FaenaViewModel(repo, repo)
         vm.iniciar(usuario, "f1")
         advanceUntilIdle()
@@ -69,8 +70,10 @@ class BorradoresDevelopTest {
     @Test fun borradorNoSeDuplicaDuranteGuardadoYNoEditaDecisiones() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         repo.guardar(apertura)
+        repo.guardarTareas("f1", tareasCompletas())
         repo.guardarChecklist("f1", c)
         repo.guardarAst("f1", a)
+        repo.guardarTareas("f1", tareasCompletas())
         repo.guardarEncuesta("f1", e)
         val vm = FaenaViewModel(repo, repo)
         vm.iniciar(usuario, "f1")
