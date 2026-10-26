@@ -1,6 +1,7 @@
 package com.duoc.aquaflow.navigation
 
 import android.net.Uri
+import com.duoc.aquaflow.model.Rol
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,6 +36,7 @@ import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
 import com.duoc.aquaflow.ui.screens.historial.DetalleFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
 import com.duoc.aquaflow.viewmodel.AstViewModel
+import com.duoc.aquaflow.viewmodel.DashboardViewModel
 import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
@@ -105,17 +107,25 @@ fun AquaFlowNavHost() {
 
         composable(Ruta.DASHBOARD) {
             usuario?.let { actual ->
-                val faenasFlow = remember(repository, actual) { repository.observarFaenas(actual) }
-                val faenas by faenasFlow.collectAsState(initial = emptyList())
-                val borradorFaenas = faenas.filter { it.decision == null }
+                val factory = remember(repository, actual) {
+                    viewModelFactory { initializer { DashboardViewModel(repository, actual) } }
+                }
+                val vm: DashboardViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
 
                 DashboardScreen(
                     usuario = actual,
                     tabs = tabsPara(actual.rol),
-                    faenas = borradorFaenas,
+                    faenas = state.faenas,
+                    cargando = state.cargando,
+                    error = state.error,
+                    onReintentar = vm::reintentar,
+                    onVerFaena = { id -> nav.navigate("historial/${Uri.encode(id)}") },
                     ultimaEncuesta = ultimaEncuesta,
-                    onNuevaFaena = { nav.navigate("faena") },
-                    onEditarBorrador = { id -> nav.navigate("faena?aperturaId=$id") },
+                    onNuevaFaena = { if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena") },
+                    onEditarBorrador = { id ->
+                        if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena?aperturaId=${Uri.encode(id)}")
+                    },
                     onTab = ::irATab,
                     onSalir = {
                         sesion.salir()

@@ -1,6 +1,5 @@
 package com.duoc.aquaflow.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,9 +61,14 @@ fun DashboardScreen(
     onNuevaFaena: () -> Unit,
     onEditarBorrador: (String) -> Unit = {},
     onTab: (Tab) -> Unit,
-    onSalir: () -> Unit
+    onSalir: () -> Unit,
+    cargando: Boolean = false,
+    error: String? = null,
+    onReintentar: () -> Unit = {},
+    onVerFaena: (String) -> Unit = {}
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
+    val borradores = faenas.filter { it.decision == null }
     val nombre = usuario.nombre.substringBefore(" ")
     var mostrarMenuPerfil by remember { mutableStateOf(false) }
 
@@ -99,21 +103,21 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.labelMedium,
                             color = AquaAzul
                         )
-                    IconButton(
-                        onClick = { mostrarMenuPerfil = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .semantics {
-                                contentDescription = "Perfil de ${usuario.nombre}, ${usuario.rol.texto}"
-                            }
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(36.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            border = BorderStroke(1.dp, AquaAzul)
-                        ) {}
-                    }
+                        IconButton(
+                            onClick = { mostrarMenuPerfil = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .semantics {
+                                    contentDescription = "Perfil de ${usuario.nombre}, ${usuario.rol.texto}"
+                                }
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(36.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                border = BorderStroke(1.dp, AquaAzul)
+                            ) {}
+                        }
                     }
                     DropdownMenu(
                         expanded = mostrarMenuPerfil,
@@ -146,7 +150,7 @@ fun DashboardScreen(
                     Text("Hola, $nombre", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Text(
                         if (puedeCrear) "Gestiona la preparación y seguridad de cada faena."
-                        else "Revisa las faenas guardadas y resuelve su autorización desde Historial.",
+                        else "Consulta las faenas por estado y revisa las pendientes de decisión.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFFD6E0E6)
                     )
@@ -165,26 +169,24 @@ fun DashboardScreen(
                         }
                     }
                 }
-            } else {
-                AquaSectionCard(
-                    title = "Seguimiento operativo",
-                    subtitle = "Abre una faena desde el historial para revisarla y autorizarla o rechazarla."
-                ) {
-                    Text(
-                        "Usa las pestañas inferiores para revisar las operaciones disponibles.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
 
-            if (faenas.isNotEmpty()) {
+            when {
+                cargando -> Text("Cargando faenas…")
+                error != null -> AquaSectionCard(title = "No se pudo actualizar el inicio") {
+                    Text(error)
+                    OutlinedButton(onClick = onReintentar) { Text("Reintentar") }
+                }
+                !puedeCrear -> com.duoc.aquaflow.ui.components.PanelAdministrador(faenas, onVerFaena)
+            }
+
+            if (puedeCrear && !cargando && error == null && borradores.isNotEmpty()) {
                 AquaSectionCard(
                     title = "Borradores guardados",
-                    subtitle = "${faenas.size} borrador(es) pendiente(s)"
+                    subtitle = "${borradores.size} borrador(es) pendiente(s)"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        faenas.forEach { faena ->
+                        borradores.forEach { faena ->
                             val resumen = faena.resumen
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -233,7 +235,7 @@ fun DashboardScreen(
                 }
             }
 
-            ultimaEncuesta?.let { encuesta ->
+            ultimaEncuesta?.takeIf { puedeCrear }?.let { encuesta ->
                 AquaSectionCard(
                     title = "Último control de salud",
                     subtitle = "Último control guardado durante esta sesión"
