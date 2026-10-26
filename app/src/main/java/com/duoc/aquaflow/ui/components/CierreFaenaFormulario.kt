@@ -30,9 +30,7 @@ fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, onCerrar: (Regis
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
     OutlinedTextField(ui.saturacion, vm::saturacion, label = { Text("Saturación de salida (%)") }, enabled = !ocupado,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-    com.duoc.aquaflow.model.PREGUNTAS_SALUD.forEach { p ->
-        Row { Checkbox(p in ui.alertas, { vm.alerta(p, it) }, enabled = !ocupado); Text(p) }
-    }
+
     ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(enabled = !ocupado, onClick = { if (vm.validar() != null) confirmar = true }, modifier = Modifier.fillMaxWidth()) {
         Text("Cerrar faena")
