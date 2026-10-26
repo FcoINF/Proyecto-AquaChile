@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.data.local
 
+import com.duoc.aquaflow.model.AntecedentesAst
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.Decision
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -61,6 +62,19 @@ object FaenaCodec {
 
     fun astATexto(a: FormularioAst): String = JSONObject()
         .put("estado", ReglasSecciones.ast(a).name)
+        .put("versionPreguntas", a.versionPreguntas)
+        .put("antecedentes", JSONObject()
+            .put("fechaInicio", a.antecedentes.fechaInicio)
+            .put("turnoInicio", a.antecedentes.turnoInicio)
+            .put("fechaCierre", a.antecedentes.fechaCierre)
+            .put("turnoCierre", a.antecedentes.turnoCierre)
+            .put("descripcion", a.antecedentes.descripcion)
+            .put("ubicacion", a.antecedentes.ubicacion)
+            .put("ejecucion", a.antecedentes.ejecucion)
+            .put("empresa", a.antecedentes.empresa)
+            .put("rutEmpresa", a.antecedentes.rutEmpresa)
+            .put("otraTipologia", a.antecedentes.otraTipologia)
+        )
         .put("tipologia", a.tipologia)
         .put("requiereNuevoAst", a.requiereNuevoAst)
         .put("respuestas", JSONArray(a.respuestas))
@@ -70,6 +84,7 @@ object FaenaCodec {
                     JSONObject()
                         .put("tarea", it.tarea).put("peligro", it.peligro)
                         .put("control", it.control).put("critico", it.critico)
+                        .put("fechasRevision", JSONArray(it.fechasRevision))
                 )
             }
         })
@@ -81,6 +96,21 @@ object FaenaCodec {
         val respuestas = o.getJSONArray("respuestas")
         FormularioAst(
             tipologia = o.getString("tipologia"),
+            versionPreguntas = o.optInt("versionPreguntas", 1),
+            antecedentes = (o.optJSONObject("antecedentes") ?: JSONObject()).let { datos ->
+                AntecedentesAst(
+                    fechaInicio = datos.optString("fechaInicio", ""),
+                    turnoInicio = datos.optString("turnoInicio", ""),
+                    fechaCierre = datos.optString("fechaCierre", ""),
+                    turnoCierre = datos.optString("turnoCierre", ""),
+                    descripcion = datos.optString("descripcion", ""),
+                    ubicacion = datos.optString("ubicacion", ""),
+                    ejecucion = datos.optString("ejecucion", ""),
+                    empresa = datos.optString("empresa", ""),
+                    rutEmpresa = datos.optString("rutEmpresa", ""),
+                    otraTipologia = datos.optString("otraTipologia", "")
+                )
+            },
             requiereNuevoAst = o.getBoolean("requiereNuevoAst"),
             respuestas = (0 until respuestas.length()).map { respuestas.getBoolean(it) },
             pasos = o.getJSONArray("pasos").objetos().map {
@@ -88,7 +118,8 @@ object FaenaCodec {
                     tarea = it.optString("tarea", ""),
                     peligro = it.optString("peligro", ""),
                     control = it.optString("control", ""),
-                    critico = it.optBoolean("critico", false)
+                    critico = it.optBoolean("critico", false),
+                    fechasRevision = it.optJSONArray("fechasRevision")?.textos() ?: List(4) { "" }
                 )
             },
             resultado = ResultadoAst.valueOf(o.getString("resultado")),
@@ -144,13 +175,17 @@ object FaenaCodec {
     fun tareasATexto(t: ChecklistTareas): String = JSONObject()
         .put("estado", ReglasSecciones.tareas(t).name)
         .put("items", JSONArray().also { arr -> t.items.forEach {
-            arr.put(JSONObject().put("descripcion", it.descripcion).put("verificada", it.verificada))
+            arr.put(JSONObject().put("descripcion", it.descripcion).put("verificada", it.verificada)
+                .put("peligro", it.peligro).put("control", it.control)
+                .put("fechasRevision", JSONArray(it.fechasRevision)))
         } }).toString()
 
     fun tareasDesde(texto: String): ChecklistTareas? = runCatching {
         val o = JSONObject(texto)
         ChecklistTareas(o.getJSONArray("items").objetos().map {
-            TareaFaena(it.getString("descripcion"), it.getBoolean("verificada"))
+            TareaFaena(it.getString("descripcion"), it.getBoolean("verificada"),
+                it.optString("peligro", ""), it.optString("control", ""),
+                it.optJSONArray("fechasRevision")?.textos() ?: List(4) { "" })
         }, estadoDesde(o))
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.tareas(it)) }
 

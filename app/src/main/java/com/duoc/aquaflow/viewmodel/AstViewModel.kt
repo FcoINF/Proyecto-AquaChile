@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.viewmodel
 
+import com.duoc.aquaflow.model.AntecedentesAst
 import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.ReglasAst
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.update
 // Todo lo que muestra el formulario AST en un solo objeto inmutable.
 data class AstUiState(
     val tipologia: String = "",
+    val antecedentes: AntecedentesAst = AntecedentesAst(),
     val requiereNuevoAst: Boolean = false,
     val respuestas: List<Boolean?> = List(PREGUNTAS_AST.size) { null },   // null = sin responder
     val pasos: List<PasoAst> = emptyList(),
@@ -40,10 +42,13 @@ class AstViewModel : ViewModel() {
         _ui.value = AstUiState(
             tipologia = f.tipologia,
             requiereNuevoAst = f.requiereNuevoAst,
-            respuestas = f.respuestas,
+            respuestas = if (f.versionPreguntas >= 2) f.respuestas else List(PREGUNTAS_AST.size) { null },
+            antecedentes = f.antecedentes,
             pasos = f.pasos
         )
     }
+
+    fun antecedentes(v: AntecedentesAst) = _ui.update { it.copy(antecedentes = v, error = null) }
 
     fun elegirTipologia(v: String) = _ui.update { it.copy(tipologia = v, error = null) }
     fun alternarNuevoAst() = _ui.update { it.copy(requiereNuevoAst = !it.requiereNuevoAst, error = null) }
@@ -78,6 +83,7 @@ class AstViewModel : ViewModel() {
         }
         return FormularioAst(
             tipologia = s.tipologia,
+            antecedentes = s.antecedentes,
             requiereNuevoAst = s.requiereNuevoAst,
             respuestas = s.respuestas.map { it == true },
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
@@ -89,6 +95,7 @@ class AstViewModel : ViewModel() {
         val s = _ui.value
         return FormularioAst(
             tipologia = s.tipologia,
+            antecedentes = s.antecedentes,
             requiereNuevoAst = s.requiereNuevoAst,
             respuestas = s.respuestas.map { it == true },
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },

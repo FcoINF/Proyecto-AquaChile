@@ -24,6 +24,9 @@ class TareasViewModel(private val saved: SavedStateHandle) : ViewModel() {
     fun cambiar(indice: Int, descripcion: String) = actualizar(_items.value.mapIndexed { i, t ->
         if (i == indice) t.copy(descripcion = descripcion.take(300), verificada = false) else t
     })
+    fun detalle(indice: Int, tarea: TareaFaena) = actualizar(_items.value.mapIndexed { i, t ->
+        if (i == indice) tarea.copy(verificada = false) else t
+    })
     fun verificar(indice: Int, valor: Boolean) = actualizar(_items.value.mapIndexed { i, t -> if (i == indice) t.copy(verificada = valor) else t })
     fun quitar(indice: Int) = actualizar(_items.value.filterIndexed { i, _ -> i != indice })
     fun borrador() = ChecklistTareas(_items.value, EstadoSeccion.BORRADOR)

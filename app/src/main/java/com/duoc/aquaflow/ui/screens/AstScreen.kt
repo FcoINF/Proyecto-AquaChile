@@ -1,59 +1,23 @@
 package com.duoc.aquaflow.ui.screens
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.duoc.aquaflow.model.FormularioAst
-import com.duoc.aquaflow.model.PREGUNTAS_AST
-import com.duoc.aquaflow.model.TIPOLOGIAS_AST
+import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.Guardando
-import com.duoc.aquaflow.ui.theme.AquaAzul
-import com.duoc.aquaflow.ui.theme.AquaBlanco
-import com.duoc.aquaflow.ui.theme.AquaFlowTheme
-import com.duoc.aquaflow.ui.theme.AquaVerde
-import com.duoc.aquaflow.viewmodel.AstViewModel
 
-// Solo dibuja y avisa los clics: la validación y el semáforo los resuelven el ViewModel y ReglasAst.
-// El centro y la fecha llegan de la apertura de la faena; `onGuardar` entrega el AST validado.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AstScreen(
     ocupado: Boolean = false,
     errorExterno: String? = null,
-    vm: AstViewModel,
+    vm: com.duoc.aquaflow.viewmodel.AstViewModel,
     centro: String,
     fecha: String,
     onGuardar: (FormularioAst) -> Unit,
@@ -61,135 +25,106 @@ fun AstScreen(
     onVolver: () -> Unit
 ) {
     val ui by vm.ui.collectAsState()
-
+    val a = ui.antecedentes
+    LaunchedEffect(centro, fecha) {
+        vm.antecedentes(vm.ui.value.antecedentes.let {
+            it.copy(fechaInicio = it.fechaInicio.ifBlank { fecha }, ubicacion = it.ubicacion.ifBlank { centro })
+        })
+    }
     Guardando(ocupado)
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Formulario AST") },
-                navigationIcon = { TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") } }
-            )
-        }
-    ) { padding ->
-        Column(
-            Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Análisis Seguro de Trabajo", style = MaterialTheme.typography.headlineSmall)
-                Text("$centro · $fecha", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-
-            // 1. Antecedentes generales (ubicación y fecha vienen de la apertura)
-            AquaSectionCard(title = "1. Antecedentes generales", subtitle = "Selecciona la tipología de la tarea") {
-                TIPOLOGIAS_AST.forEach { tipo ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { vm.elegirTipologia(tipo) },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = ui.tipologia == tipo, onClick = { vm.elegirTipologia(tipo) })
-                        Text(tipo, style = MaterialTheme.typography.bodyMedium)
+    Scaffold(topBar = {
+        TopAppBar(title = { Text("Formulario AST") }, navigationIcon = {
+            TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") }
+        })
+    }) { padding ->
+        Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("Planificación y ejecución de trabajos críticos", style = MaterialTheme.typography.titleMedium)
+            Text("Análisis Seguro de Trabajo (AST)", style = MaterialTheme.typography.headlineSmall)
+            Text("Código: SSO_P_03_REG_01 · Fecha: 18-03-2026 · Revisión: 01 · Versión: 03",
+                style = MaterialTheme.typography.bodySmall)
+            AquaSectionCard(title = "1. Antecedentes generales") {
+                CampoAst("Fecha de inicio del trabajo", a.fechaInicio, ocupado) { vm.antecedentes(a.copy(fechaInicio = it)) }
+                CampoAst("Turno de inicio", a.turnoInicio, ocupado) { vm.antecedentes(a.copy(turnoInicio = it)) }
+                CampoAst("Fecha de cierre del trabajo", a.fechaCierre, ocupado) { vm.antecedentes(a.copy(fechaCierre = it)) }
+                CampoAst("Turno de cierre", a.turnoCierre, ocupado) { vm.antecedentes(a.copy(turnoCierre = it)) }
+                Text("El AST es diario; excepcionalmente puede extenderse hasta 6 días si no cambia la nómina inicial de trabajadores ni las condiciones del entorno, métodos de trabajo, nuevos procesos o intervención de terceros. Si existen cambios, se debe confeccionar un nuevo AST inmediatamente.")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(ui.requiereNuevoAst, { vm.alternarNuevoAst() }, enabled = !ocupado)
+                    Text("Existen cambios: requiere un nuevo AST", Modifier.weight(1f))
+                }
+                CampoAst("Descripción del trabajo a ejecutar", a.descripcion, ocupado) { vm.antecedentes(a.copy(descripcion = it)) }
+                CampoAst("Ubicación específica del trabajo", a.ubicacion, ocupado) { vm.antecedentes(a.copy(ubicacion = it)) }
+                Text("Ejecución del trabajo", style = MaterialTheme.typography.titleSmall)
+                listOf("Ejecución propia", "Ejecución empresa prestadora de servicio").forEach { opcion ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(a.ejecucion == opcion, { vm.antecedentes(a.copy(ejecucion = opcion)) }, enabled = !ocupado)
+                        Text(opcion, Modifier.weight(1f))
                     }
                 }
+                if (a.ejecucion == "Ejecución empresa prestadora de servicio") {
+                    CampoAst("Nombre de la empresa prestadora de servicio", a.empresa, ocupado) { vm.antecedentes(a.copy(empresa = it)) }
+                    CampoAst("RUT empresa prestadora de servicio", a.rutEmpresa, ocupado) { vm.antecedentes(a.copy(rutEmpresa = it)) }
+                }
             }
-
-            // 2. Chequeo inicial utilizando el botón Switch con ícono de verificación.
-            AquaSectionCard(title = "2. Chequeo inicial", subtitle = "Verifica cada condición antes de continuar") {
+            AquaSectionCard(title = "2. Tipología del trabajo", subtitle = "Marca las que correspondan") {
+                val seleccionadas = ui.tipologia.split("\n").filter { it.isNotBlank() }
+                (TIPOLOGIAS_AST + seleccionadas.filter { it !in TIPOLOGIAS_AST }).forEach { tipo ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(tipo in seleccionadas, { marcada ->
+                            vm.elegirTipologia((if (marcada) seleccionadas + tipo else seleccionadas - tipo).joinToString("\n"))
+                        }, enabled = !ocupado)
+                        Text(tipo, Modifier.weight(1f))
+                    }
+                }
+                if ("Otro" in seleccionadas) {
+                    CampoAst("Otro (describa)", a.otraTipologia, ocupado) { vm.antecedentes(a.copy(otraTipologia = it)) }
+                }
+            }
+            AquaSectionCard(title = "3. Chequeo inicial") {
                 PREGUNTAS_AST.forEachIndexed { i, pregunta ->
-                    val respuesta = ui.respuestas[i]
-                    val estaRespuesta = respuesta == true
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { vm.responder(i, respuesta != true) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = pregunta.texto,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                if (pregunta.critica) {
-                                    Text(
-                                        text = "Pregunta crítica",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                            Switch(
-                                checked = estaRespuesta,
-                                onCheckedChange = { vm.responder(i, it) },
-                                thumbContent = if (estaRespuesta) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(SwitchDefaults.IconSize)
-                                        )
-                                    }
-                                } else null,
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = AquaBlanco,
-                                    checkedTrackColor = AquaVerde,
-                                    checkedIconColor = AquaVerde,
-                                    uncheckedThumbColor = Color(0xFF6C7A86),
-                                    uncheckedTrackColor = Color(0xFFE2E8ED),
-                                    uncheckedBorderColor = Color(0xFF6C7A86)
-                                )
-                            )
+                    Column {
+                        Text(pregunta.texto)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(ui.respuestas.getOrNull(i) == true, { vm.responder(i, true) }, enabled = !ocupado)
+                            Text("Sí")
+                            RadioButton(ui.respuestas.getOrNull(i) == false, { vm.responder(i, false) }, enabled = !ocupado)
+                            Text("No")
                         }
                     }
                 }
+                Text("Si una respuesta es NO, repórtelo a su jefatura directa y NO inicie sus labores hasta que todas sus respuestas sean SÍ.")
             }
-
-            // El resultado sigue calculándose y se incluye al guardar.
+            AquaSectionCard(title = "4. Identificación y control de peligros") {
+                ui.pasos.forEachIndexed { i, paso ->
+                    Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
+                    CampoAst("Paso del trabajo", paso.tarea, ocupado) { vm.cambiarPaso(i, paso.copy(tarea = it)) }
+                    CampoAst("Peligros", paso.peligro, ocupado) { vm.cambiarPaso(i, paso.copy(peligro = it)) }
+                    CampoAst("Medidas de control", paso.control, ocupado) { vm.cambiarPaso(i, paso.copy(control = it)) }
+                    FechasRevisionAst(paso.fechasRevision, ocupado) { vm.cambiarPaso(i, paso.copy(fechasRevision = it)) }
+                    TextButton(onClick = { vm.quitarPaso(i) }, enabled = !ocupado && ui.pasos.size > 1) { Text("Quitar paso") }
+                }
+                OutlinedButton(onClick = vm::agregarPaso, enabled = !ocupado && ui.pasos.size < com.duoc.aquaflow.domain.ReglasAst.MAX_PASOS) { Text("Agregar paso") }
+            }
             (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    enabled = !ocupado,
-                    onClick = { vm.guardar()?.let(onGuardar) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Guardar AST") }
-                OutlinedButton(
-                    enabled = !ocupado,
-                    onClick = { onGuardarBorrador(vm.borrador()) },
-                    modifier = Modifier.align(androidx.compose.ui.Alignment.End),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text("Guardar borrador") }
-            }
+            Button(onClick = { vm.guardar()?.let(onGuardar) }, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) { Text("Guardar AST") }
+            OutlinedButton(onClick = { onGuardarBorrador(vm.borrador()) }, enabled = !ocupado, modifier = Modifier.align(Alignment.End)) { Text("Guardar borrador") }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun AstScreenPreview() {
-    AquaFlowTheme {
-        AstScreen(
-            vm = AstViewModel(),
-            centro = "Centro Punta de Tralca",
-            fecha = "20/10/2026",
-            onGuardar = {},
-            onGuardarBorrador = {},
-            onVolver = {}
-        )
+internal fun CampoAst(titulo: String, valor: String, ocupado: Boolean, cambiar: (String) -> Unit) {
+    OutlinedTextField(value = valor, onValueChange = cambiar, label = { Text(titulo) },
+        enabled = !ocupado, modifier = Modifier.fillMaxWidth())
+}
+
+@Composable
+internal fun FechasRevisionAst(fechas: List<String>, ocupado: Boolean, cambiar: (List<String>) -> Unit) {
+    Text("Verificaciones del supervisor ejecutante · Fechas de revisión", style = MaterialTheme.typography.titleSmall)
+    repeat(4) { i ->
+        CampoAst("Revisión ${i + 1} (dd/mm/aaaa)", fechas.getOrElse(i) { "" }, ocupado) { valor ->
+            cambiar(List(4) { indice -> if (indice == i) valor else fechas.getOrElse(indice) { "" } })
+        }
     }
 }

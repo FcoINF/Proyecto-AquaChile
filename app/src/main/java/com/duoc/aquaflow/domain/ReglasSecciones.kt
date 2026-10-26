@@ -14,7 +14,7 @@ object ReglasSecciones {
     } ?: EstadoSeccion.SIN_REGISTRAR
 
     fun ast(a: FormularioAst?) = a?.let {
-        estado(it.estado, ReglasAst.error(it.tipologia, it.respuestas, it.pasos) == null)
+        estado(it.estado, ReglasAst.error(it.tipologia, it.respuestas, it.pasos, it.versionPreguntas) == null)
     } ?: EstadoSeccion.SIN_REGISTRAR
 
     fun encuesta(e: EncuestaSalud?) = e?.let {

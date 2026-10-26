@@ -23,11 +23,15 @@ fun TareasScreen(id: String, inicial: ChecklistTareas?, ocupado: Boolean, errorE
         TextButton(onClick = onVolver, enabled = !ocupado) { Text("Volver") }
     }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Registra las tareas previstas y confirma su preparación antes de solicitar autorización.")
+            Text("Identificación y control de peligros", style = MaterialTheme.typography.titleLarge)
+            Text("Registra los pasos, sus peligros, las medidas de control y las fechas de revisión del supervisor ejecutante.")
             items.forEachIndexed { i, tarea ->
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     OutlinedTextField(tarea.descripcion, { vm.cambiar(i, it); error = null },
-                        label = { Text("Tarea ${i + 1}") }, enabled = !ocupado, modifier = Modifier.fillMaxWidth())
+                        label = { Text("Paso ${i + 1}") }, enabled = !ocupado, modifier = Modifier.fillMaxWidth())
+                    CampoAst("Peligros", tarea.peligro, ocupado) { vm.detalle(i, tarea.copy(peligro = it)); error = null }
+                    CampoAst("Medidas de control", tarea.control, ocupado) { vm.detalle(i, tarea.copy(control = it)); error = null }
+                    FechasRevisionAst(tarea.fechasRevision, ocupado) { vm.detalle(i, tarea.copy(fechasRevision = it)); error = null }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                         Checkbox(tarea.verificada, { vm.verificar(i, it); error = null }, enabled = !ocupado)
                         Text("Preparación verificada", modifier = Modifier.weight(1f))

@@ -137,7 +137,14 @@ fun DetalleFaenaScreen(
 
             item {
                 SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
-                    resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
+                    resumen.tareas?.items?.forEach {
+                    Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}")
+                    Text("Peligros: ${it.peligro.ifBlank { "Sin registrar" }}")
+                    Text("Medidas de control: ${it.control.ifBlank { "Sin registrar" }}")
+                    it.fechasRevision.forEachIndexed { i, fecha ->
+                        if (fecha.isNotBlank()) Text("Revisión ${i + 1}: $fecha")
+                    }
+                }
                 }
             }
             item {
@@ -577,6 +584,7 @@ private fun SeccionAst(ast: FormularioAst?) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            com.duoc.aquaflow.ui.components.AntecedentesAstDetalle(ast.antecedentes)
             if (ast.requiereNuevoAst) {
                 Aviso(
                     texto = "Requiere un nuevo AST antes de continuar.",
@@ -592,12 +600,15 @@ private fun SeccionAst(ast: FormularioAst?) {
                 ast.pasos.forEachIndexed { indice, paso ->
                     if (indice > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     PasoAstDetalle(paso, indice + 1)
+                    paso.fechasRevision.forEachIndexed { revision, fecha ->
+                        if (fecha.isNotBlank()) Text("Revisión ${revision + 1}: $fecha")
+                    }
                 }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text("Verificación inicial", style = MaterialTheme.typography.labelLarge)
-            PREGUNTAS_AST.forEachIndexed { indice, pregunta ->
+            (if (ast.versionPreguntas >= 2) PREGUNTAS_AST else com.duoc.aquaflow.model.PREGUNTAS_AST_ANTERIORES).forEachIndexed { indice, pregunta ->
                 val respuesta = ast.respuestas.getOrNull(indice)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
