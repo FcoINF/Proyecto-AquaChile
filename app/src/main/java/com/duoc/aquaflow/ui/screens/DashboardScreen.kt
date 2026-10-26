@@ -90,6 +90,15 @@ fun DashboardScreen(
                     Text("AquaFlow · Operaciones", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = usuario.rol.texto.lowercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = AquaAzul
+                        )
                     IconButton(
                         onClick = { mostrarMenuPerfil = true },
                         modifier = Modifier
@@ -104,6 +113,7 @@ fun DashboardScreen(
                             color = MaterialTheme.colorScheme.secondaryContainer,
                             border = BorderStroke(1.dp, AquaAzul)
                         ) {}
+                    }
                     }
                     DropdownMenu(
                         expanded = mostrarMenuPerfil,
