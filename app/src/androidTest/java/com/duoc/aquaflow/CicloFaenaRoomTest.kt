@@ -24,10 +24,15 @@ class CicloFaenaRoomTest {
             var repo = PreChequeoRepository(db.preChequeoDao())
             val apertura = PreChequeo("f1", "Centro", "24/10/2026", "10:00", "Ana", "supervisor", true, true, true)
             repo.guardar(apertura)
+            assertTrue(repo.observarFaenas(jefe).first().isEmpty())
+            assertNull(repo.observarFaena("f1", jefe).first())
+            assertEquals(1, repo.observarFaenas(supervisor).first().size)
             repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
             repo.guardarEncuesta("f1", EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
             repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
             repo.guardarTareas("f1", tareasCompletas())
+            assertEquals(com.duoc.aquaflow.domain.GrupoFaena.ABIERTAS,
+                com.duoc.aquaflow.domain.ReglasPanel.grupo(repo.observarFaenas(jefe).first().single()))
             repo.decidir("f1", RegistroDecision(Decision.AUTORIZADA, "", "ignorado"), jefe)
             val inicios = listOf(async { runCatching { repo.iniciar("f1", supervisor) }.isSuccess },
                 async { runCatching { repo.iniciar("f1", supervisor) }.isSuccess }).awaitAll()

@@ -4,6 +4,7 @@ import com.duoc.aquaflow.data.local.AperturaEntity
 import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.data.local.PreChequeoDao
 import com.duoc.aquaflow.domain.ReglasCierre
+import com.duoc.aquaflow.domain.ReglasPanel
 import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -122,10 +123,14 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
         dao.observarApertura(id, supervisorVisible(usuario)).map { it?.aModelo() }
 
     override fun observarFaenas(usuario: Usuario): Flow<List<FaenaGuardada>> =
-        dao.observarAperturas(supervisorVisible(usuario)).map { lista -> lista.map { it.aFaena() } }
+        dao.observarAperturas(supervisorVisible(usuario)).map { lista ->
+            lista.map { it.aFaena() }.filter { ReglasPanel.visible(it, usuario.rol) }
+        }
 
     override fun observarFaena(id: String, usuario: Usuario): Flow<FaenaGuardada?> =
-        dao.observarApertura(id, supervisorVisible(usuario)).map { it?.aFaena() }
+        dao.observarApertura(id, supervisorVisible(usuario)).map {
+            it?.aFaena()?.takeIf { faena -> ReglasPanel.visible(faena, usuario.rol) }
+        }
 
     private fun supervisorVisible(usuario: Usuario): String? = when (usuario.rol) {
         Rol.JEFE -> null

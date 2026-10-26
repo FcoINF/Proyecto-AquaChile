@@ -60,13 +60,15 @@ class FaenaPersistenciaTest {
         guardarTodo()
         // Las condiciones iniciales forman parte del expediente persistido.
         repo.guardar(apertura.copy(condicionesListas = false))
-        assertNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
+        assertNull(repo.observarFaena("f1", luis).first()!!.resumen.checklist)
+        assertNull(repo.observarFaena("f1", jefe).first())
     }
 
     @Test fun cambiarLaAperturaDejaLasSeccionesEnBlanco() = runTest {
         guardarTodo()
         repo.guardar(apertura.copy(buzoAsignado = "Otro buzo"))
-        val faena = repo.observarFaena("f1", jefe).first()!!
+        val faena = repo.observarFaena("f1", luis).first()!!
+        assertNull(repo.observarFaena("f1", jefe).first())
         assertEquals("Otro buzo", faena.resumen.apertura.buzoAsignado)
         assertNull(faena.resumen.checklist)
         assertNull(faena.resumen.ast)
@@ -87,7 +89,8 @@ class FaenaPersistenciaTest {
         repo.guardar(apertura.copy(id = "f2", supervisorACargo = "Pedro"))
         assertEquals(listOf("f1"), repo.observarFaenas(luis).first().map { it.resumen.apertura.id })
         assertNull(repo.observarFaena("f2", luis).first())
-        assertEquals(2, repo.observarFaenas(jefe).first().size)
+        assertEquals(1, repo.observarFaenas(jefe).first().size)
+        assertNull(repo.observarFaena("f2", jefe).first())
     }
 
     @Test fun seccionesSobreFaenaInexistenteNoCreanFilas() = runTest {
