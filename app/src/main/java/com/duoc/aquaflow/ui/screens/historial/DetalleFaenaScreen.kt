@@ -157,7 +157,7 @@ fun DetalleFaenaScreen(
             val propietario = rol == Rol.SUPERVISOR && apertura.supervisorACargo == nombreUsuario
             if (faena.inicio != null) item { Text("Inicio: ${formatearFecha(faena.inicio.iniciadoEn)} · ${faena.inicio.iniciadoPor}") }
             if (propietario && faena.estado == EstadoFaena.AUTORIZADA && onIniciar != null) item {
-                Button(onClick = onIniciar, enabled = !ocupado && faltantes.isEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Iniciar faena") }
+                Button(onClick = onIniciar, enabled = !ocupado && faltantes.isEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Cierre faena") }
             }
             val cierre = faena.cierre
             when {
