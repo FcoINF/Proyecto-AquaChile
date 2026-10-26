@@ -28,7 +28,6 @@ interface BorradoresApertura {
 
 // Guarda cada sección de la faena a medida que el supervisor la completa.
 interface RegistroFaena {
-    suspend fun guardarTareas(id: String, tareas: com.duoc.aquaflow.model.ChecklistTareas)
     suspend fun guardarChecklist(id: String, checklist: ChecklistFaena)
     suspend fun guardarAst(id: String, ast: FormularioAst)
     suspend fun guardarEncuesta(id: String, encuesta: EncuestaSalud)
@@ -109,12 +108,6 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
 
     override suspend fun cerrar(id: String, cierre: RegistroCierre, usuario: Usuario) =
         dao.cerrarValidada(id, cierre, usuario)
-
-    override suspend fun guardarTareas(id: String, tareas: com.duoc.aquaflow.model.ChecklistTareas) {
-        check(dao.guardarTareas(id, FaenaCodec.tareasATexto(tareas), System.currentTimeMillis()) == 1) {
-            "La faena no existe o ya fue decidida."
-        }
-    }
 
     override fun observar(usuario: Usuario): Flow<List<PreChequeo>> =
         dao.observarAperturas(supervisorVisible(usuario)).map { lista -> lista.map { it.aModelo() } }

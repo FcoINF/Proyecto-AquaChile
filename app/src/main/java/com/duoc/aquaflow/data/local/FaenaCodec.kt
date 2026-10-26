@@ -14,8 +14,6 @@ import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResultadoAst
 import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.domain.ReglasSecciones
-import com.duoc.aquaflow.model.ChecklistTareas
-import com.duoc.aquaflow.model.TareaFaena
 import com.duoc.aquaflow.model.RegistroInicio
 import org.json.JSONArray
 import org.json.JSONObject
@@ -171,23 +169,6 @@ object FaenaCodec {
             o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"),
             o.optJSONObject("saludSalida")?.let { encuestaDesde(it.toString()) })
     }.getOrNull()
-
-    fun tareasATexto(t: ChecklistTareas): String = JSONObject()
-        .put("estado", ReglasSecciones.tareas(t).name)
-        .put("items", JSONArray().also { arr -> t.items.forEach {
-            arr.put(JSONObject().put("descripcion", it.descripcion).put("verificada", it.verificada)
-                .put("peligro", it.peligro).put("control", it.control)
-                .put("fechasRevision", JSONArray(it.fechasRevision)))
-        } }).toString()
-
-    fun tareasDesde(texto: String): ChecklistTareas? = runCatching {
-        val o = JSONObject(texto)
-        ChecklistTareas(o.getJSONArray("items").objetos().map {
-            TareaFaena(it.getString("descripcion"), it.getBoolean("verificada"),
-                it.optString("peligro", ""), it.optString("control", ""),
-                it.optJSONArray("fechasRevision")?.textos() ?: List(4) { "" })
-        }, estadoDesde(o))
-    }.getOrNull()?.let { it.copy(estado = ReglasSecciones.tareas(it)) }
 
     fun inicioATexto(i: RegistroInicio): String = JSONObject()
         .put("iniciadoPor", i.iniciadoPor).put("iniciadoEn", i.iniciadoEn).toString()

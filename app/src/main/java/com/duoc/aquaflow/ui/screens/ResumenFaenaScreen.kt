@@ -140,18 +140,6 @@ fun ResumenFaenaScreen(
                 }
             }
 
-            Seccion("Checklist de tareas") {
-                Text("Estado: ${estados.getValue("Checklist de tareas").texto}")
-                resumen.tareas?.items?.forEach {
-                    Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}")
-                    Text("Peligros: ${it.peligro.ifBlank { "Sin registrar" }}")
-                    Text("Medidas de control: ${it.control.ifBlank { "Sin registrar" }}")
-                    it.fechasRevision.forEachIndexed { i, fecha ->
-                        if (fecha.isNotBlank()) Text("Revisión ${i + 1}: $fecha")
-                    }
-                }
-            }
-
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {

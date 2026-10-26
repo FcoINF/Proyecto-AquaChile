@@ -21,16 +21,11 @@ object ReglasSecciones {
         estado(it.estado, Reglas.enRango(it.sistolica, it.diastolica, it.saturacion))
     } ?: EstadoSeccion.SIN_REGISTRAR
 
-    fun tareas(t: ChecklistTareas?) = t?.let {
-        estado(it.estado, it.items.isNotEmpty() && it.items.all { item -> item.descripcion.isNotBlank() && item.verificada })
-    } ?: EstadoSeccion.SIN_REGISTRAR
-
     fun estados(r: ResumenFaena): Map<String, EstadoSeccion> = linkedMapOf(
         "Apertura" to apertura(r.apertura),
         "Checklist" to (if (r.checklist != null && r.checklist.idFaena != r.apertura.id)
             EstadoSeccion.BORRADOR else checklist(r.checklist)),
         "AST" to ast(r.ast),
-        "Encuesta de salud" to encuesta(r.encuesta),
-        "Checklist de tareas" to tareas(r.tareas)
+        "Encuesta de salud" to encuesta(r.encuesta)
     )
 }

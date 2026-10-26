@@ -136,18 +136,6 @@ fun DetalleFaenaScreen(
             item { SeccionAst(resumen.ast) }
 
             item {
-                SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
-                    resumen.tareas?.items?.forEach {
-                    Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}")
-                    Text("Peligros: ${it.peligro.ifBlank { "Sin registrar" }}")
-                    Text("Medidas de control: ${it.control.ifBlank { "Sin registrar" }}")
-                    it.fechasRevision.forEachIndexed { i, fecha ->
-                        if (fecha.isNotBlank()) Text("Revisión ${i + 1}: $fecha")
-                    }
-                }
-                }
-            }
-            item {
                 SeccionDecision(
                     vm = vm,
                     resumen = resumen,

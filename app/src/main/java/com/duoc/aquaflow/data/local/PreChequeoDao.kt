@@ -19,7 +19,7 @@ interface PreChequeoDao {
         check(previa?.decisionJson == null) { "La faena ya fue decidida; consulta su historial." }
         guardar(if (previa != null && previa.mismosDatosQue(nueva)) nueva.copy(
             checklistJson = previa.checklistJson, astJson = previa.astJson,
-            encuestaJson = previa.encuestaJson, tareasJson = previa.tareasJson
+            encuestaJson = previa.encuestaJson
         ) else nueva)
     }
 
@@ -46,8 +46,6 @@ interface PreChequeoDao {
     @Query("UPDATE aperturas SET encuestaJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
     suspend fun guardarEncuesta(id: String, json: String, ahora: Long): Int
 
-    @Query("UPDATE aperturas SET tareasJson = :json, actualizadoEn = :ahora WHERE id = :id AND decisionJson IS NULL")
-    suspend fun guardarTareas(id: String, json: String, ahora: Long): Int
 
     @Transaction
     suspend fun iniciarValidada(id: String, usuario: com.duoc.aquaflow.model.Usuario) {

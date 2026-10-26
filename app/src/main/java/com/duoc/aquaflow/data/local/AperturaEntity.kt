@@ -25,7 +25,6 @@ data class AperturaEntity(
     val encuestaJson: String? = null,
     val decisionJson: String? = null,
     val cierreJson: String? = null,
-    val tareasJson: String? = null,
     val inicioJson: String? = null
 ) {
     fun aModelo() = PreChequeo(
@@ -38,8 +37,7 @@ data class AperturaEntity(
             apertura = aModelo(),
             checklist = checklistJson?.let(FaenaCodec::checklistDesde),
             ast = astJson?.let(FaenaCodec::astDesde),
-            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde),
-            tareas = tareasJson?.let(FaenaCodec::tareasDesde)
+            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde)
         ),
         decision = decisionJson?.let(FaenaCodec::decisionDesde),
         cierre = cierreJson?.let(FaenaCodec::cierreDesde),

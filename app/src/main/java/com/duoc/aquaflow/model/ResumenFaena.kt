@@ -18,8 +18,7 @@ data class ResumenFaena(
     val apertura: PreChequeo,
     val checklist: ChecklistFaena?,
     val ast: FormularioAst?,
-    val encuesta: EncuestaSalud?,
-    val tareas: ChecklistTareas? = null
+    val encuesta: EncuestaSalud?
 )
 
 // La decisión tomada, con su motivo y quién la tomó.

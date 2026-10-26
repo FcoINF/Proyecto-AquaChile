@@ -19,7 +19,7 @@ class DetalleIncompletoUiTest {
             PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "Luis", true, true, true),
             c.copy(estado = EstadoSeccion.BORRADOR),
             FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
-            EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL), tareasCompletas()
+            EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
         ))
         val vm = ResumenFaenaViewModel()
         var enviada: RegistroDecision? = null

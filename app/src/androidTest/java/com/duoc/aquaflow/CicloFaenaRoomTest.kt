@@ -30,7 +30,6 @@ class CicloFaenaRoomTest {
             repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
             repo.guardarEncuesta("f1", EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
             repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
-            repo.guardarTareas("f1", tareasCompletas())
             assertEquals(com.duoc.aquaflow.domain.GrupoFaena.ABIERTAS,
                 com.duoc.aquaflow.domain.ReglasPanel.grupo(repo.observarFaenas(jefe).first().single()))
             repo.decidir("f1", RegistroDecision(Decision.AUTORIZADA, "", "ignorado"), jefe)
@@ -54,7 +53,6 @@ class CicloFaenaRoomTest {
             assertEquals("supervisor", guardada.cierre!!.cerradoPor)
             assertEquals(25, guardada.cierre.duracionMinutos)
             assertEquals("supervisor", guardada.inicio!!.iniciadoPor)
-            assertEquals(tareasCompletas(), guardada.resumen.tareas)
             assertEquals(120, guardada.resumen.encuesta!!.sistolica)
             assertEquals(saludSalida(), guardada.cierre.saludSalida)
             assertEquals(EstadoFaena.CERRADA, repo.observarFaenas(jefe).first().single().estado)

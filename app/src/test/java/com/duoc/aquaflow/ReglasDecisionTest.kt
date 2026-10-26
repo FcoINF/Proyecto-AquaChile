@@ -37,7 +37,7 @@ private fun resumen(
     checklist: ChecklistFaena? = cl(EstadoEquipo.CUMPLE, EstadoEquipo.CUMPLE),
     ast: FormularioAst? = astDe(),
     encuesta: EncuestaSalud? = salud()
-) = ResumenFaena(PreChequeo("f1", "Centro Norte", "25/10/2026", "10:00", "Ana", "Luis", true, true, true), checklist, ast, encuesta, tareasCompletas())
+) = ResumenFaena(PreChequeo("f1", "Centro Norte", "25/10/2026", "10:00", "Ana", "Luis", true, true, true), checklist, ast, encuesta)
 
 class ReglasDecisionTest {
 

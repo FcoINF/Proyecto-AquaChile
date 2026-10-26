@@ -5,7 +5,6 @@ import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.domain.*
 import com.duoc.aquaflow.model.*
-import com.duoc.aquaflow.viewmodel.TareasViewModel
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
@@ -21,14 +20,10 @@ class FlujoCompletoTest {
         repo.guardarEncuesta("f1", inicial)
         repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE))
     }
-    @Test fun cicloExigeTareasAutorizacionInicioYSaludDeSalidaSeparada() = runTest {
+    @Test fun cicloExigeAutorizacionInicioYSaludDeSalidaSeparada() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         preparar(repo)
         val decision = RegistroDecision(Decision.AUTORIZADA, "", "falso")
-        assertTrue(runCatching { repo.decidir("f1", decision, jefe) }.isFailure)
-        repo.guardarTareas("f1", tareasCompletas().copy(estado = EstadoSeccion.BORRADOR))
-        assertTrue(runCatching { repo.decidir("f1", decision, jefe) }.isFailure)
-        repo.guardarTareas("f1", tareasCompletas())
         assertTrue(runCatching { repo.iniciar("f1", supervisor) }.isFailure)
         assertTrue(runCatching { repo.decidir("f1", decision, supervisor) }.isFailure)
         repo.decidir("f1", decision, jefe)
@@ -42,7 +37,6 @@ class FlujoCompletoTest {
         assertEquals(supervisor.nombre, enCurso.inicio!!.iniciadoPor)
         assertTrue(enCurso.inicio.iniciadoEn > 0)
         assertTrue(runCatching { repo.iniciar("f1", supervisor) }.isFailure)
-        assertTrue(runCatching { repo.guardarTareas("f1", tareasCompletas()) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(saludSalida = null), supervisor) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(saludSalida = saludSalida().copy(saturacion = 0)), supervisor) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(saludSalida = saludSalida().copy(estado = EstadoSeccion.BORRADOR)), supervisor) }.isFailure)
@@ -58,24 +52,9 @@ class FlujoCompletoTest {
 
     @Test fun rechazadaNoPermiteInicio() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
-        preparar(repo); repo.guardarTareas("f1", tareasCompletas())
+        preparar(repo)
         repo.decidir("f1", RegistroDecision(Decision.RECHAZADA, "Revisar", "jefe"), jefe)
         assertTrue(runCatching { repo.iniciar("f1", supervisor) }.isFailure)
-    }
-
-    @Test fun tareasSeValidanConservanBorradorYSeInvalidanAlEditar() {
-        val saved = SavedStateHandle()
-        val vm = TareasViewModel(saved)
-        vm.cargar(null)
-        assertNull(vm.validar())
-        vm.agregar(); vm.verificar(0, true)
-        assertNull(vm.validar())
-        vm.cambiar(0, "Inspeccionar red"); vm.verificar(0, true)
-        assertNotNull(vm.validar())
-        assertEquals(vm.borrador(), TareasViewModel(saved).borrador())
-        vm.cambiar(0, "Otra tarea")
-        assertNull(vm.validar())
-        assertEquals(vm.borrador(), FaenaCodec.tareasDesde(FaenaCodec.tareasATexto(vm.borrador())))
     }
 
     @Test fun filtroFechaCentroBuzoYEstadoSeCombinan() {

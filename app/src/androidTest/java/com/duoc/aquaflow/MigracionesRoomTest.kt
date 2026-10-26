@@ -53,7 +53,6 @@ class MigracionesRoomTest {
                         assertNull(registro.comunicacionesOperativas)
                     }
                     assertNull(registro.inicioJson)
-                    assertNull(registro.tareasJson)
                     assertNull(registro.cierreJson)
                     assertNull(registro.decisionJson)
                 } finally { db.close() }

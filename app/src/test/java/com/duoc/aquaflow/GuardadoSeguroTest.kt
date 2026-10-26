@@ -56,7 +56,6 @@ class GuardadoSeguroTest {
         assertEquals(checklist, vm.ui.value.checklist)
         assertEquals(salud, vm.ui.value.encuesta)
         repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
-        repo.guardarTareas("f1", tareasCompletas())
         val decision = RegistroDecision(Decision.RECHAZADA, "Revisar", "jefe")
         repo.guardarDecision("f1", decision)
         assertTrue(runCatching { repo.guardar(apertura.copy(buzoAsignado = "Otro")) }.isFailure)

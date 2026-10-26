@@ -53,7 +53,6 @@ object Ruta {
     const val CHECKLIST = "faena/checklist"
     const val SALUD = "faena/salud"
     const val AST = "faena/ast"
-    const val TAREAS = "faena/tareas"
     const val RESUMEN = "faena/resumen"
 }
 
@@ -308,7 +307,7 @@ fun AquaFlowNavHost() {
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->
-                        faena.registrarAst(ast) { nav.navigate(Ruta.TAREAS) }
+                        faena.registrarAst(ast) { nav.navigate(Ruta.RESUMEN) }
                     },
                     onGuardarBorrador = { ast ->
                         faena.guardarBorradorAst(ast) {
@@ -317,16 +316,6 @@ fun AquaFlowNavHost() {
                     },
                     onVolver = { nav.popBackStack() }
                 )
-            }
-
-            composable(Ruta.TAREAS) { entrada ->
-                val graphEntry = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = graphEntry, factory = faenaFactory)
-                val ui by faena.ui.collectAsState()
-                com.duoc.aquaflow.ui.screens.TareasScreen(ui.apertura.id, ui.tareas, ui.ocupado, ui.error,
-                    onGuardar = { faena.registrarTareas(it) { nav.navigate(Ruta.RESUMEN) } },
-                    onBorrador = { faena.guardarBorradorTareas(it) { nav.popBackStack(Ruta.DASHBOARD, false) } },
-                    onVolver = { nav.popBackStack() })
             }
 
             composable(Ruta.RESUMEN) { entrada ->
@@ -342,7 +331,7 @@ fun AquaFlowNavHost() {
                             apertura = ui.apertura,
                             checklist = ui.checklist,
                             ast = ui.ast,
-                            encuesta = ui.encuesta, tareas = ui.tareas
+                            encuesta = ui.encuesta
                         ),
                         decision = ui.decision,
                         rol = actual.rol,

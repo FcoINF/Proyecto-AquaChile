@@ -15,7 +15,7 @@ class EstadosSeccionesTest {
     private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)))
     private val ast = FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE)
     private val salud = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
-    private val completo = ResumenFaena(apertura, checklist, ast, salud, tareasCompletas())
+    private val completo = ResumenFaena(apertura, checklist, ast, salud)
 
     @Test fun distingueAusenteBorradorYCompletaSinConfundirRiesgo() {
         assertEquals(EstadoSeccion.SIN_REGISTRAR, ReglasSecciones.ast(null))

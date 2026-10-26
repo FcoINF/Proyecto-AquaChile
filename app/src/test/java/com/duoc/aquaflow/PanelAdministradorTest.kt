@@ -24,7 +24,7 @@ class PanelAdministradorTest {
     private val resumen = ResumenFaena(apertura,
         ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))),
         FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
-        EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL), tareasCompletas())
+        EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
     private val abierta = FaenaGuardada(resumen)
     private val autorizada = abierta.copy(decision = RegistroDecision(Decision.AUTORIZADA, "", "jefe"))
     private val iniciada = autorizada.copy(inicio = RegistroInicio("Luis", 1L))
@@ -35,7 +35,7 @@ class PanelAdministradorTest {
     @After fun terminar() { Dispatchers.resetMain() }
 
     @Test fun cuatroGruposExcluyenBorradoresYNoDuplicanCerradas() {
-        val borrador = abierta.copy(resumen = resumen.copy(tareas = null))
+        val borrador = abierta.copy(resumen = resumen.copy(ast = null))
         val grupos = ReglasPanel.agrupar(listOf(borrador, abierta, autorizada, iniciada, rechazada, cerrada))
         assertEquals(listOf(abierta), grupos[GrupoFaena.ABIERTAS])
         assertEquals(listOf(autorizada, iniciada), grupos[GrupoFaena.EN_PROCESO])
@@ -53,7 +53,7 @@ class PanelAdministradorTest {
     }
 
     @Test fun expedienteConDecisionSigueVisibleAunqueSeaDeVersionAnterior() {
-        assertEquals(GrupoFaena.EN_PROCESO, ReglasPanel.grupo(autorizada.copy(resumen = resumen.copy(tareas = null))))
+        assertEquals(GrupoFaena.EN_PROCESO, ReglasPanel.grupo(autorizada.copy(resumen = resumen.copy(ast = null))))
     }
 
     @Test fun errorDeLecturaSeDistingueDeListaVaciaYPermiteReintentar() = runTest {
@@ -92,7 +92,6 @@ class PanelAdministradorTest {
         repo.guardarChecklist("f1", resumen.checklist!!)
         repo.guardarAst("f1", resumen.ast!!)
         repo.guardarEncuesta("f1", resumen.encuesta!!)
-        repo.guardarTareas("f1", resumen.tareas!!)
         advanceUntilIdle()
         assertEquals(GrupoFaena.ABIERTAS, ReglasPanel.grupo(vm.state.value.faenas.single()))
         repo.decidir("f1", RegistroDecision(Decision.AUTORIZADA, "", "jefe"), jefe)
