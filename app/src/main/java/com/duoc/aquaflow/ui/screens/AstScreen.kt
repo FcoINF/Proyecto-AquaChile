@@ -11,13 +11,14 @@ import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.Guardando
+import com.duoc.aquaflow.viewmodel.AstViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AstScreen(
     ocupado: Boolean = false,
     errorExterno: String? = null,
-    vm: com.duoc.aquaflow.viewmodel.AstViewModel,
+    vm: AstViewModel,
     centro: String,
     fecha: String,
     onGuardar: (FormularioAst) -> Unit,
@@ -94,17 +95,6 @@ fun AstScreen(
                     }
                 }
                 Text("Si una respuesta es NO, repórtelo a su jefatura directa y NO inicie sus labores hasta que todas sus respuestas sean SÍ.")
-            }
-            AquaSectionCard(title = "4. Identificación y control de peligros") {
-                ui.pasos.forEachIndexed { i, paso ->
-                    Text("Paso ${i + 1}", style = MaterialTheme.typography.titleSmall)
-                    CampoAst("Paso del trabajo", paso.tarea, ocupado) { vm.cambiarPaso(i, paso.copy(tarea = it)) }
-                    CampoAst("Peligros", paso.peligro, ocupado) { vm.cambiarPaso(i, paso.copy(peligro = it)) }
-                    CampoAst("Medidas de control", paso.control, ocupado) { vm.cambiarPaso(i, paso.copy(control = it)) }
-                    FechasRevisionAst(paso.fechasRevision, ocupado) { vm.cambiarPaso(i, paso.copy(fechasRevision = it)) }
-                    TextButton(onClick = { vm.quitarPaso(i) }, enabled = !ocupado && ui.pasos.size > 1) { Text("Quitar paso") }
-                }
-                OutlinedButton(onClick = vm::agregarPaso, enabled = !ocupado && ui.pasos.size < com.duoc.aquaflow.domain.ReglasAst.MAX_PASOS) { Text("Agregar paso") }
             }
             (errorExterno ?: ui.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(onClick = { vm.guardar()?.let(onGuardar) }, enabled = !ocupado, modifier = Modifier.fillMaxWidth()) { Text("Guardar AST") }
