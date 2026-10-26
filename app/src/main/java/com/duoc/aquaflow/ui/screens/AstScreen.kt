@@ -48,7 +48,7 @@ fun AstScreen(
                 CampoAst("Turno de inicio", a.turnoInicio, ocupado) { vm.antecedentes(a.copy(turnoInicio = it)) }
                 CampoAst("Fecha de cierre del trabajo", a.fechaCierre, ocupado) { vm.antecedentes(a.copy(fechaCierre = it)) }
                 CampoAst("Turno de cierre", a.turnoCierre, ocupado) { vm.antecedentes(a.copy(turnoCierre = it)) }
-                Text("El AST es diario; excepcionalmente puede extenderse hasta 6 días si no cambia la nómina inicial de trabajadores ni las condiciones del entorno, métodos de trabajo, nuevos procesos o intervención de terceros. Si existen cambios, se debe confeccionar un nuevo AST inmediatamente.")
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(ui.requiereNuevoAst, { vm.alternarNuevoAst() }, enabled = !ocupado)
                     Text("Existen cambios: requiere un nuevo AST", Modifier.weight(1f))
