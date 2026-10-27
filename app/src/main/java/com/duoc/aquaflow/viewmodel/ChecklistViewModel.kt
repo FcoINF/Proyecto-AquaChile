@@ -55,9 +55,9 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
             ItemEquipamiento(
                 id = "4",
                 titulo = "Manguera Umbilical y Conexiones",
-                descripcion = "Prueba de presión y verificación de flujo de gas en mangueras de buceo.",
+                descripcion = "Roco superficial en manga protectora externa 15m. Conexiones neumáticas y audio 100% funcionales.",
                 categoria = "EQUIPO 04 • DISTRIBUCIÓN Y LÍNEA",
-                badge = "SISTEMA OK"
+                badge = "OBSERVACIÓN",
             )
         )
         val estados = if (restaurar) saved.get<ArrayList<String>>("estados") else null

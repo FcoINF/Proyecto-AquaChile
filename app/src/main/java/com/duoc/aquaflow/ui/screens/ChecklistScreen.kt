@@ -35,7 +35,8 @@ fun ChecklistScreen(
     checklistInicial: ChecklistFaena?,
     onGuardar: (ChecklistFaena) -> Unit,
     onGuardarBorrador: (ChecklistFaena) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    centroCultivo: String = "Centro sin asignar - Jaula 24"
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val vm: com.duoc.aquaflow.viewmodel.ChecklistViewModel = androidx.lifecycle.viewmodel.compose.viewModel(key = "checklist-$faenaId")
@@ -76,7 +77,8 @@ fun ChecklistScreen(
         onGuardarBorradorClick = {
             onGuardarBorrador(vm.borrador())
         },
-        onVolver = onVolver
+        onVolver = onVolver,
+        centroCultivo = centroCultivo
     )
 }
 
@@ -92,55 +94,16 @@ fun ChecklistScreenContent(
     onQuitarFoto: (String) -> Unit,
     onGuardarClick: () -> Unit,
     onGuardarBorradorClick: () -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    centroCultivo: String = "Centro sin asignar - Jaula 24"
 ) {
-    val observacionesCount = items.count { it.estado == EstadoEquipo.NO_CUMPLE || it.estado == EstadoEquipo.OBSERVADO }
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color(0xFF2B527C),
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Shield,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "EQUIPOS CRÍTICOS DE BUCEO",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF1E293B),
-                                    fontSize = 14.sp
-                                )
-                            )
-                        }
-                        Text(
-                            text = "Protocolo Armada",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = Color(0xFF64748B),
-                                fontSize = 12.sp
-                            )
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        Text("Apertura de Faena", style = MaterialTheme.typography.titleMedium)
+                        Text(centroCultivo.ifBlank { "Centro sin asignar - Jaula 24" }, style = MaterialTheme.typography.labelSmall)
                     }
                 },
                 navigationIcon = {
@@ -148,11 +111,15 @@ fun ChecklistScreenContent(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint = Color(0xFF1E293B)
+                            tint = Color.White
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF3F6F9))
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF182B3A),
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         },
         containerColor = Color(0xFFF3F6F9)
@@ -161,47 +128,22 @@ fun ChecklistScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Inspección de equipos",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
-                )
-            )
-            Text(
-                text = "Revisa cada elemento y registra su condición.",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = Color(0xFF64748B)
-                )
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            if (observacionesCount > 0) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                item { ProgresoChecklist() }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Surface(color = Color(0xFFE6F0FF), shape = RoundedCornerShape(9.dp)) {
+                            Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.padding(7.dp).size(18.dp), tint = Color(0xFF0755B8))
+                        }
                         Text(
-                            text = "$observacionesCount equipo(s) requieren atención. Adjunta evidencia fotográfica cuando corresponda.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            "EQUIPOS CRÍTICOS DE BUCEO",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = Color(0xFF334155))
                         )
                     }
                 }
-            }
-
-            LazyColumn(modifier = Modifier.weight(1f)) {
                 items(items) { item ->
                     ItemChecklist(
                         item = item,
@@ -212,7 +154,7 @@ fun ChecklistScreenContent(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     SeccionFotos(
                         cantidadFotos = fotos.size,
                         onTomarFotoClick = onTomarFotoClick
@@ -229,18 +171,18 @@ fun ChecklistScreenContent(
                 )
             }
 
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(
                     enabled = !ocupado,
                     onClick = onGuardarClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                        .heightIn(min = 42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
                 ) {
                     Text(
-                        text = "Guardar y continuar",
+                        text = "Continuar al Checklist",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -251,12 +193,39 @@ fun ChecklistScreenContent(
                     enabled = !ocupado,
                     onClick = onGuardarBorradorClick,
                     modifier = Modifier
-                        .align(androidx.compose.ui.Alignment.End)
-                        .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        .fillMaxWidth()
+                        .heightIn(min = 38.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0755B8)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0755B8))
                 ) {
-                    Text("Guardar borrador")
+                    Text("Guardar Borrador")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgresoChecklist() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Surface(color = Color(0xFF0755B8), shape = CircleShape) {
+                    Text("2", modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                }
+                Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                Text("Paso 2 de 4", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            LinearProgressIndicator(progress = 0.5f, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = Color(0xFFE5EAF0))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("2. INSPECCIÓN DE EQUIPOS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF334155))
+                Text("Sig: Encuesta Salud", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
             }
         }
     }
@@ -274,7 +243,6 @@ fun ChecklistScreenPreview() {
                     id = "1",
                     titulo = "Compresor, Purgas y Filtros Carbón",
                     descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
-                    estado = EstadoEquipo.CUMPLE,
                     categoria = "EQUIPO 01 • SUMINISTRO PRIMARIO",
                     badge = "220 BAR"
                 ),
@@ -282,7 +250,6 @@ fun ChecklistScreenPreview() {
                     id = "2",
                     titulo = "Traje Seco, Arnés y Casco KMB",
                     descripcion = "Prueba de estanqueidad de cremallera estanca, diafragma buconasal y fonía bidireccional limpia.",
-                    estado = EstadoEquipo.CUMPLE,
                     categoria = "EQUIPO 02 • PERSONAL",
                     badge = "BUZO #1"
                 ),
@@ -290,9 +257,15 @@ fun ChecklistScreenPreview() {
                     id = "3",
                     titulo = "Botellón de Rescate (Bail-out)",
                     descripcion = "Presión 210 BAR verificada en manómetro análogo sumergible. Conmutación manual activa.",
-                    estado = EstadoEquipo.CUMPLE,
                     categoria = "EQUIPO 03 • RESPALDO RESCATE",
                     badge = "210 BAR"
+                ),
+                ItemEquipamiento(
+                    id = "4",
+                    titulo = "Manguera Umbilical y Conexiones",
+                    descripcion = "Roco superficial en manga protectora externa 15m. Conexiones neumáticas y audio 100% funcionales.",
+                    categoria = "EQUIPO 04 • ALIMENTACIÓN",
+                    badge = "OBSERVACIÓN"
                 )
             ),
             fotos = emptyList(),

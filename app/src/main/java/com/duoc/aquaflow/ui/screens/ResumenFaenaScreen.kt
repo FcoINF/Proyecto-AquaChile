@@ -129,19 +129,14 @@ fun ResumenFaenaScreen(
                 }
             }
 
-            Seccion("Salud (ficticia)") {
-                Text("Estado: ${estados.getValue("Encuesta de salud").texto}")
+            Seccion("Salud") {
                 val e = resumen.encuesta
-                if (e != null) {
-                    Text("Presión ${e.sistolica}/${e.diastolica} · Saturación ${e.saturacion}%")
-                    e.alertasEncuesta.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
-                    if (estados.getValue("Encuesta de salud") == EstadoSeccion.COMPLETA) SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
+                when {
+                    e == null -> Text("Estado: ${estados.getValue("Encuesta de salud").texto}")
+                    estados.getValue("Encuesta de salud") == EstadoSeccion.COMPLETA ->
+                        SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
+                    else -> Text("Estado: ${estados.getValue("Encuesta de salud").texto}")
                 }
-            }
-
-            Seccion("Checklist de tareas") {
-                Text("Estado: ${estados.getValue("Checklist de tareas").texto}")
-                resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
             }
 
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }

@@ -35,7 +35,7 @@ object Reglas {
         apertura.buzoAsignado.isBlank() -> "Ingresa el nombre del buzo"
         apertura.supervisorACargo.isBlank() -> "Falta el supervisor a cargo"
         !apertura.condicionesListas || apertura.embarcacionLista != true || apertura.comunicacionesOperativas != true ->
-            "Debes confirmar todas las condiciones operativas iniciales"
+            "Confirma la verificación meteorológica, la embarcación y las comunicaciones operativas"
         else -> null
     }
 

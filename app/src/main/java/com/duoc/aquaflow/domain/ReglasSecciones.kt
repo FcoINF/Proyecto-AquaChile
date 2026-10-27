@@ -30,7 +30,6 @@ object ReglasSecciones {
         "Checklist" to (if (r.checklist != null && r.checklist.idFaena != r.apertura.id)
             EstadoSeccion.BORRADOR else checklist(r.checklist)),
         "AST" to ast(r.ast),
-        "Encuesta de salud" to encuesta(r.encuesta),
-        "Checklist de tareas" to tareas(r.tareas)
+        "Encuesta de salud" to encuesta(r.encuesta)
     )
 }

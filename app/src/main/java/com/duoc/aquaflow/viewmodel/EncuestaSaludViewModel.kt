@@ -12,9 +12,9 @@ import kotlinx.coroutines.flow.update
 
 // Todo lo que muestra la encuesta en un solo objeto inmutable.
 data class EncuestaSaludUiState(
-    val sistolica: String = "",
-    val diastolica: String = "",
-    val saturacion: String = "",
+    val sistolica: String = "0",
+    val diastolica: String = "0",
+    val saturacion: String = "0",
     val alertas: Set<String> = emptySet(),   // preguntas respondidas "Sí"
     val respuestas: Map<String, Boolean> = emptyMap(),
     val error: String? = null
@@ -25,6 +25,7 @@ data class EncuestaSaludUiState(
             val sis = sistolica.toIntOrNull() ?: return null
             val dia = diastolica.toIntOrNull() ?: return null
             val sat = saturacion.toIntOrNull() ?: return null
+            if (!Reglas.enRango(sis, dia, sat)) return null
             return Reglas.nivelSalud(sis, dia, sat, alertas.size)
         }
 
@@ -33,7 +34,7 @@ data class EncuestaSaludUiState(
     val diastolicaFuera get() = fuera(diastolica, Reglas.RANGO_DIASTOLICA)
     val saturacionFuera get() = fuera(saturacion, Reglas.RANGO_SATURACION)
 
-    private fun fuera(texto: String, rango: IntRange) = texto.toIntOrNull()?.let { it !in rango } == true
+    private fun fuera(texto: String, rango: IntRange) = texto.toIntOrNull()?.let { it != 0 && it !in rango } == true
 }
 
 // Maneja la encuesta: guarda el estado, valida y entrega la encuesta lista para el pre-chequeo.
@@ -89,7 +90,7 @@ class EncuestaSaludViewModel : ViewModel() {
 
         // La primera validación que falle define el mensaje que ve el usuario
         val error = when {
-            sis == null || dia == null || sat == null -> "Completa presión y saturación"
+            sis == null || dia == null || sat == null || sis == 0 || dia == 0 || sat == 0 -> "Completa presión y saturación"
             !Reglas.enRango(sis, dia, sat) -> "Valores de salud fuera de rango"
             else -> null
         }
