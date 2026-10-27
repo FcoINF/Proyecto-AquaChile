@@ -43,6 +43,7 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
     buildFeatures {
         compose = true
     }

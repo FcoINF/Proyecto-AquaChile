@@ -29,6 +29,16 @@ class AperturaFaenaTest {
         assertNull(Reglas.errorApertura(valida))
     }
 
+    @Test fun exigeResponderCondicionesIniciales() {
+        val valida = apertura()
+        listOf(
+            valida.copy(embarcacionLista = null),
+            valida.copy(comunicacionesOperativas = null),
+            valida.copy(embarcacionLista = false),
+            valida.copy(comunicacionesOperativas = false)
+        ).forEach { assertNotNull(Reglas.errorApertura(it)) }
+    }
+
     @Test fun validaCalendarioYHora() {
         assertNull(Reglas.errorApertura(apertura("29/02/2024", "00:00")))
         assertNull(Reglas.errorApertura(apertura(hora = "23:59")))
@@ -47,13 +57,13 @@ class AperturaFaenaTest {
         assertFalse(vm.registrarEncuesta(encuesta))
     }
 
-    @Test fun conservaIdYPermiteActualizarSupervisor() {
+    @Test fun conservaIdYSupervisorDeLaSesion() {
         val vm = FaenaViewModel(BorradoresMemoria())
         vm.iniciar(supervisor)
         val id = vm.ui.value.apertura.id
         vm.actualizar(apertura().copy(id = "otro", supervisorACargo = "Nuevo Supervisor"))
         assertEquals(id, vm.ui.value.apertura.id)
-        assertEquals("Nuevo Supervisor", vm.ui.value.apertura.supervisorACargo)
+        assertEquals("supervisor", vm.ui.value.apertura.supervisorACargo)
     }
 
     @Test fun cambiarBuzoInvalidaEncuestaAnterior() {

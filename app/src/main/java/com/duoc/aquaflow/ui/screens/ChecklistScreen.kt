@@ -1,21 +1,25 @@
 package com.duoc.aquaflow.ui.screens
 
-import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
@@ -23,143 +27,205 @@ import com.duoc.aquaflow.ui.components.ItemChecklist
 import com.duoc.aquaflow.ui.components.SeccionFotos
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistScreen(
+    ocupado: Boolean = false,
+    errorExterno: String? = null,
     faenaId: String,
     checklistInicial: ChecklistFaena?,
     onGuardar: (ChecklistFaena) -> Unit,
-    onVolver: () -> Unit
+    onGuardarBorrador: (ChecklistFaena) -> Unit,
+    onVolver: () -> Unit,
+    centroCultivo: String = "Centro sin asignar - Jaula 24"
 ) {
-    // Lista inicial de prueba para la revisión DPR-24
-    var equipos by remember {
-        mutableStateOf(
-            checklistInicial?.items?.takeIf { it.isNotEmpty() } ?: listOf(
-                ItemEquipamiento("1", "Compresor y Filtros Carbón", "Test de CO/CO2 con tubo colorimétrico OK"),
-                ItemEquipamiento("2", "Traje Seco, Arnés y Casco KMB", "Prueba de estanqueidad de cremallera estanca"),
-                ItemEquipamiento("3", "Botellón de Rescate (Bail-out)", "Presión 210 BAR verificada en manómetro"),
-                ItemEquipamiento("4", "Manguera Umbilical y Conexiones", "Roce superficial en manga protectora externa")
-            )
-        )
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val vm: com.duoc.aquaflow.viewmodel.ChecklistViewModel = androidx.lifecycle.viewmodel.compose.viewModel(key = "checklist-$faenaId")
+    LaunchedEffect(faenaId) { vm.cargar(faenaId, checklistInicial) }
+    val ui by vm.ui.collectAsState()
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { resultado ->
+        val uri = vm.ui.value.pendiente?.let(android.net.Uri::parse)
+        val guardada = resultado && uri != null && com.duoc.aquaflow.data.local.EvidenciasFotos.existe(context, uri)
+        if (!guardada && uri != null) com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, uri)
+        vm.terminarFoto(guardada)
     }
 
-    var fotosBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            fotosBitmaps = fotosBitmaps + bitmap
-        }
-    }
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
 
-    val observacionesCount = equipos.count { it.estado == EstadoEquipo.NO_CUMPLE || it.estado == EstadoEquipo.OBSERVADO }
+    ChecklistScreenContent(
+        ocupado = ocupado,
+        error = errorExterno ?: ui.error,
+        items = ui.items,
+        fotos = ui.fotos,
+        onEstadoCambiado = vm::cambiarEstado,
+        onTomarFotoClick = {
+            if (ui.pendiente == null) {
+                try {
+                    val uri = com.duoc.aquaflow.data.local.EvidenciasFotos.crear(context)
+                    vm.prepararFoto(uri.toString())
+                    cameraLauncher.launch(uri)
+                } catch (_: Exception) {
+                    vm.ui.value.pendiente?.let { com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, android.net.Uri.parse(it)) }
+                    vm.errorCamara()
+                }
+            }
+        },
+        onQuitarFoto = vm::quitarReferencia,
+        onGuardarClick = {
+            vm.guardar()?.let(onGuardar)
+        },
+        onGuardarBorradorClick = {
+            onGuardarBorrador(vm.borrador())
+        },
+        onVolver = onVolver,
+        centroCultivo = centroCultivo
+    )
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChecklistScreenContent(
+    ocupado: Boolean,
+    error: String?,
+    items: List<ItemEquipamiento>,
+    fotos: List<String>,
+    onEstadoCambiado: (String, EstadoEquipo) -> Unit,
+    onTomarFotoClick: () -> Unit,
+    onQuitarFoto: (String) -> Unit,
+    onGuardarClick: () -> Unit,
+    onGuardarBorradorClick: () -> Unit,
+    onVolver: () -> Unit,
+    centroCultivo: String = "Centro sin asignar - Jaula 24"
+) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Checklist DPR-24 (Equipos)") },
-                navigationIcon = { TextButton(onClick = onVolver) { Text("Volver") } }
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        Text("Apertura de Faena", style = MaterialTheme.typography.titleMedium)
+                        Text(centroCultivo.ifBlank { "Centro sin asignar - Jaula 24" }, style = MaterialTheme.typography.labelSmall)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onVolver, enabled = !ocupado) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF182B3A),
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
-        }
+        },
+        containerColor = Color(0xFFF3F6F9)
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Inspección de equipos", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "Revisa cada elemento y registra su condición.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (observacionesCount > 0) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                item { ProgresoChecklist() }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Surface(color = Color(0xFFE6F0FF), shape = RoundedCornerShape(9.dp)) {
+                            Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.padding(7.dp).size(18.dp), tint = Color(0xFF0755B8))
+                        }
                         Text(
-                            text = "$observacionesCount equipo(s) requieren atención. Adjunta evidencia fotográfica cuando corresponda.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            "EQUIPOS CRÍTICOS DE BUCEO",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = Color(0xFF334155))
                         )
                     }
                 }
-            }
-
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(equipos) { item ->
+                items(items) { item ->
                     ItemChecklist(
                         item = item,
                         onEstadoCambiado = { nuevoEstado ->
-                            equipos = equipos.map {
-                                if (it.id == item.id) it.copy(estado = nuevoEstado) else it
-                            }
+                            onEstadoCambiado(item.id, nuevoEstado)
                         }
                     )
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     SeccionFotos(
-                        cantidadFotos = fotosBitmaps.size,
-                        onTomarFotoClick = {
-                            try {
-                                cameraLauncher.launch(null)
-                            } catch (_: Exception) {
-                                // Si no hay app de cámara disponible, simulamos una foto para pruebas
-                                val dummyBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-                                fotosBitmaps = fotosBitmaps + dummyBitmap
-                            }
-                        }
+                        cantidadFotos = fotos.size,
+                        onTomarFotoClick = onTomarFotoClick
                     )
-
-                    if (fotosBitmaps.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("Evidencias fotográficas DPR-24:", style = MaterialTheme.typography.titleSmall)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(fotosBitmaps) { bmp ->
-                                Card(
-                                    modifier = Modifier.size(80.dp),
-                                    elevation = CardDefaults.cardElevation(4.dp)
-                                ) {
-                                    Image(
-                                        bitmap = bmp.asImageBitmap(),
-                                        contentDescription = "Evidencia DPR-24",
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(fotos, onQuitarFoto)
                 }
             }
 
-            Button(
-                onClick = {
-                    val checklist = ChecklistFaena(
-                        idFaena = faenaId,
-                        items = equipos,
-                        fotosEvidencia = fotosBitmaps.mapIndexed { index, _ -> "dpr24_evidencia_$index.jpg" }
+            error?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Button(
+                    enabled = !ocupado,
+                    onClick = onGuardarClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
+                ) {
+                    Text(
+                        text = "Continuar al Checklist",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
                     )
-                    onGuardar(checklist)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-            ) {
-                Text("Guardar y continuar")
+                }
+                OutlinedButton(
+                    enabled = !ocupado,
+                    onClick = onGuardarBorradorClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 38.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0755B8)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0755B8))
+                ) {
+                    Text("Guardar Borrador")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgresoChecklist() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Surface(color = Color(0xFF0755B8), shape = CircleShape) {
+                    Text("2", modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
+                }
+                Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                Text("Paso 2 de 4", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            LinearProgressIndicator(progress = 0.5f, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = Color(0xFFE5EAF0))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("2. INSPECCIÓN DE EQUIPOS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF334155))
+                Text("Sig: Encuesta Salud", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
             }
         }
     }
@@ -169,10 +235,45 @@ fun ChecklistScreen(
 @Composable
 fun ChecklistScreenPreview() {
     AquaFlowTheme {
-        ChecklistScreen(
-            faenaId = "1",
-            checklistInicial = null,
-            onGuardar = {},
+        ChecklistScreenContent(
+            ocupado = false,
+            error = null,
+            items = listOf(
+                ItemEquipamiento(
+                    id = "1",
+                    titulo = "Compresor, Purgas y Filtros Carbón",
+                    descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
+                    categoria = "EQUIPO 01 • SUMINISTRO PRIMARIO",
+                    badge = "220 BAR"
+                ),
+                ItemEquipamiento(
+                    id = "2",
+                    titulo = "Traje Seco, Arnés y Casco KMB",
+                    descripcion = "Prueba de estanqueidad de cremallera estanca, diafragma buconasal y fonía bidireccional limpia.",
+                    categoria = "EQUIPO 02 • PERSONAL",
+                    badge = "BUZO #1"
+                ),
+                ItemEquipamiento(
+                    id = "3",
+                    titulo = "Botellón de Rescate (Bail-out)",
+                    descripcion = "Presión 210 BAR verificada en manómetro análogo sumergible. Conmutación manual activa.",
+                    categoria = "EQUIPO 03 • RESPALDO RESCATE",
+                    badge = "210 BAR"
+                ),
+                ItemEquipamiento(
+                    id = "4",
+                    titulo = "Manguera Umbilical y Conexiones",
+                    descripcion = "Roco superficial en manga protectora externa 15m. Conexiones neumáticas y audio 100% funcionales.",
+                    categoria = "EQUIPO 04 • ALIMENTACIÓN",
+                    badge = "OBSERVACIÓN"
+                )
+            ),
+            fotos = emptyList(),
+            onEstadoCambiado = { _, _ -> },
+            onTomarFotoClick = {},
+            onQuitarFoto = {},
+            onGuardarClick = {},
+            onGuardarBorradorClick = {},
             onVolver = {}
         )
     }

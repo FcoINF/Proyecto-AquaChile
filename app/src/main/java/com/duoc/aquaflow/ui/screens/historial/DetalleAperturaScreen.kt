@@ -52,7 +52,7 @@ fun DetalleAperturaScreen(
                     }
                     AquaSectionCard(title = "Alcance del registro") {
                         Text(
-                            "Se muestran los datos de apertura guardados. Checklist, AST, salud, decisión y cierre todavía no forman parte de este registro.",
+                            "Se muestran los datos de apertura disponibles. Las secciones se incorporan al expediente al guardarlas.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

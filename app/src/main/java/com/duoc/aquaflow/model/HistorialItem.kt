@@ -10,7 +10,9 @@ data class HistorialItem(
     val fecha: String,
     val hora: String,
     val estado: EstadoFaena,
-    val encuesta: EncuestaSalud? = null
+    val encuesta: EncuestaSalud? = null,
+    val resultado: ResultadoFaena? = null,
+    val tiempoFondoMinutos: Int? = null
 )
 
 // Hasta persistir decisiones, una apertura guardada sigue en pre-chequeo.
@@ -35,5 +37,7 @@ fun FaenaGuardada.aHistorialItem() = HistorialItem(
     fecha = resumen.apertura.fecha,
     hora = resumen.apertura.hora,
     estado = estado,
-    encuesta = resumen.encuesta
+    encuesta = resumen.encuesta,
+    resultado = com.duoc.aquaflow.domain.ReglasDecision.resultado(resumen),
+    tiempoFondoMinutos = cierre?.duracionMinutos
 )

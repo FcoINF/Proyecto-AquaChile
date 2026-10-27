@@ -1,0 +1,21 @@
+{
+  "fecha": "2026-10-26",
+  "rama": "feature/persistencia",
+  "baseDevelop": "868808c",
+  "totales": {
+    "tests": 23,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "com.duoc.aquaflow.AperturaFaenaUiTest",
+      "tests": "23",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "159.402"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package com.duoc.aquaflow.navigation
 
 import android.net.Uri
+import com.duoc.aquaflow.model.Rol
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,13 +27,17 @@ import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.screens.AperturaFaenaScreen
 import com.duoc.aquaflow.ui.screens.AstScreen
+import com.duoc.aquaflow.ui.screens.BorradoresScreen
 import com.duoc.aquaflow.ui.screens.ChecklistScreen
 import com.duoc.aquaflow.ui.screens.DashboardScreen
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.ui.screens.ResumenFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
+import com.duoc.aquaflow.ui.screens.historial.DetalleFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
+import com.duoc.aquaflow.viewmodel.AstViewModel
+import com.duoc.aquaflow.viewmodel.DashboardViewModel
 import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
@@ -42,9 +47,10 @@ import com.duoc.aquaflow.viewmodel.SesionViewModel
 object Ruta {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
+    const val BORRADORES = "borradores"
     const val HISTORIAL = "historial"
     const val DETALLE_APERTURA = "historial/{aperturaId}"
-    const val FAENA = "faena"
+    const val FAENA = "faena?aperturaId={aperturaId}"
     const val APERTURA = "faena/apertura"
     const val CHECKLIST = "faena/checklist"
     const val SALUD = "faena/salud"
@@ -102,11 +108,22 @@ fun AquaFlowNavHost() {
 
         composable(Ruta.DASHBOARD) {
             usuario?.let { actual ->
+                val factory = remember(repository, actual) {
+                    viewModelFactory { initializer { DashboardViewModel(repository, actual) } }
+                }
+                val vm: DashboardViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
+
                 DashboardScreen(
                     usuario = actual,
                     tabs = tabsPara(actual.rol),
-                    ultimaEncuesta = ultimaEncuesta,
-                    onNuevaFaena = { nav.navigate(Ruta.FAENA) },
+                    faenas = state.faenas,
+                    cargando = state.cargando,
+                    error = state.error,
+                    onReintentar = vm::reintentar,
+                    onVerFaena = { id -> nav.navigate("historial/${Uri.encode(id)}") },
+                    onNuevaFaena = { if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena") },
+                    onAbrirBorradores = { if (actual.rol == Rol.SUPERVISOR) nav.navigate(Ruta.BORRADORES) },
                     onTab = ::irATab,
                     onSalir = {
                         sesion.salir()
@@ -115,6 +132,27 @@ fun AquaFlowNavHost() {
                             popUpTo(nav.graph.id) { inclusive = true }
                         }
                     }
+                )
+            }
+        }
+
+        composable(Ruta.BORRADORES) {
+            usuario?.let { actual ->
+                val factory = remember(repository, actual) {
+                    viewModelFactory { initializer { DashboardViewModel(repository, actual) } }
+                }
+                val vm: DashboardViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
+
+                BorradoresScreen(
+                    faenas = state.faenas,
+                    cargando = state.cargando,
+                    error = state.error,
+                    onReintentar = vm::reintentar,
+                    onEditarBorrador = { id ->
+                        if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena?aperturaId=${Uri.encode(id)}")
+                    },
+                    onVolver = { nav.popBackStack() }
                 )
             }
         }
@@ -128,9 +166,17 @@ fun AquaFlowNavHost() {
                 val state by vm.state.collectAsState()
                 HistorialScreen(
                     state = state, tabs = tabsPara(actual.rol), onTab = ::irATab,
-                    onTexto = vm::onTexto, onEstado = vm::onEstado,
+                    nombreUsuario = actual.nombre, rol = actual.rol,
+                    onTexto = vm::onTexto, onCategoria = vm::onCategoria, onFecha = vm::onFecha,
                     onLimpiar = vm::limpiar, onReintentar = vm::reintentar,
-                    onDetalle = { nav.navigate("historial/${Uri.encode(it)}") }
+                    onDetalle = { nav.navigate("historial/${Uri.encode(it)}") },
+                    onSalir = {
+                        sesion.salir()
+                        ultimaEncuesta = null
+                        nav.navigate(Ruta.LOGIN) {
+                            popUpTo(nav.graph.id) { inclusive = true }
+                        }
+                    }
                 )
             }
         }
@@ -141,47 +187,60 @@ fun AquaFlowNavHost() {
             usuario?.let { actual ->
                 val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
                 val factory = remember(repository, actual, id) {
-                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository) } }
+                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository) } }
                 }
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
                 val state by vm.state.collectAsState()
                 val faenaGuardada = state.faena
                 if (faenaGuardada != null) {
-                    // Faena encontrada: se ve completa y la jefatura puede autorizar o rechazar aquí
-                    ResumenFaenaScreen(
+                    DetalleFaenaScreen(
                         vm = viewModel(),
-                        resumen = faenaGuardada.resumen,
-                        decision = faenaGuardada.decision,
+                        faena = faenaGuardada,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
                         onDecidir = vm::decidir,
                         onVolver = { nav.popBackStack() },
                         onFinalizar = { nav.popBackStack() },
-                        textoFinalizar = "Volver al historial",
+                        onCerrar = vm::cerrar,
+                        onIniciar = vm::iniciar,
+                        ocupado = state.guardando,
                         errorExterno = state.errorDecision
                     )
                 } else {
-                    // Cargando, error de lectura o faena no disponible para este usuario
                     DetalleAperturaScreen(state, onVolver = { nav.popBackStack() }, onReintentar = vm::reintentar)
                 }
             }
         }
 
-        navigation(startDestination = Ruta.APERTURA, route = Ruta.FAENA) {
+        navigation(
+            startDestination = Ruta.APERTURA,
+            route = Ruta.FAENA,
+            arguments = listOf(navArgument("aperturaId") { type = NavType.StringType; nullable = true; defaultValue = null })
+        ) {
             composable(Ruta.APERTURA) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
+                val graphEntry = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
+                val aperturaId = graphEntry.arguments?.getString("aperturaId")
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = graphEntry, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
                 val actual = usuario
 
-                LaunchedEffect(actual) {
-                    actual?.let { faena.iniciar(it) }
+                LaunchedEffect(actual, aperturaId) {
+                    actual?.let {
+                        if (aperturaId != null) faena.iniciar(it, aperturaId)
+                        else {
+                            faena.iniciar(it)
+                        }
+                    }
                 }
 
                 AperturaFaenaScreen(
                     ui = ui,
                     onCambiar = faena::actualizar,
-                    onGuardar = { faena.guardarApertura() },
+                    onGuardar = {
+                        faena.guardarApertura {
+                            nav.popBackStack(Ruta.DASHBOARD, inclusive = false)
+                        }
+                    },
                     onRecuperar = faena::recuperarApertura,
                     onContinuar = {
                         faena.guardarApertura(continuar = true) {
@@ -195,78 +254,101 @@ fun AquaFlowNavHost() {
             }
 
             composable(Ruta.CHECKLIST) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
+                val graphEntry = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = graphEntry, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
 
                 ChecklistScreen(
+                    ocupado = ui.ocupado, errorExterno = ui.error,
                     faenaId = ui.apertura.id,
                     checklistInicial = ui.checklist,
+                    centroCultivo = ui.apertura.centroCultivo,
                     onGuardar = { checklist ->
-                        faena.registrarChecklist(checklist)
-                        nav.navigate(Ruta.SALUD)
+                        faena.registrarChecklist(checklist) { nav.navigate(Ruta.SALUD) }
+                    },
+                    onGuardarBorrador = { checklist ->
+                        faena.guardarBorradorChecklist(checklist) {
+                            nav.popBackStack(Ruta.DASHBOARD, inclusive = false)
+                        }
                     },
                     onVolver = { nav.popBackStack() }
                 )
             }
 
             composable(Ruta.SALUD) { entrada ->
-                val padre = remember(entrada) {
+                val graphEntry = remember(entrada) {
                     try {
                         nav.getBackStackEntry(Ruta.FAENA)
                     } catch (_: Exception) {
                         null
                     }
                 }
-                val faena: FaenaViewModel? = padre?.let {
+                val faena: FaenaViewModel? = graphEntry?.let {
                     viewModel(viewModelStoreOwner = it, factory = faenaFactory)
                 }
                 val ui = faena?.ui?.collectAsState()?.value
 
-                val saludVm: EncuestaSaludViewModel = viewModel(key = "EncuestaSaludViewModel")
-                val encuestaActual = ui?.encuesta ?: ultimaEncuesta
+                val saludVm: EncuestaSaludViewModel = viewModel(key = "salud-${ui?.apertura?.id}")
+                val encuestaActual = if (faena != null) ui?.encuesta else ultimaEncuesta
                 LaunchedEffect(encuestaActual) {
                     encuestaActual?.let { saludVm.cargar(it) }
                 }
 
                 EncuestaSaludScreen(
                     vm = saludVm,
+                    ocupado = ui?.ocupado == true, errorExterno = ui?.error,
                     buzo = ui?.apertura?.buzoAsignado?.ifBlank { "Buzo por asignar" } ?: "Buzo por asignar",
-                    tabs = usuario?.let { tabsPara(it.rol) } ?: Tab.entries.toList(),
+                    centroCultivo = ui?.apertura?.centroCultivo.orEmpty(),
                     onGuardar = { encuesta ->
-                        faena?.registrarEncuesta(encuesta)
-                        ultimaEncuesta = encuesta
                         if (faena != null) {
-                            nav.navigate(Ruta.AST)
+                            faena.registrarEncuesta(encuesta) {
+                                ultimaEncuesta = encuesta
+                                nav.navigate(Ruta.AST)
+                            }
                         } else {
                             nav.popBackStack()
                         }
                     },
-                    onVolver = { nav.popBackStack() },
-                    onTab = ::irATab
+                    onGuardarBorrador = { encuesta ->
+                        if (faena != null) {
+                            faena.guardarBorradorEncuesta(encuesta) {
+                                nav.popBackStack(Ruta.DASHBOARD, inclusive = false)
+                            }
+                        } else {
+                            nav.popBackStack()
+                        }
+                    },
+                    onVolver = { nav.popBackStack() }
                 )
             }
 
             composable(Ruta.AST) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
+                val graphEntry = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = graphEntry, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
 
+                val astVm: AstViewModel = viewModel(key = "ast-${ui.apertura.id}")
+                LaunchedEffect(ui.ast) { ui.ast?.let(astVm::cargar) }
                 AstScreen(
-                    vm = viewModel(),
+                    vm = astVm,
+                    ocupado = ui.ocupado, errorExterno = ui.error,
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->
-                        faena.registrarAst(ast)
-                        nav.navigate(Ruta.RESUMEN)
+                        faena.registrarAst(ast) { nav.navigate(Ruta.RESUMEN) }
+                    },
+                    onGuardarBorrador = { ast ->
+                        faena.guardarBorradorAst(ast) {
+                            nav.popBackStack(Ruta.DASHBOARD, inclusive = false)
+                        }
                     },
                     onVolver = { nav.popBackStack() }
                 )
             }
 
             composable(Ruta.RESUMEN) { entrada ->
-                val padre = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = padre, factory = faenaFactory)
+                val graphEntry = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
+                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = graphEntry, factory = faenaFactory)
                 val ui by faena.ui.collectAsState()
                 val actual = usuario
 
@@ -277,14 +359,12 @@ fun AquaFlowNavHost() {
                             apertura = ui.apertura,
                             checklist = ui.checklist,
                             ast = ui.ast,
-                            encuesta = ui.encuesta
+                            encuesta = ui.encuesta, tareas = ui.tareas
                         ),
                         decision = ui.decision,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
-                        onDecidir = { decision ->
-                            faena.registrarDecision(decision)
-                        },
+                        onDecidir = {},
                         onVolver = { nav.popBackStack() },
                         onFinalizar = {
                             nav.navigate(Ruta.DASHBOARD) {

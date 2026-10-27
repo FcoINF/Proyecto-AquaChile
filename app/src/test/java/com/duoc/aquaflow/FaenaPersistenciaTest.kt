@@ -27,15 +27,16 @@ class FaenaPersistenciaTest {
     private val repo = PreChequeoRepository(dao)
     private val jefe = Usuario("jefe", "1234", Rol.JEFE)
     private val luis = Usuario("Luis", "1234", Rol.SUPERVISOR)
-    private val apertura = PreChequeo("f1", "Centro Norte", "22/10/2026", "09:00", "Ana", "Luis")
+    private val apertura = PreChequeo("f1", "Centro Norte", "22/10/2026", "09:00", "Ana", "Luis", true, true, true)
     private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Compresor", "ok", EstadoEquipo.CUMPLE)))
-    private val ast = FormularioAst("Limpieza de fondos", false, listOf(true), listOf(PasoAst("t", "p", "c")), ResultadoAst.CUMPLE)
+    private val ast = FormularioAst("Limpieza de fondos", false, List(com.duoc.aquaflow.model.PREGUNTAS_AST.size) { true }, listOf(PasoAst("t", "p", "c")), ResultadoAst.CUMPLE)
     private val encuesta = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
 
     private suspend fun guardarTodo() {
         repo.guardar(apertura)
         repo.guardarChecklist("f1", checklist)
         repo.guardarAst("f1", ast)
+        repo.guardarTareas("f1", tareasCompletas())
         repo.guardarEncuesta("f1", encuesta)
     }
 
@@ -55,17 +56,19 @@ class FaenaPersistenciaTest {
         assertNotNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
     }
 
-    @Test fun losIndicadoresDeLaAperturaNoCuentanComoCambio() = runTest {
+    @Test fun cambiarCondicionesInicialesInvalidaLasSecciones() = runTest {
         guardarTodo()
-        // En pantalla la apertura trae sus tres indicadores en true, pero Room no los guarda
-        repo.guardar(apertura.copy(condicionesListas = true, embarcacionLista = true, comunicacionesOperativas = true))
-        assertNotNull(repo.observarFaena("f1", jefe).first()!!.resumen.checklist)
+        // Las condiciones iniciales forman parte del expediente persistido.
+        repo.guardar(apertura.copy(condicionesListas = false))
+        assertNull(repo.observarFaena("f1", luis).first()!!.resumen.checklist)
+        assertNull(repo.observarFaena("f1", jefe).first())
     }
 
     @Test fun cambiarLaAperturaDejaLasSeccionesEnBlanco() = runTest {
         guardarTodo()
         repo.guardar(apertura.copy(buzoAsignado = "Otro buzo"))
-        val faena = repo.observarFaena("f1", jefe).first()!!
+        val faena = repo.observarFaena("f1", luis).first()!!
+        assertNull(repo.observarFaena("f1", jefe).first())
         assertEquals("Otro buzo", faena.resumen.apertura.buzoAsignado)
         assertNull(faena.resumen.checklist)
         assertNull(faena.resumen.ast)
@@ -75,7 +78,7 @@ class FaenaPersistenciaTest {
     @Test fun laDecisionDefineElEstadoYNoSePuedeSobrescribir() = runTest {
         guardarTodo()
         repo.guardarDecision("f1", RegistroDecision(Decision.AUTORIZADA, "", "jefe"))
-        repo.guardarDecision("f1", RegistroDecision(Decision.RECHAZADA, "otro", "jefe"))
+        assertEquals(true, runCatching { repo.guardarDecision("f1", RegistroDecision(Decision.RECHAZADA, "otro", "jefe")) }.isFailure)
         val faena = repo.observarFaena("f1", jefe).first()!!
         assertEquals(EstadoFaena.AUTORIZADA, faena.estado)
         assertEquals(Decision.AUTORIZADA, faena.decision?.decision)
@@ -86,11 +89,12 @@ class FaenaPersistenciaTest {
         repo.guardar(apertura.copy(id = "f2", supervisorACargo = "Pedro"))
         assertEquals(listOf("f1"), repo.observarFaenas(luis).first().map { it.resumen.apertura.id })
         assertNull(repo.observarFaena("f2", luis).first())
-        assertEquals(2, repo.observarFaenas(jefe).first().size)
+        assertEquals(1, repo.observarFaenas(jefe).first().size)
+        assertNull(repo.observarFaena("f2", jefe).first())
     }
 
     @Test fun seccionesSobreFaenaInexistenteNoCreanFilas() = runTest {
-        repo.guardarChecklist("no-existe", checklist)
+        assertEquals(true, runCatching { repo.guardarChecklist("no-existe", checklist.copy(idFaena = "no-existe")) }.isFailure)
         assertEquals(0, repo.observarFaenas(jefe).first().size)
     }
 }

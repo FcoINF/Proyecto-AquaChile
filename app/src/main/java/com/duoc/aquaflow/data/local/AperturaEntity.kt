@@ -17,13 +17,16 @@ data class AperturaEntity(
     val buzoAsignado: String,
     val supervisorACargo: String,
     val condicionesListas: Boolean = false,
-    val embarcacionLista: Boolean = false,
-    val comunicacionesOperativas: Boolean = false,
+    val embarcacionLista: Boolean? = null,
+    val comunicacionesOperativas: Boolean? = null,
     val actualizadoEn: Long,
     val checklistJson: String? = null,
     val astJson: String? = null,
     val encuestaJson: String? = null,
-    val decisionJson: String? = null
+    val decisionJson: String? = null,
+    val cierreJson: String? = null,
+    val tareasJson: String? = null,
+    val inicioJson: String? = null
 ) {
     fun aModelo() = PreChequeo(
         id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo,
@@ -35,9 +38,12 @@ data class AperturaEntity(
             apertura = aModelo(),
             checklist = checklistJson?.let(FaenaCodec::checklistDesde),
             ast = astJson?.let(FaenaCodec::astDesde),
-            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde)
+            encuesta = encuestaJson?.let(FaenaCodec::encuestaDesde),
+            tareas = tareasJson?.let(FaenaCodec::tareasDesde)
         ),
-        decision = decisionJson?.let(FaenaCodec::decisionDesde)
+        decision = decisionJson?.let(FaenaCodec::decisionDesde),
+        cierre = cierreJson?.let(FaenaCodec::cierreDesde),
+        inicio = inicioJson?.let(FaenaCodec::inicioDesde)
     )
 
     companion object {
@@ -49,3 +55,9 @@ data class AperturaEntity(
         )
     }
 }
+
+internal fun AperturaEntity.mismosDatosQue(otra: AperturaEntity) =
+    centroCultivo == otra.centroCultivo && fecha == otra.fecha && hora == otra.hora &&
+        buzoAsignado == otra.buzoAsignado && supervisorACargo == otra.supervisorACargo &&
+        condicionesListas == otra.condicionesListas && embarcacionLista == otra.embarcacionLista &&
+        comunicacionesOperativas == otra.comunicacionesOperativas

@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.viewmodel
 
+import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -11,10 +12,11 @@ import kotlinx.coroutines.flow.update
 
 // Todo lo que muestra la encuesta en un solo objeto inmutable.
 data class EncuestaSaludUiState(
-    val sistolica: String = "",
-    val diastolica: String = "",
-    val saturacion: String = "",
+    val sistolica: String = "0",
+    val diastolica: String = "0",
+    val saturacion: String = "0",
     val alertas: Set<String> = emptySet(),   // preguntas respondidas "Sí"
+    val respuestas: Map<String, Boolean> = emptyMap(),
     val error: String? = null
 ) {
     // Nivel de salud en vivo (null mientras falten números)
@@ -23,6 +25,7 @@ data class EncuestaSaludUiState(
             val sis = sistolica.toIntOrNull() ?: return null
             val dia = diastolica.toIntOrNull() ?: return null
             val sat = saturacion.toIntOrNull() ?: return null
+            if (!Reglas.enRango(sis, dia, sat)) return null
             return Reglas.nivelSalud(sis, dia, sat, alertas.size)
         }
 
@@ -31,7 +34,7 @@ data class EncuestaSaludUiState(
     val diastolicaFuera get() = fuera(diastolica, Reglas.RANGO_DIASTOLICA)
     val saturacionFuera get() = fuera(saturacion, Reglas.RANGO_SATURACION)
 
-    private fun fuera(texto: String, rango: IntRange) = texto.toIntOrNull()?.let { it !in rango } == true
+    private fun fuera(texto: String, rango: IntRange) = texto.toIntOrNull()?.let { it != 0 && it !in rango } == true
 }
 
 // Maneja la encuesta: guarda el estado, valida y entrega la encuesta lista para el pre-chequeo.
@@ -50,7 +53,8 @@ class EncuestaSaludViewModel : ViewModel() {
             sistolica = encuesta.sistolica.toString(),
             diastolica = encuesta.diastolica.toString(),
             saturacion = encuesta.saturacion.toString(),
-            alertas = encuesta.alertasEncuesta.toSet()
+            alertas = encuesta.alertasEncuesta.toSet(),
+            respuestas = encuesta.alertasEncuesta.associateWith { true }
         )
     }
 
@@ -60,7 +64,21 @@ class EncuestaSaludViewModel : ViewModel() {
 
     // Un "Sí" entra al conjunto de alertas; al desmarcarlo sale
     fun alternarAlerta(pregunta: String) = _ui.update {
-        it.copy(alertas = if (pregunta in it.alertas) it.alertas - pregunta else it.alertas + pregunta, error = null)
+        val afirmativa = pregunta !in it.alertas
+        it.copy(
+            alertas = if (afirmativa) it.alertas + pregunta else it.alertas - pregunta,
+            respuestas = it.respuestas + (pregunta to afirmativa),
+            error = null
+        )
+    }
+
+    fun responderPregunta(pregunta: String, respuestaAfirmativa: Boolean) = _ui.update {
+        val alertas = if (respuestaAfirmativa) it.alertas + pregunta else it.alertas - pregunta
+        it.copy(
+            alertas = alertas,
+            respuestas = it.respuestas + (pregunta to respuestaAfirmativa),
+            error = null
+        )
     }
 
     // Devuelve la encuesta si todo es válido; si no, deja el mensaje en `ui.error` y devuelve null.
@@ -72,7 +90,7 @@ class EncuestaSaludViewModel : ViewModel() {
 
         // La primera validación que falle define el mensaje que ve el usuario
         val error = when {
-            sis == null || dia == null || sat == null -> "Completa presión y saturación"
+            sis == null || dia == null || sat == null || sis == 0 || dia == 0 || sat == 0 -> "Completa presión y saturación"
             !Reglas.enRango(sis, dia, sat) -> "Valores de salud fuera de rango"
             else -> null
         }
@@ -81,6 +99,14 @@ class EncuestaSaludViewModel : ViewModel() {
             return null
         }
         return EncuestaSalud(sis, dia, sat, s.alertas.toList(), Reglas.nivelSalud(sis, dia, sat, s.alertas.size))
+    }
+
+    fun borrador(): EncuestaSalud {
+        val s = _ui.value
+        val sis = s.sistolica.toIntOrNull() ?: 0
+        val dia = s.diastolica.toIntOrNull() ?: 0
+        val sat = s.saturacion.toIntOrNull() ?: 0
+        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL, EstadoSeccion.BORRADOR)
     }
 }
 

@@ -23,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.duoc.aquaflow.domain.ReglasSecciones
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.Decision
@@ -53,13 +55,18 @@ fun ResumenFaenaScreen(
     onFinalizar: () -> Unit,
     textoFinalizar: String = "Ir al inicio",
     // Error que no nace en esta pantalla (por ejemplo, al guardar la decisión en el dispositivo)
+    cierre: com.duoc.aquaflow.model.RegistroCierre? = null,
+    onCerrar: ((com.duoc.aquaflow.model.RegistroCierre) -> Unit)? = null,
+    ocupado: Boolean = false,
     errorExterno: String? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resultado = ReglasDecision.resultado(resumen)
     val faltantes = ReglasDecision.faltantes(resumen)
     val apertura = resumen.apertura
+    val estados = ReglasSecciones.estados(resumen)
 
+    com.duoc.aquaflow.ui.components.Guardando(ocupado)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -90,6 +97,7 @@ fun ResumenFaenaScreen(
             }
 
             Seccion("Apertura") {
+                Text("Estado: ${estados.getValue("Apertura").texto}")
                 Text(apertura.centroCultivo.ifBlank { "Centro sin definir" })
                 Text("${apertura.fecha} ${apertura.hora}".trim())
                 Text("Buzo: ${apertura.buzoAsignado.ifBlank { "sin asignar" }}")
@@ -97,34 +105,41 @@ fun ResumenFaenaScreen(
             }
 
             Seccion("Checklist de equipos") {
+                Text("Estado: ${estados.getValue("Checklist").texto}")
                 val items = resumen.checklist?.items.orEmpty()
-                if (items.isEmpty()) Text("Sin registrar")
+                if (resumen.checklist != null && items.isEmpty()) Text("Sin equipos registrados")
                 items.forEach {
                     Text("${it.titulo} · ${it.estado.texto()}")
                     if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                resumen.checklist?.let { Text("Fotos de evidencia: ${it.fotosEvidencia.size}") }
+                resumen.checklist?.let {
+                    Text("Fotos de evidencia: ${it.fotosEvidencia.size}")
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(it.fotosEvidencia)
+                }
             }
 
             Seccion("AST") {
+                Text("Estado: ${estados.getValue("AST").texto}")
                 val ast = resumen.ast
-                if (ast == null) Text("Sin registrar") else {
+                if (ast != null) {
                     Text(ast.tipologia)
                     Text("Pasos: ${ast.pasos.size} · Riesgos críticos: ${ast.pasos.count { it.critico }}")
                     if (ast.requiereNuevoAst) Text("Requiere un nuevo AST")
-                    SemaforoAst(ast.resultado)
+                    if (estados.getValue("AST") == EstadoSeccion.COMPLETA) SemaforoAst(ast.resultado)
                 }
             }
 
-            Seccion("Salud (ficticia)") {
+            Seccion("Salud") {
                 val e = resumen.encuesta
-                if (e == null) Text("Sin registrar") else {
-                    Text("Presión ${e.sistolica}/${e.diastolica} · Saturación ${e.saturacion}%")
-                    e.alertasEncuesta.forEach { Text("• $it", color = MaterialTheme.colorScheme.error) }
-                    SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
+                when {
+                    e == null -> Text("Estado: ${estados.getValue("Encuesta de salud").texto}")
+                    estados.getValue("Encuesta de salud") == EstadoSeccion.COMPLETA ->
+                        SemaforoSalud(Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size))
+                    else -> Text("Estado: ${estados.getValue("Encuesta de salud").texto}")
                 }
             }
 
+            errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {
                     // Ya decidida: se muestra el registro y se cierra el formulario
@@ -145,13 +160,15 @@ fun ResumenFaenaScreen(
                             label = { Text("Motivo (obligatorio al rechazar)") },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        (ui.error ?: errorExterno)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
+                                enabled = resultado != null && !ocupado,
                                 onClick = { vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir) },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Autorizar") }
                             OutlinedButton(
+                                enabled = resultado != null && !ocupado,
                                 onClick = { vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir) },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Rechazar") }
@@ -159,6 +176,16 @@ fun ResumenFaenaScreen(
                     }
                 }
             }
+            if (cierre != null) {
+                Seccion("Faena cerrada") {
+                    Text("Tiempo de inmersión: ${cierre.duracionMinutos} minutos")
+                    Text("Observaciones: ${cierre.observaciones}")
+                    Text("Revisión de salida: ${if (cierre.revisionSalida) "realizada" else "pendiente"}")
+                    Text("Cerrada por ${cierre.cerradoPor}")
+                    Text(java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(cierre.cerradoEn)))
+                }
+            }
+
         }
     }
 }

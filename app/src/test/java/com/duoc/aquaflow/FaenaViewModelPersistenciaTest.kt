@@ -1,6 +1,7 @@
 package com.duoc.aquaflow
 
 import com.duoc.aquaflow.data.repository.PreChequeoRepository
+import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.Decision
 import com.duoc.aquaflow.model.EncuestaSalud
@@ -55,6 +56,7 @@ class FaenaViewModelPersistenciaTest {
         val vm = faenaConfirmada(registro)
         val id = vm.ui.value.apertura.id
         vm.registrarChecklist(ChecklistFaena(id, emptyList()))
+        advanceUntilIdle()
         vm.registrarEncuesta(encuesta)
         advanceUntilIdle()
         assertEquals(listOf("checklist:$id", "encuesta:$id"), registro.llamadas)
@@ -86,13 +88,17 @@ class FaenaViewModelPersistenciaTest {
     @Test fun elHistorialMuestraElEstadoRealYFiltraPorEl() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         repo.guardar(PreChequeo("f1", "Norte", "22/10/2026", "09:00", "Ana", "Luis"))
-        repo.guardar(PreChequeo("f2", "Sur", "22/10/2026", "10:00", "Pedro", "Luis"))
+        repo.guardar(PreChequeo("f2", "Sur", "22/10/2026", "10:00", "Pedro", "Luis", true, true, true))
+        repo.guardarChecklist("f2", ChecklistFaena("f2", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
+        repo.guardarEncuesta("f2", encuesta)
+        repo.guardarAst("f2", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
+        repo.guardarTareas("f2", tareasCompletas())
         repo.guardarDecision("f2", RegistroDecision(Decision.RECHAZADA, "Falla", "jefe"))
         val vm = HistorialViewModel(repo, jefe)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         advanceUntilIdle()
         assertEquals(
-            mapOf("f1" to EstadoFaena.PRECHEQUEO, "f2" to EstadoFaena.RECHAZADA),
+            mapOf("f2" to EstadoFaena.RECHAZADA),
             vm.state.value.faenas.associate { it.id to it.estado }
         )
         vm.onEstado(EstadoFaena.RECHAZADA)
@@ -102,7 +108,12 @@ class FaenaViewModelPersistenciaTest {
 
     @Test fun elDetalleGuardaLaDecisionYMuestraElFallo() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
-        repo.guardar(PreChequeo("f1", "Norte", "22/10/2026", "09:00", "Ana", "Luis"))
+        // El jefe solo recibe expedientes completos para tomar una decisión.
+        repo.guardar(PreChequeo("f1", "Norte", "22/10/2026", "09:00", "Ana", "Luis", true, true, true))
+        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
+        repo.guardarEncuesta("f1", encuesta)
+        repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE))
+        repo.guardarTareas("f1", tareasCompletas())
         val registro = RegistroMemoria()
         val vm = DetalleAperturaViewModel(repo, jefe, "f1", registro)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }

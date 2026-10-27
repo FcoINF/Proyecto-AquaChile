@@ -20,7 +20,7 @@ Una aplicación móvil (offline-first) que reemplaza los formularios en papel pa
 
 - **Ingreso basado en roles**: Diferenciación de accesos e interfaces para perfiles de Administrador y Supervisor de Buceo
 - **Digitalización de Formularios Obligatorios**: Pre-chequeo preventivo, AST (Análisis Seguro de Trabajo) y R-DPR-24
-- **Modo Offline Activo**: Guardado local en el dispositivo (SQLite Room DB) previendo la falta de conexión en mar abierto, con capacidad de sincronización posterior
+- **Modo Offline Activo**: Guardado local en el dispositivo (SQLite Room DB) previendo la falta de conexión en mar abierto, con sincronización posterior planificada (pendiente de backend)
 - **Evidencia Fotográfica**: Uso de la cámara del dispositivo para capturar el estado físico y fallas de los equipos
 - **Encuesta de Salud Física**: Registro de condiciones, presión, oxígeno y temperatura del buzo antes de cada inmersión
 - **Módulo de Toma de Decisión**: Consolidación y resumen de faena para la autorización o rechazo (con motivo registrado) por parte de la jefatura
@@ -54,42 +54,44 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 
 ## Tecnologías Utilizadas
 
-### Avance: borrador de apertura con Room
+### Estado actual: avance funcional local
 
-- Como supervisor, entra a **Nueva faena** y completa o inicia la apertura.
-- **Guardar borrador** conserva incluso una apertura incompleta. **Continuar a Salud** exige los campos válidos y guarda antes de navegar.
-- Después de cerrar y volver a abrir la aplicación, ingresa con el mismo supervisor, abre **Nueva faena** y selecciona **Recuperar última apertura**. Confirma el reemplazo de los datos en pantalla.
-- Recuperar mantiene el identificador: guardar cambios actualiza ese registro. La consulta se limita al supervisor activo y a su última apertura guardada.
-- Esta entrega persiste únicamente la apertura; Salud, AST y decisiones todavía no se recuperan. El historial consulta las aperturas reales de Room.
-- Capas: `AperturaFaenaScreen` → `FaenaViewModel` → `BorradoresApertura` / `PreChequeoRepository` → `PreChequeoDao` → `AquaFlowDatabase`. Esquema Room versionado en `app/schemas`.
-- Usar Java 21 (el JDK configurado en Android Studio). Pruebas: `gradlew testDebugUnitTest`; con emulador activo, `gradlew connectedDebugAndroidTest`.
-- `AperturaRoomTest` verifica guardar, cerrar y reabrir una base en disco, aislamiento por supervisor y actualización sin duplicados. Las pruebas de ViewModel verifican recuperación, validación y fallo/reintento de guardado.
-- Verificación del avance: compilación debug y APK de pruebas correctos; 63 pruebas unitarias aprobadas. La ejecución de `AperturaRoomTest` en Android queda pendiente: Pixel 10 no conectó en cinco minutos y ADB reportó `unauthorized`.
+- **Flujo integrado:** apertura → DPR-24 y fotos → salud inicial → AST → tareas → resumen → autorización de jefatura → inicio por supervisor → salud de salida y cierre desde el historial.
+- **Room v6:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4→5→6 sin recuperación destructiva.
+- **Estados de sección:** distingue borrador, completa y sin registrar al guardar y recuperar; integra los botones de borrador y el detalle de historial de `develop`. Las secciones antiguas sin estado requieren reconfirmación. Bloquea autorizar y rechazar expedientes incompletos en pantalla y en la transacción de persistencia. Ver [alcance de la primera propuesta](docs/ESTADOS_SECCIONES.md).
+- **Guardado confirmado:** se avanza después de persistir; los errores quedan visibles y permiten reintentar. Recuperar una faena restaura sus secciones.
+- **Identidad local:** el supervisor pertenece a la sesión y no puede cambiarse en el formulario. Las faenas decididas no se pueden editar; los cierres no se sobrescriben.
+- **Fotografías:** captura a archivo interno con `TakePicture` y `FileProvider`; referencias en Room y miniaturas en checklist y detalle. Cancelar o fallar la cámara no agrega evidencias simuladas. Los nombres ficticios guardados por versiones antiguas no contienen imágenes recuperables: la app informa cuando la vista previa no está disponible.
+- **Dos recursos del dispositivo:** cámara y fecha/hora automática, visible en apertura y detalle. La captura se delega a la app de cámara con acceso temporal al URI; AquaFlow no solicita el permiso de cámara para usar directamente el hardware.
+- **Inicio:** solo el supervisor propietario inicia una faena autorizada; se registra responsable y fecha/hora, con estado En ejecución.
+- **Tareas e historial:** checklist de tareas independiente del DPR-24; búsqueda por centro o buzo combinable con fecha exacta y estado. Ver [flujo operativo completo](docs/FLUJO_OPERATIVO.md).
+- **Cierre:** desde el detalle de una faena en ejecución, el supervisor propietario registra minutos de inmersión, observaciones, confirmación de revisión de salida y una segunda encuesta de salud independiente. Se guarda responsable y fecha/hora; el historial muestra el estado Cerrada.
+- **MVVM:** pantallas → ViewModels/StateFlow → repositorio → DAO → Room. Checklist y formulario de cierre conservan su borrador mediante `SavedStateHandle`.
 
-### Avance: historial y detalle conectados a Room
+### Ejecución y pruebas
 
-- Guarda una apertura y entra a **Historial**. Cada supervisor ve las propias; el administrador puede consultar todas las aperturas del dispositivo.
-- Busca por código, centro, buzo o supervisor; combina la búsqueda con el filtro de estado. **Limpiar filtros** restablece la lista. Los filtros se conservan al volver del detalle.
-- **Ver detalle** recupera por identificador la apertura guardada. También aplica la restricción por supervisor, aunque se intente abrir otro identificador.
-- Los campos incompletos se muestran como **Por completar**. Sin registros, sin coincidencias y ante un error de lectura se muestran mensajes distintos; los errores permiten reintentar.
-- Los cambios guardados se reflejan mediante `Flow` de Room y `StateFlow` de los ViewModels. Las pantallas reciben estado y callbacks; no consultan datos directamente.
-- Todas las aperturas actuales están **En pre-chequeo**. Los filtros de autorizadas, rechazadas y cerradas no tendrán resultados hasta persistir esas decisiones. No se mezclan datos de demostración ni se habilitan decisiones en el detalle.
-- No cambia el esquema de Room: se agregan consultas sobre la tabla existente, sin borrar datos.
-- Prueba manual: guardar dos aperturas, reiniciar la app, buscarlas en Historial, abrir una, volver y comprobar el filtro. Con otro supervisor, comprobar que no aparece la apertura ajena; con el administrador, comprobar que aparecen ambas.
-- Verificación: 69 pruebas unitarias aprobadas, incluidas seis de historial y detalle; la ejecución de las pruebas instrumentadas de Room sigue pendiente de un emulador o dispositivo conectado.
+1. Abrir el proyecto con Android Studio y configurar Android SDK 35.
+2. Seleccionar un JDK compatible con Gradle; esta entrega fue verificada con **JDK 17**. `local.properties` debe apuntar al SDK de cada equipo y no se versiona.
+3. Sincronizar Gradle y ejecutar `app` en Android 7.0/API 24 o superior. Las pruebas de esta entrega usan Pixel 7 Pro con Android 13/API 33.
+4. Credenciales **de demostración**: perfil Supervisor, usuario `supervisor`, contraseña `1234`; perfil Administrador, usuario `jefe`, contraseña `1234`.
 
-### Avance: faena completa y decisión guardadas en Room
+```powershell
+.\gradlew.bat assembleDebug
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat connectedDebugAndroidTest
+```
 
-- Room pasa a la **versión 2** con una migración (`MIGRACION_1_2`): las aperturas guardadas antes se conservan y quedan con sus secciones "sin registrar".
-- La misma fila de la faena guarda ahora el **checklist, el AST, la encuesta de salud y la decisión** (cada sección como JSON, ver `FaenaCodec`). Cada pantalla guarda su parte al completarla; si el guardado falla, el usuario lo ve y los datos siguen en pantalla.
-- Si el supervisor edita la apertura después de completar las secciones, estas se borran (igual que en pantalla); guardar la apertura sin cambios las conserva.
-- El **estado de la faena se deduce de la decisión** (en pre-chequeo, autorizada o rechazada), por lo que el Historial ya muestra estados reales y sus filtros funcionan.
-- La jefatura decide desde **Historial → Ver detalle**: ve la faena completa y puede autorizar o rechazar (rechazo con motivo). Una decisión ya tomada no se sobrescribe. El supervisor, al terminar el resumen, deja la faena guardada para esa revisión.
-- Pendiente: las fotos del checklist siguen en memoria (no se guardan sus rutas) y falta el registro posterior / cierre.
+La última orden requiere dispositivo o emulador conectado y autorizado por ADB. Si el proyecto está bajo OneDrive, el build se redirige a `%USERPROFILE%/.gradle/aquachile-build/<clave>/app`; el APK queda en `outputs/apk/debug/app-debug.apk` dentro de ese directorio.
 
-- **Frontend y Diseño de Interfaces**: Material Design 3, Jetpack Compose
-- **Prototipado e IA**: Google Stitch, Google AI Studio, Figma
-- **Almacenamiento Local**: SQLite / Room DB (arquitectura que soporta trabajo desconectado de la red)
+La evidencia de pruebas y el guion de demostración se mantienen en [Validación del MVP](docs/VALIDACION_MVP.md). Las tareas implementadas y pendientes se registran en [Planificación](docs/PLANIFICACION_MVP.md); el [roadmap](docs/ROADMAP_MVP.md) conserva la correspondencia con las rúbricas.
+
+### Límites del alcance actual
+
+La aplicación funciona localmente y admite el flujo sin conexión. **No hay backend definido, autenticación remota ni sincronización entre dispositivos.** Jefatura revisa las faenas cambiando de cuenta en el mismo dispositivo. Las cuentas, catálogos y reglas de salud son de demostración académica; requieren validación del cliente antes de un uso operativo.
+
+Los archivos capturados se conservan en almacenamiento privado. Quitar una referencia del checklist no elimina inmediatamente el archivo, para evitar borrar una evidencia ya guardada antes de confirmar la edición. La limpieza de archivos huérfanos queda pendiente.
+
+El formulario de cierre es una propuesta funcional para el MVP; sus campos deben ser revisados con el cliente. La entrega AVA, la validación de formularios y los ensayos individuales son tareas del equipo.
 
 ## Estructura del Proyecto
 
@@ -121,4 +123,4 @@ docs/
 
 *Documentación generada en base a la definición de requerimientos del cliente AquaChile y arquitectura de diseño UI/UX.*
 
-*Última actualización: Septiembre 2026*
+*Última actualización: 24 de octubre de 2026*

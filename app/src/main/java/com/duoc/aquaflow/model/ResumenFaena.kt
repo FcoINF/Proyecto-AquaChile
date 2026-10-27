@@ -18,7 +18,8 @@ data class ResumenFaena(
     val apertura: PreChequeo,
     val checklist: ChecklistFaena?,
     val ast: FormularioAst?,
-    val encuesta: EncuestaSalud?
+    val encuesta: EncuestaSalud?,
+    val tareas: ChecklistTareas? = null
 )
 
 // La decisión tomada, con su motivo y quién la tomó.
@@ -29,13 +30,15 @@ data class RegistroDecision(
 )
 
 // Una faena tal como queda guardada en el dispositivo: sus partes y, si ya existe, la decisión.
-// El estado se deduce de la decisión, así nunca puede contradecirla.
+// El estado se obtiene de los registros persistidos de decisión, inicio y cierre.
 data class FaenaGuardada(
     val resumen: ResumenFaena,
-    val decision: RegistroDecision? = null
+    val decision: RegistroDecision? = null,
+    val cierre: RegistroCierre? = null,
+    val inicio: RegistroInicio? = null
 ) {
     val estado: EstadoFaena
-        get() = when (decision?.decision) {
+        get() = if (cierre != null) EstadoFaena.CERRADA else if (inicio != null) EstadoFaena.EN_EJECUCION else when (decision?.decision) {
             null -> EstadoFaena.PRECHEQUEO
             Decision.AUTORIZADA -> EstadoFaena.AUTORIZADA
             Decision.RECHAZADA -> EstadoFaena.RECHAZADA

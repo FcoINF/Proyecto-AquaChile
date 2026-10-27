@@ -32,7 +32,7 @@ class FaenaCodecTest {
         val original = FormularioAst(
             "Inspección de redes", true, listOf(true, false, true),
             listOf(PasoAst("Bajar", "Corriente", "Línea guía", true), PasoAst()),
-            ResultadoAst.REQUIERE_REVISION
+            ResultadoAst.REQUIERE_REVISION, com.duoc.aquaflow.model.EstadoSeccion.BORRADOR
         )
         assertEquals(original, FaenaCodec.astDesde(FaenaCodec.astATexto(original)))
     }

@@ -3,6 +3,7 @@ package com.duoc.aquaflow.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.aquaflow.data.repository.ConsultaAperturas
+import com.duoc.aquaflow.domain.CategoriaHistorial
 import com.duoc.aquaflow.domain.HistorialFiltro
 import com.duoc.aquaflow.model.EstadoFaena
 import com.duoc.aquaflow.model.HistorialItem
@@ -15,6 +16,13 @@ data class HistorialUiState(
     val cargando: Boolean = true,
     val error: String? = null,
     val total: Int = 0,
+    val tiempoFondoMinutos: Int = 0,
+    val alertas: Int = 0,
+    val buzosActivos: Int = 0,
+    val aprobadas: Int = 0,
+    val observadas: Int = 0,
+    val rechazadas: Int = 0,
+    val enCurso: Int = 0,
     val filtro: HistorialFiltro = HistorialFiltro(),
     val faenas: List<HistorialItem> = emptyList()
 )
@@ -28,7 +36,18 @@ class HistorialViewModel(consulta: ConsultaAperturas, usuario: Usuario) : ViewMo
     private val datos = intentos.flatMapLatest {
         consulta.observarFaenas(usuario).map { lista ->
             val items = lista.map { it.aHistorialItem() }
-            HistorialUiState(cargando = false, total = items.size, faenas = items)
+            HistorialUiState(
+                cargando = false,
+                total = items.size,
+                tiempoFondoMinutos = lista.sumOf { it.cierre?.duracionMinutos ?: 0 },
+                alertas = items.count { it.resultado == com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO || it.resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION },
+                buzosActivos = items.filter { it.estado == EstadoFaena.EN_EJECUCION }.map { it.buzoAsignado }.filter(String::isNotBlank).distinct().size,
+                aprobadas = items.count { it.estado == EstadoFaena.AUTORIZADA || it.estado == EstadoFaena.CERRADA },
+                observadas = items.count { it.estado == EstadoFaena.PRECHEQUEO && it.resultado == com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO },
+                rechazadas = items.count { it.estado == EstadoFaena.RECHAZADA },
+                enCurso = items.count { it.estado == EstadoFaena.EN_EJECUCION },
+                faenas = items
+            )
         }.onStart { emit(HistorialUiState()) }
             .catch { emit(HistorialUiState(cargando = false, error = "No se pudo cargar el historial.")) }
     }
@@ -37,8 +56,10 @@ class HistorialViewModel(consulta: ConsultaAperturas, usuario: Usuario) : ViewMo
         datos.copy(filtro = filtro, faenas = filtro.aplicar(datos.faenas))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistorialUiState())
 
+    fun onFecha(fecha: String) = filtro.update { it.copy(fecha = fecha.take(10)) }
     fun onTexto(texto: String) = filtro.update { it.copy(texto = texto.take(60)) }
     fun onEstado(estado: EstadoFaena?) = filtro.update { it.copy(estado = estado) }
+    fun onCategoria(categoria: CategoriaHistorial) = filtro.update { it.copy(categoria = categoria, estado = null) }
     fun limpiar() { filtro.value = HistorialFiltro() }
     fun reintentar() { intentos.update { it + 1 } }
 }

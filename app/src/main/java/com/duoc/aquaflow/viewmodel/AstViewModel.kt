@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.viewmodel
 
+import com.duoc.aquaflow.model.EstadoSeccion
 import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.ReglasAst
 import com.duoc.aquaflow.model.FormularioAst
@@ -16,7 +17,7 @@ data class AstUiState(
     val tipologia: String = "",
     val requiereNuevoAst: Boolean = false,
     val respuestas: List<Boolean?> = List(PREGUNTAS_AST.size) { null },   // null = sin responder
-    val pasos: List<PasoAst> = listOf(PasoAst()),
+    val pasos: List<PasoAst> = emptyList(),
     val error: String? = null
 ) {
     // Semáforo en vivo: aparece cuando ya se respondió todo el chequeo inicial
@@ -81,6 +82,18 @@ class AstViewModel : ViewModel() {
             respuestas = s.respuestas.map { it == true },
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
             resultado = ReglasAst.resultado(s.respuestas, s.pasos, s.requiereNuevoAst)
+        )
+    }
+
+    fun borrador(): FormularioAst {
+        val s = _ui.value
+        return FormularioAst(
+            tipologia = s.tipologia,
+            requiereNuevoAst = s.requiereNuevoAst,
+            respuestas = s.respuestas.map { it == true },
+            pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
+            resultado = s.resultado ?: ResultadoAst.OBSERVADO,
+            estado = EstadoSeccion.BORRADOR
         )
     }
 }

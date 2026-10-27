@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.NivelSalud
-import com.duoc.aquaflow.ui.theme.SemaforoAmbar
+import com.duoc.aquaflow.ui.theme.SemaforoAzul
 import com.duoc.aquaflow.ui.theme.SemaforoRojo
 import com.duoc.aquaflow.ui.theme.SemaforoVerde
 
@@ -26,7 +26,7 @@ fun SemaforoSalud(n: NivelSalud) = Etiqueta(
     "Salud: ${n.texto}",
     when (n) {
         NivelSalud.NORMAL -> SemaforoVerde
-        NivelSalud.ATENCION -> SemaforoAmbar
+        NivelSalud.ATENCION -> SemaforoAzul
         NivelSalud.CRITICO -> SemaforoRojo
     }
 )

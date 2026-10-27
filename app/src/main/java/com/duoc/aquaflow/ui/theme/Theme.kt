@@ -11,10 +11,10 @@ import androidx.compose.ui.unit.dp
 
 // Paleta fija del MVP: no depende del fondo de pantalla del teléfono.
 private val AquaFlowColors = lightColorScheme(
-    primary = AquaNaranja,
-    onPrimary = AquaAzul,
-    primaryContainer = AquaNaranjaSuave,
-    onPrimaryContainer = Color(0xFF81350E),
+    primary = AquaAzulAccion,
+    onPrimary = AquaBlanco,
+    primaryContainer = AquaAzulAccionSuave,
+    onPrimaryContainer = Color(0xFF123D73),
     secondary = AquaAzul,
     onSecondary = AquaBlanco,
     secondaryContainer = AquaGrisSuave,
@@ -29,7 +29,7 @@ private val AquaFlowColors = lightColorScheme(
     onSurface = AquaAzul,
     surfaceVariant = Color(0xFFEAF0F4),
     onSurfaceVariant = Color(0xFF5B6D79),
-    surfaceTint = AquaNaranja,
+    surfaceTint = AquaAzulAccion,
     outline = Color(0xFF8A9AA5),
     outlineVariant = Color(0xFFDCE4E9),
     error = Color(0xFFBA1A1A),
@@ -38,7 +38,7 @@ private val AquaFlowColors = lightColorScheme(
     onErrorContainer = Color(0xFF410002),
     inverseSurface = AquaAzul,
     inverseOnSurface = AquaBlanco,
-    inversePrimary = AquaNaranjaSuave
+    inversePrimary = AquaAzulAccionSuave
 )
 
 @Composable
