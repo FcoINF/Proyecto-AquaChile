@@ -3,6 +3,7 @@ package com.duoc.aquaflow
 import androidx.lifecycle.SavedStateHandle
 import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.domain.ReglasDecision
+import com.duoc.aquaflow.domain.ReglasPanel
 import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.viewmodel.*
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,7 @@ class BorradoresDevelopTest {
     private val dispatcher = StandardTestDispatcher()
     private val usuario = Usuario("supervisor", "1234", Rol.SUPERVISOR)
     private val apertura = PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "supervisor", true, true, true)
-    private val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE, categoria = "Primario", badge = "OK")))
+    private val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE, categoria = "Primario", badge = "OK")), listOf("f1", "f2", "f3", "f4"))
     private val a = FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE)
     private val e = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
     @Before fun preparar() { Dispatchers.setMain(dispatcher) }
@@ -102,5 +103,17 @@ class BorradoresDevelopTest {
         advanceUntilIdle()
         assertFalse(vm.ui.value.aperturaConfirmada)
         assertFalse(vm.registrarChecklist(c))
+    }
+
+    @Test fun faenaCompletadaNoEsBorradorPendiente() = runTest {
+        val repo = PreChequeoRepository(DaoMemoria())
+        repo.guardar(apertura)
+        repo.guardarChecklist("f1", c)
+        repo.guardarAst("f1", a)
+        repo.guardarTareas("f1", tareasCompletas())
+        repo.guardarEncuesta("f1", e)
+        val faena = repo.recuperarFaenaPorId("f1")!!
+        assertNotNull(ReglasPanel.grupo(faena))
+        assertTrue(ReglasDecision.faltantes(faena.resumen).isEmpty())
     }
 }

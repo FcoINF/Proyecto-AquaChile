@@ -1,5 +1,6 @@
 package com.duoc.aquaflow.ui.screens
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -16,16 +17,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.duoc.aquaflow.data.local.EvidenciasFotos
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.ui.components.EvidenciasGaleria
+import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.ItemChecklist
 import com.duoc.aquaflow.ui.components.SeccionFotos
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
+import com.duoc.aquaflow.viewmodel.ChecklistViewModel
 
 @Composable
 fun ChecklistScreen(
@@ -37,19 +44,19 @@ fun ChecklistScreen(
     onGuardarBorrador: (ChecklistFaena) -> Unit,
     onVolver: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val vm: com.duoc.aquaflow.viewmodel.ChecklistViewModel = androidx.lifecycle.viewmodel.compose.viewModel(key = "checklist-$faenaId")
+    val context = LocalContext.current
+    val vm: ChecklistViewModel = viewModel(key = "checklist-$faenaId")
     LaunchedEffect(faenaId) { vm.cargar(faenaId, checklistInicial) }
     val ui by vm.ui.collectAsState()
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { resultado ->
-        val uri = vm.ui.value.pendiente?.let(android.net.Uri::parse)
-        val guardada = resultado && uri != null && com.duoc.aquaflow.data.local.EvidenciasFotos.existe(context, uri)
-        if (!guardada && uri != null) com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, uri)
+        val uri = vm.ui.value.pendiente?.let(Uri::parse)
+        val guardada = resultado && uri != null && EvidenciasFotos.existe(context, uri)
+        if (!guardada && uri != null) EvidenciasFotos.descartar(context, uri)
         vm.terminarFoto(guardada)
     }
 
-    com.duoc.aquaflow.ui.components.Guardando(ocupado)
+    Guardando(ocupado)
 
     ChecklistScreenContent(
         ocupado = ocupado,
@@ -60,11 +67,11 @@ fun ChecklistScreen(
         onTomarFotoClick = {
             if (ui.pendiente == null) {
                 try {
-                    val uri = com.duoc.aquaflow.data.local.EvidenciasFotos.crear(context)
+                    val uri = EvidenciasFotos.crear(context)
                     vm.prepararFoto(uri.toString())
                     cameraLauncher.launch(uri)
                 } catch (_: Exception) {
-                    vm.ui.value.pendiente?.let { com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, android.net.Uri.parse(it)) }
+                    vm.ui.value.pendiente?.let { EvidenciasFotos.descartar(context, Uri.parse(it)) }
                     vm.errorCamara()
                 }
             }
@@ -217,7 +224,7 @@ fun ChecklistScreenContent(
                         cantidadFotos = fotos.size,
                         onTomarFotoClick = onTomarFotoClick
                     )
-                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(fotos, onQuitarFoto)
+                    EvidenciasGaleria(fotos, onQuitarFoto)
                 }
             }
 
@@ -251,7 +258,7 @@ fun ChecklistScreenContent(
                     enabled = !ocupado,
                     onClick = onGuardarBorradorClick,
                     modifier = Modifier
-                        .align(androidx.compose.ui.Alignment.End)
+                        .align(Alignment.End)
                         .padding(bottom = 8.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -272,27 +279,31 @@ fun ChecklistScreenPreview() {
             items = listOf(
                 ItemEquipamiento(
                     id = "1",
-                    titulo = "Compresor, Purgas y Filtros Carbón",
-                    descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
-                    estado = EstadoEquipo.CUMPLE,
+                    titulo = "Maleta de Suministro de Aire",
+                    descripcion = "Verificación de manifold, válvulas de alivio, manómetro análogo y presurización de línea principal.",
                     categoria = "EQUIPO 01 • SUMINISTRO PRIMARIO",
-                    badge = "220 BAR"
+                    badge = "FOTO OBLIGATORIA"
                 ),
                 ItemEquipamiento(
                     id = "2",
-                    titulo = "Traje Seco, Arnés y Casco KMB",
-                    descripcion = "Prueba de estanqueidad de cremallera estanca, diafragma buconasal y fonía bidireccional limpia.",
-                    estado = EstadoEquipo.CUMPLE,
-                    categoria = "EQUIPO 02 • PERSONAL",
-                    badge = "BUZO #1"
+                    titulo = "Filtros del Compresor",
+                    descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y carbón activo.",
+                    categoria = "EQUIPO 02 • COMPRESOR",
+                    badge = "FOTO OBLIGATORIA"
                 ),
                 ItemEquipamiento(
                     id = "3",
-                    titulo = "Botellón de Rescate (Bail-out)",
-                    descripcion = "Presión 210 BAR verificada en manómetro análogo sumergible. Conmutación manual activa.",
-                    estado = EstadoEquipo.CUMPLE,
-                    categoria = "EQUIPO 03 • RESPALDO RESCATE",
-                    badge = "210 BAR"
+                    titulo = "Aletas y Equipamiento Personal",
+                    descripcion = "Prueba de tirantes de aletas, ensamble de hebillas y estanqueidad de traje seco/casco KMB.",
+                    categoria = "EQUIPO 03 • INDIVIDUAL BUZO",
+                    badge = "FOTO OBLIGATORIA"
+                ),
+                ItemEquipamiento(
+                    id = "4",
+                    titulo = "Dispositivo Census",
+                    descripcion = "Consola de monitoreo de profundidad, velocidad de ascenso/descenso y telemetría conectada.",
+                    categoria = "EQUIPO 04 • MONITOREO Y CONTROL",
+                    badge = "FOTO OBLIGATORIA"
                 )
             ),
             fotos = emptyList(),

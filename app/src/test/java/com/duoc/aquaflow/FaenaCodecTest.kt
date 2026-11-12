@@ -23,7 +23,7 @@ class FaenaCodecTest {
                 ItemEquipamiento("1", "Compresor", "Test de CO \"OK\"", EstadoEquipo.CUMPLE),
                 ItemEquipamiento("2", "Umbilical", "Roce\nsuperficial", EstadoEquipo.NO_CUMPLE, "Reemplazar, ñandú")
             ),
-            listOf("file:///foto1.jpg", "file:///foto2.jpg")
+            listOf("file:///foto1.jpg", "file:///foto2.jpg", "file:///foto3.jpg", "file:///foto4.jpg")
         )
         assertEquals(original, FaenaCodec.checklistDesde(FaenaCodec.checklistATexto(original)))
     }

@@ -17,7 +17,7 @@ class FlujoCompletoTest {
     private val cierre = RegistroCierre(30, "Revisión final", true, saludSalida = saludSalida())
     private suspend fun preparar(repo: PreChequeoRepository) {
         repo.guardar(PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", supervisor.nombre, true, true, true))
-        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("foto-de-prueba")))
+        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4")))
         repo.guardarEncuesta("f1", inicial)
         repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE))
     }

@@ -12,7 +12,7 @@ import org.junit.Test
 
 class EstadosSeccionesTest {
     private val apertura = PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "Luis", true, true, true)
-    private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)))
+    private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4"))
     private val ast = FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE)
     private val salud = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
     private val completo = ResumenFaena(apertura, checklist, ast, salud, tareasCompletas())
@@ -24,6 +24,8 @@ class EstadosSeccionesTest {
         assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.encuesta(salud.copy(saturacion = 0)))
         assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(items = emptyList())))
         assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(items = checklist.items.map { it.copy(estado = EstadoEquipo.PENDIENTE) })))
+        assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(fotosEvidencia = listOf("f1", "f2"))))
+        assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.checklist(checklist))
         assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.encuesta(salud.copy(saturacion = 90)))
         assertEquals(ResultadoFaena.REQUIERE_REVISION, ReglasDecision.resultado(completo.copy(encuesta = salud.copy(saturacion = 90))))
         assertNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Revisado"))

@@ -9,8 +9,15 @@ object ReglasSecciones {
     fun apertura(a: PreChequeo) =
         if (Reglas.errorApertura(a) == null) EstadoSeccion.COMPLETA else EstadoSeccion.BORRADOR
 
+    const val FOTOS_OBLIGATORIAS_MINIMAS = 4
+
     fun checklist(c: ChecklistFaena?) = c?.let {
-        estado(it.estado, it.items.isNotEmpty() && it.items.none { item -> item.estado == EstadoEquipo.PENDIENTE })
+        estado(
+            it.estado,
+            it.items.isNotEmpty() &&
+                it.items.none { item -> item.estado == EstadoEquipo.PENDIENTE } &&
+                it.fotosEvidencia.size >= FOTOS_OBLIGATORIAS_MINIMAS
+        )
     } ?: EstadoSeccion.SIN_REGISTRAR
 
     fun ast(a: FormularioAst?) = a?.let {

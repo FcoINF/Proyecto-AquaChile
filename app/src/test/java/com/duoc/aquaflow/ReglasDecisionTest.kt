@@ -24,7 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private fun cl(vararg estados: EstadoEquipo) =
-    ChecklistFaena("f1", estados.mapIndexed { i, e -> ItemEquipamiento("$i", "Equipo $i", "desc", e) })
+    ChecklistFaena("f1", estados.mapIndexed { i, e -> ItemEquipamiento("$i", "Equipo $i", "desc", e) }, listOf("f1", "f2", "f3", "f4"))
 
 private fun astDe(r: ResultadoAst = ResultadoAst.CUMPLE) = FormularioAst(
     "Inspección de redes", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("t", "p", "c")), r

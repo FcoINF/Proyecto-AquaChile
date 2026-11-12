@@ -12,12 +12,16 @@ class ChecklistViewModelTest {
         val vm = ChecklistViewModel(saved)
         vm.cargar("f1", null)
         vm.ui.value.items.forEach { vm.cambiarEstado(it.id, EstadoEquipo.CUMPLE) }
-        vm.prepararFoto("content://aquaflow.evidencias/foto.jpg")
+        vm.prepararFoto("content://aquaflow.evidencias/foto1.jpg")
         val restaurado = ChecklistViewModel(saved)
         restaurado.cargar("f1", null)
         assertEquals(vm.ui.value, restaurado.ui.value)
         restaurado.terminarFoto(true)
-        assertEquals(listOf("content://aquaflow.evidencias/foto.jpg"), restaurado.guardar()!!.fotosEvidencia)
+        listOf("2", "3", "4").forEach {
+            restaurado.prepararFoto("content://aquaflow.evidencias/foto$it.jpg")
+            restaurado.terminarFoto(true)
+        }
+        assertEquals(4, restaurado.guardar()!!.fotosEvidencia.size)
         assertNull(restaurado.ui.value.pendiente)
     }
 
@@ -34,7 +38,7 @@ class ChecklistViewModelTest {
         assertEquals(4, restaurado.ui.value.items.size)
     }
 
-    @Test fun cancelarCamaraNoInventaFotosYExigeRevisarTodosLosEquipos() {
+    @Test fun cancelarCamaraNoInventaFotosYExigeCuatroFotosObligatorias() {
         val vm = ChecklistViewModel(SavedStateHandle())
         vm.cargar("f1", null)
         assertNull(vm.guardar())
@@ -43,7 +47,18 @@ class ChecklistViewModelTest {
         assertTrue(vm.ui.value.fotos.isEmpty())
         assertNotNull(vm.ui.value.error)
         vm.ui.value.items.forEach { vm.cambiarEstado(it.id, EstadoEquipo.OBSERVADO) }
+        // Con 0 fotos debe fallar al intentar guardar
+        assertNull(vm.guardar())
+        assertNotNull(vm.ui.value.error)
+        assertTrue(vm.ui.value.error!!.contains("4 fotos obligatorias"))
+
+        // Al agregar las 4 fotos obligatorias, debe permitir guardar
+        listOf("1", "2", "3", "4").forEach {
+            vm.prepararFoto("content://aquaflow.evidencias/foto$it.jpg")
+            vm.terminarFoto(true)
+        }
         assertNotNull(vm.guardar())
+
         vm.cargar("f2", null)
         assertTrue(vm.ui.value.items.all { it.estado == EstadoEquipo.PENDIENTE })
     }

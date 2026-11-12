@@ -33,31 +33,31 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         val items = inicial?.items?.takeIf { it.isNotEmpty() } ?: listOf(
             ItemEquipamiento(
                 id = "1",
-                titulo = "Compresor, Purgas y Filtros Carbón",
-                descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
+                titulo = "Maleta de Suministro de Aire",
+                descripcion = "Verificación de manifold, válvulas de alivio, manómetro análogo y presurización de línea de alimentación principal.",
                 categoria = "EQUIPO 01 • SUMINISTRO PRIMARIO",
-                badge = "220 BAR"
+                badge = "FOTO OBLIGATORIA"
             ),
             ItemEquipamiento(
                 id = "2",
-                titulo = "Traje Seco, Arnés y Casco KMB",
-                descripcion = "Prueba de estanqueidad de cremallera estanca, diafragma buconasal y fonía bidireccional limpia.",
-                categoria = "EQUIPO 02 • PERSONAL",
-                badge = "BUZO #1"
+                titulo = "Filtros del Compresor",
+                descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
+                categoria = "EQUIPO 02 • COMPRESOR",
+                badge = "FOTO OBLIGATORIA"
             ),
             ItemEquipamiento(
                 id = "3",
-                titulo = "Botellón de Rescate (Bail-out)",
-                descripcion = "Presión 210 BAR verificada en manómetro análogo sumergible. Conmutación manual activa.",
-                categoria = "EQUIPO 03 • RESPALDO RESCATE",
-                badge = "210 BAR"
+                titulo = "Aletas y Equipamiento Personal",
+                descripcion = "Prueba de tirantes de aletas, ensamble de hebillas y estanqueidad de traje seco/casco KMB.",
+                categoria = "EQUIPO 03 • INDIVIDUAL BUZO",
+                badge = "FOTO OBLIGATORIA"
             ),
             ItemEquipamiento(
                 id = "4",
-                titulo = "Manguera Umbilical y Conexiones",
-                descripcion = "Prueba de presión y verificación de flujo de gas en mangueras de buceo.",
-                categoria = "EQUIPO 04 • DISTRIBUCIÓN Y LÍNEA",
-                badge = "SISTEMA OK"
+                titulo = "Dispositivo Census",
+                descripcion = "Consola de monitoreo de profundidad, velocidad de ascenso/descenso y telemetría de inmersión conectada.",
+                categoria = "EQUIPO 04 • MONITOREO Y CONTROL",
+                badge = "FOTO OBLIGATORIA"
             )
         )
         val estados = if (restaurar) saved.get<ArrayList<String>>("estados") else null
@@ -108,6 +108,13 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     fun guardar(): ChecklistFaena? {
         if (_ui.value.items.isEmpty() || _ui.value.items.any { it.estado == EstadoEquipo.PENDIENTE }) {
             _ui.value = _ui.value.copy(error = "Revisa todos los equipos antes de continuar.")
+            return null
+        }
+        if (_ui.value.fotos.size < 4) {
+            val faltantes = 4 - _ui.value.fotos.size
+            _ui.value = _ui.value.copy(
+                error = "Debes capturar las 4 fotos obligatorias (Maleta de Aire, Filtros Compresor, Aletas y Dispositivo Census) antes de continuar. Faltan $faltantes captura(s)."
+            )
             return null
         }
         return ChecklistFaena(id, _ui.value.items, _ui.value.fotos)

@@ -46,7 +46,7 @@ class GuardadoSeguroTest {
     @Test fun recuperaSeccionesYProtegeExpedienteDecidido() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         val apertura = PreChequeo("f1", "Centro", "24/10/2026", "09:00", "Ana", "supervisor", true, true, true)
-        val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)))
+        val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4"))
         repo.guardar(apertura)
         repo.guardarChecklist("f1", checklist)
         repo.guardarEncuesta("f1", salud)
