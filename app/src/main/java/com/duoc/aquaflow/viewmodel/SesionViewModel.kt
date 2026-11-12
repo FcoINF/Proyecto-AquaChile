@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 data class IngresoUiState(
     val nombre: String = "",
     val clave: String = "",
-    val rol: Rol = Rol.JEFE,
+    val rol: Rol = Rol.SUPERVISOR,
     val error: String? = null
 )
 
@@ -44,7 +44,9 @@ class SesionViewModel : ViewModel() {
     // El perfil seleccionado nunca cambia los permisos de la cuenta.
     fun ingresar(nombre: String, clave: String, rol: Rol? = null): Boolean {
         _usuario.value = usuarios.find {
-            it.nombre == nombre.trim() && it.clave == clave && (rol == null || it.rol == rol)
+            it.nombre.equals(nombre.trim(), ignoreCase = true) &&
+                it.clave == clave &&
+                (rol == null || it.rol == rol)
         }
         return _usuario.value != null
     }

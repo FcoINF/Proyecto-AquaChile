@@ -31,6 +31,7 @@ class SesionViewModelTest {
         val vm = SesionViewModel()
         vm.cambiarNombre(" jefe ")
         vm.cambiarClave("1234")
+        vm.seleccionarRol(Rol.JEFE)
         assertTrue(vm.ingresar())
         assertEquals(Rol.JEFE, vm.usuario.value?.rol)
         vm.cambiarClave("dato pendiente")

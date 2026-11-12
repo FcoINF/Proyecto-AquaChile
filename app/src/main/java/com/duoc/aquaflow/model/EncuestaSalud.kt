@@ -9,9 +9,9 @@ enum class NivelSalud(val texto: String) {
 
 // Encuesta preventiva: responder "Sí" a cualquiera genera una alerta.
 val PREGUNTAS_SALUD = listOf(
-    "¿Durmió menos de 6 horas?",
-    "¿Presenta resfrío o dolor de oídos?",
-    "¿Consumió alcohol en las últimas 24 horas?"
+    "¿Apto físicamente hoy? (Sin dolor de oídos, congestión ni barotraumas)",
+    "¿Descansó adecuado y sin fatiga? (Mínimo 8 horas de sueño en pontón)",
+    "¿Libre de fármacos y alcohol en las últimas 24 horas?"
 )
 
 // Encuesta ya validada. Los nombres de campo coinciden con los que la guía agrega a PreChequeo

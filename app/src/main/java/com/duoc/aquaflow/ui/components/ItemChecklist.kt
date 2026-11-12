@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
-import com.duoc.aquaflow.ui.theme.AquaNaranja
+import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 
 @Composable
 fun ItemChecklist(
@@ -57,21 +57,35 @@ fun ItemChecklist(
         item.id == "3" || item.titulo.contains("Botellón", ignoreCase = true) || item.titulo.contains("Rescate", ignoreCase = true) -> Icons.Default.Shield
         else -> Icons.Default.Build
     }
+    val observado = item.estado == EstadoEquipo.OBSERVADO
+    val estadoColor = when (item.estado) {
+        EstadoEquipo.CUMPLE -> Color(0xFF059669)
+        EstadoEquipo.NO_CUMPLE -> Color(0xFFDC2626)
+        EstadoEquipo.OBSERVADO -> Color(0xFFF59E0B)
+        EstadoEquipo.PENDIENTE -> Color(0xFFE2E8F0)
+    }
+    val estadoSuave = when (item.estado) {
+        EstadoEquipo.CUMPLE -> Color(0xFFF0FDF4)
+        EstadoEquipo.NO_CUMPLE -> Color(0xFFFEF2F2)
+        EstadoEquipo.OBSERVADO -> Color(0xFFFFFBEB)
+        EstadoEquipo.PENDIENTE -> Color.White
+    }
+    val observacionBadge = badgeTexto.equals("OBSERVACIÓN", ignoreCase = true)
 
     Card(
         modifier = Modifier
             .testTag("equipo-${item.id}")
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = estadoSuave),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, estadoColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(11.dp)
         ) {
             // Header Row: Icon | Category + Title + Description | Badge
             Row(
@@ -81,15 +95,18 @@ fun ItemChecklist(
                 // Icon Box
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .background(Color(0xFFEBF3FC), shape = RoundedCornerShape(12.dp)),
+                        .size(36.dp)
+                        .background(
+                            if (observado) Color(0xFFFEF3C7) else Color(0xFFEBF3FC),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = iconVector,
                         contentDescription = null,
-                        tint = Color(0xFF2B527C),
-                        modifier = Modifier.size(24.dp)
+                        tint = if (observado) Color(0xFFD97706) else Color(0xFF2B527C),
+                        modifier = Modifier.size(19.dp)
                     )
                 }
 
@@ -97,15 +114,15 @@ fun ItemChecklist(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 12.dp, end = 8.dp)
+                        .padding(start = 8.dp, end = 5.dp)
                 ) {
                     Text(
                         text = categoriaTexto,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
+                            fontSize = 8.sp,
                             letterSpacing = 0.5.sp,
-                            color = AquaNaranja
+                            color = AquaAzulAccion
                         )
                     )
 
@@ -115,19 +132,19 @@ fun ItemChecklist(
                         text = item.titulo,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                        fontSize = 13.sp,
                             color = Color(0xFF0F172A)
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     if (item.descripcion.isNotBlank()) {
                         Text(
                             text = item.descripcion,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
+                                fontSize = 10.sp,
+                                lineHeight = 13.sp,
                                 color = Color(0xFF64748B)
                             )
                         )
@@ -135,25 +152,28 @@ fun ItemChecklist(
                 }
 
                 // Right Badge
-                if (badgeTexto.isNotBlank()) {
+                if (badgeTexto.isNotBlank() && item.id != "4") {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFEEF2F6), shape = RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .background(
+                                if (observacionBadge) Color(0xFFFEF3C7) else Color(0xFFEEF2F6),
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = badgeTexto,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = Color(0xFF475569)
+                                fontSize = 8.sp,
+                            color = if (observacionBadge) Color(0xFFB45309) else Color(0xFF475569)
                             )
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Bottom Segmented Control for Estados
             Box(
@@ -206,7 +226,7 @@ fun EstadoSegmentedButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.height(38.dp),
+        modifier = modifier.height(30.dp),
         shape = RoundedCornerShape(8.dp),
         color = if (seleccionado) colorActivo else Color.Transparent,
         contentColor = if (seleccionado) Color.White else Color(0xFF334155)
@@ -214,22 +234,22 @@ fun EstadoSegmentedButton(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(12.dp),
                 tint = if (seleccionado) Color.White else Color(0xFF475569)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(2.dp))
             Text(
                 text = texto,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 12.sp
+                    fontSize = 9.sp
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

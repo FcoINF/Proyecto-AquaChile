@@ -27,6 +27,7 @@ import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.screens.AperturaFaenaScreen
 import com.duoc.aquaflow.ui.screens.AstScreen
+import com.duoc.aquaflow.ui.screens.BorradoresScreen
 import com.duoc.aquaflow.ui.screens.ChecklistScreen
 import com.duoc.aquaflow.ui.screens.DashboardScreen
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
@@ -46,6 +47,7 @@ import com.duoc.aquaflow.viewmodel.SesionViewModel
 object Ruta {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
+    const val BORRADORES = "borradores"
     const val HISTORIAL = "historial"
     const val DETALLE_APERTURA = "historial/{aperturaId}"
     const val FAENA = "faena?aperturaId={aperturaId}"
@@ -53,7 +55,6 @@ object Ruta {
     const val CHECKLIST = "faena/checklist"
     const val SALUD = "faena/salud"
     const val AST = "faena/ast"
-    const val TAREAS = "faena/tareas"
     const val RESUMEN = "faena/resumen"
 }
 
@@ -121,11 +122,8 @@ fun AquaFlowNavHost() {
                     error = state.error,
                     onReintentar = vm::reintentar,
                     onVerFaena = { id -> nav.navigate("historial/${Uri.encode(id)}") },
-                    ultimaEncuesta = ultimaEncuesta,
                     onNuevaFaena = { if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena") },
-                    onEditarBorrador = { id ->
-                        if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena?aperturaId=${Uri.encode(id)}")
-                    },
+                    onAbrirBorradores = { if (actual.rol == Rol.SUPERVISOR) nav.navigate(Ruta.BORRADORES) },
                     onTab = ::irATab,
                     onSalir = {
                         sesion.salir()
@@ -134,6 +132,27 @@ fun AquaFlowNavHost() {
                             popUpTo(nav.graph.id) { inclusive = true }
                         }
                     }
+                )
+            }
+        }
+
+        composable(Ruta.BORRADORES) {
+            usuario?.let { actual ->
+                val factory = remember(repository, actual) {
+                    viewModelFactory { initializer { DashboardViewModel(repository, actual) } }
+                }
+                val vm: DashboardViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
+
+                BorradoresScreen(
+                    faenas = state.faenas,
+                    cargando = state.cargando,
+                    error = state.error,
+                    onReintentar = vm::reintentar,
+                    onEditarBorrador = { id ->
+                        if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena?aperturaId=${Uri.encode(id)}")
+                    },
+                    onVolver = { nav.popBackStack() }
                 )
             }
         }
@@ -147,9 +166,17 @@ fun AquaFlowNavHost() {
                 val state by vm.state.collectAsState()
                 HistorialScreen(
                     state = state, tabs = tabsPara(actual.rol), onTab = ::irATab,
-                    onTexto = vm::onTexto, onEstado = vm::onEstado, onFecha = vm::onFecha,
+                    nombreUsuario = actual.nombre, rol = actual.rol,
+                    onTexto = vm::onTexto, onCategoria = vm::onCategoria, onFecha = vm::onFecha,
                     onLimpiar = vm::limpiar, onReintentar = vm::reintentar,
-                    onDetalle = { nav.navigate("historial/${Uri.encode(it)}") }
+                    onDetalle = { nav.navigate("historial/${Uri.encode(it)}") },
+                    onSalir = {
+                        sesion.salir()
+                        ultimaEncuesta = null
+                        nav.navigate(Ruta.LOGIN) {
+                            popUpTo(nav.graph.id) { inclusive = true }
+                        }
+                    }
                 )
             }
         }
@@ -235,6 +262,7 @@ fun AquaFlowNavHost() {
                     ocupado = ui.ocupado, errorExterno = ui.error,
                     faenaId = ui.apertura.id,
                     checklistInicial = ui.checklist,
+                    centroCultivo = ui.apertura.centroCultivo,
                     onGuardar = { checklist ->
                         faena.registrarChecklist(checklist) { nav.navigate(Ruta.SALUD) }
                     },
@@ -270,7 +298,7 @@ fun AquaFlowNavHost() {
                     vm = saludVm,
                     ocupado = ui?.ocupado == true, errorExterno = ui?.error,
                     buzo = ui?.apertura?.buzoAsignado?.ifBlank { "Buzo por asignar" } ?: "Buzo por asignar",
-                    tabs = usuario?.let { tabsPara(it.rol) } ?: Tab.entries.toList(),
+                    centroCultivo = ui?.apertura?.centroCultivo.orEmpty(),
                     onGuardar = { encuesta ->
                         if (faena != null) {
                             faena.registrarEncuesta(encuesta) {
@@ -290,8 +318,7 @@ fun AquaFlowNavHost() {
                             nav.popBackStack()
                         }
                     },
-                    onVolver = { nav.popBackStack() },
-                    onTab = ::irATab
+                    onVolver = { nav.popBackStack() }
                 )
             }
 
@@ -308,7 +335,7 @@ fun AquaFlowNavHost() {
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->
-                        faena.registrarAst(ast) { nav.navigate(Ruta.TAREAS) }
+                        faena.registrarAst(ast) { nav.navigate(Ruta.RESUMEN) }
                     },
                     onGuardarBorrador = { ast ->
                         faena.guardarBorradorAst(ast) {
@@ -317,16 +344,6 @@ fun AquaFlowNavHost() {
                     },
                     onVolver = { nav.popBackStack() }
                 )
-            }
-
-            composable(Ruta.TAREAS) { entrada ->
-                val graphEntry = remember(entrada) { nav.getBackStackEntry(Ruta.FAENA) }
-                val faena: FaenaViewModel = viewModel(viewModelStoreOwner = graphEntry, factory = faenaFactory)
-                val ui by faena.ui.collectAsState()
-                com.duoc.aquaflow.ui.screens.TareasScreen(ui.apertura.id, ui.tareas, ui.ocupado, ui.error,
-                    onGuardar = { faena.registrarTareas(it) { nav.navigate(Ruta.RESUMEN) } },
-                    onBorrador = { faena.guardarBorradorTareas(it) { nav.popBackStack(Ruta.DASHBOARD, false) } },
-                    onVolver = { nav.popBackStack() })
             }
 
             composable(Ruta.RESUMEN) { entrada ->

@@ -42,9 +42,9 @@ import com.duoc.aquaflow.ui.components.SemaforoAst
 import com.duoc.aquaflow.ui.components.SemaforoFaena
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.theme.AquaAzul
-import com.duoc.aquaflow.ui.theme.AquaNaranja
+import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 import com.duoc.aquaflow.ui.theme.AquaVerde
-import com.duoc.aquaflow.ui.theme.SemaforoAmbar
+import com.duoc.aquaflow.ui.theme.SemaforoAzul
 import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -136,11 +136,6 @@ fun DetalleFaenaScreen(
             item { SeccionAst(resumen.ast) }
 
             item {
-                SeccionDetalle(titulo = "Checklist de tareas", icono = Icons.Filled.CheckCircle, subtitulo = "Estado: ${ReglasSecciones.tareas(resumen.tareas).texto}") {
-                    resumen.tareas?.items?.forEach { Text("${if (it.verificada) "✓" else "Pendiente"} · ${it.descripcion}") }
-                }
-            }
-            item {
                 SeccionDecision(
                     vm = vm,
                     resumen = resumen,
@@ -215,11 +210,11 @@ private fun CabeceraFaena(faena: FaenaGuardada) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Surface(color = AquaNaranja.copy(alpha = 0.18f), shape = CircleShape) {
+                Surface(color = AquaAzulAccion.copy(alpha = 0.18f), shape = CircleShape) {
                     Icon(
                         Icons.Filled.Waves,
                         contentDescription = null,
-                        tint = AquaNaranja,
+                        tint = AquaAzulAccion,
                         modifier = Modifier.padding(10.dp).size(20.dp)
                     )
                 }
@@ -331,7 +326,7 @@ private fun PersonaCabecera(etiqueta: String, nombre: String, modifier: Modifier
 }
 
 private fun colorEstado(estado: EstadoFaena): Color = when (estado) {
-    EstadoFaena.PRECHEQUEO -> AquaNaranja
+    EstadoFaena.PRECHEQUEO -> AquaAzulAccion
     EstadoFaena.EN_EJECUCION, EstadoFaena.AUTORIZADA -> AquaVerde
     EstadoFaena.RECHAZADA -> Color(0xFFFF8A80)
     EstadoFaena.CERRADA -> Color(0xFFB0BEC5)
@@ -396,7 +391,7 @@ private fun MetricaResumen(
             Icon(
                 icono,
                 contentDescription = null,
-                tint = AquaNaranja,
+                tint = AquaAzulAccion,
                 modifier = Modifier.size(18.dp)
             )
             Text(
@@ -962,7 +957,7 @@ private fun FilaEquipo(item: ItemEquipamiento) {
     val color = when (item.estado) {
         EstadoEquipo.CUMPLE -> AquaVerde
         EstadoEquipo.NO_CUMPLE -> MaterialTheme.colorScheme.error
-        EstadoEquipo.OBSERVADO -> SemaforoAmbar
+        EstadoEquipo.OBSERVADO -> SemaforoAzul
         EstadoEquipo.PENDIENTE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val icono = when (item.estado) {
