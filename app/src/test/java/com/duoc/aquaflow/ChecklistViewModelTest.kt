@@ -50,7 +50,7 @@ class ChecklistViewModelTest {
         // Con 0 fotos debe fallar al intentar guardar
         assertNull(vm.guardar())
         assertNotNull(vm.ui.value.error)
-        assertTrue(vm.ui.value.error!!.contains("4 fotos obligatorias"))
+        assertTrue(vm.ui.value.error!!.contains("Falta una foto asociada"))
 
         // Al agregar las 4 fotos obligatorias, debe permitir guardar
         listOf("1", "2", "3", "4").forEach {
@@ -58,6 +58,7 @@ class ChecklistViewModelTest {
             vm.terminarFoto(true)
         }
         assertNotNull(vm.guardar())
+        assertEquals(vm.ui.value.items.map { it.id }.toSet(), vm.guardar()!!.fotosPorEquipo.keys)
 
         vm.cargar("f2", null)
         assertTrue(vm.ui.value.items.all { it.estado == EstadoEquipo.PENDIENTE })

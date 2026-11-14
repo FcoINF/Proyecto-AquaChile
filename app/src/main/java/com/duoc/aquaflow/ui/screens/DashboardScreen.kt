@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -90,7 +91,7 @@ fun DashboardScreen(
         modifier = Modifier.fillMaxSize(),
         containerColor = AquaGrisSuave,
         topBar = {
-            Column(Modifier.fillMaxWidth().background(AquaAzul)) {
+            Column(Modifier.fillMaxWidth().background(AquaAzul).statusBarsPadding()) {
                 CabeceraSupervisor(
                     usuario = usuario,
                     mostrarMenuPerfil = mostrarMenuPerfil,
@@ -254,7 +255,7 @@ private fun CabeceraSupervisor(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (usuario.rol == Rol.JEFE) "Jefe" else usuario.rol.texto, style = MaterialTheme.typography.labelMedium, color = Color.White)
                 if (usuario.rol == Rol.JEFE) {
-                    IconButton(onClick = onSalir, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onSalir, modifier = Modifier.size(48.dp)) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesión", tint = Color.White)
                     }
                 }

@@ -24,7 +24,7 @@ class EstadosSeccionesTest {
         assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.encuesta(salud.copy(saturacion = 0)))
         assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(items = emptyList())))
         assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(items = checklist.items.map { it.copy(estado = EstadoEquipo.PENDIENTE) })))
-        assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(fotosEvidencia = listOf("f1", "f2"))))
+        assertEquals(EstadoSeccion.BORRADOR, ReglasSecciones.checklist(checklist.copy(fotosEvidencia = emptyList())))
         assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.checklist(checklist))
         assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.encuesta(salud.copy(saturacion = 90)))
         assertEquals(ResultadoFaena.REQUIERE_REVISION, ReglasDecision.resultado(completo.copy(encuesta = salud.copy(saturacion = 90))))

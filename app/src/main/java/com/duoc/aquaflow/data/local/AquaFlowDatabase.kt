@@ -96,6 +96,7 @@ abstract class AquaFlowDatabase : RoomDatabase() {
                 context.applicationContext, AquaFlowDatabase::class.java, "aquaflow.db"
             )
                 .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6)
+                .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
                 .also { instancia = it }
         }

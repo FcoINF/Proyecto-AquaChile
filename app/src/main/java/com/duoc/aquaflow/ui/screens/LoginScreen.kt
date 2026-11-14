@@ -408,8 +408,8 @@ private fun TarjetaCredenciales(
         CampoCredencial(
             valor = ui.nombre,
             onValorChange = onNombre,
-            etiqueta = "RUT DEL OPERADOR",
-            placeholder = "11.111.111-K",
+            etiqueta = "USUARIO DEL OPERADOR",
+            placeholder = "supervisor",
             icono = painterResource(R.drawable.ic_id_card),
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Next,

@@ -65,12 +65,13 @@ fun ChecklistScreen(
         error = errorExterno ?: ui.error,
         items = ui.items,
         fotos = ui.fotos,
+        fotosPorEquipo = ui.fotosPorEquipo,
         onEstadoCambiado = vm::cambiarEstado,
-        onTomarFotoClick = {
+        onTomarFotoClick = { itemId ->
             if (ui.pendiente == null) {
                 try {
                     val uri = EvidenciasFotos.crear(context)
-                    vm.prepararFoto(uri.toString())
+                    vm.prepararFoto(itemId, uri.toString())
                     cameraLauncher.launch(uri)
                 } catch (_: Exception) {
                     vm.ui.value.pendiente?.let { EvidenciasFotos.descartar(context, Uri.parse(it)) }
@@ -97,8 +98,9 @@ fun ChecklistScreenContent(
     error: String?,
     items: List<ItemEquipamiento>,
     fotos: List<String>,
+    fotosPorEquipo: Map<String, String>,
     onEstadoCambiado: (String, EstadoEquipo) -> Unit,
-    onTomarFotoClick: () -> Unit,
+    onTomarFotoClick: (String) -> Unit,
     onQuitarFoto: (String) -> Unit,
     onGuardarClick: () -> Unit,
     onGuardarBorradorClick: () -> Unit,
@@ -139,7 +141,11 @@ fun ChecklistScreenContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
                 item { ProgresoChecklist() }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -155,19 +161,33 @@ fun ChecklistScreenContent(
                 items(items) { item ->
                     ItemChecklist(
                         item = item,
+                        fotoCapturada = !fotosPorEquipo[item.id].isNullOrBlank(),
                         onEstadoCambiado = { nuevoEstado ->
                             onEstadoCambiado(item.id, nuevoEstado)
-                        }
+                        },
+                        onTomarFoto = { onTomarFotoClick(item.id) }
                     )
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    SeccionFotos(
-                        cantidadFotos = fotos.size,
-                        onTomarFotoClick = onTomarFotoClick
-                    )
-                    EvidenciasGaleria(fotos, onQuitarFoto)
+                    val nombresPorFoto = items.mapNotNull { item ->
+                        fotosPorEquipo[item.id]?.let { referencia -> referencia to item.titulo }
+                    }.toMap()
+                    val categoriasPorFoto = items.mapNotNull { item ->
+                        fotosPorEquipo[item.id]?.let { referencia -> referencia to item.categoria }
+                    }.toMap()
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SeccionFotos(
+                            cantidadFotos = fotosPorEquipo.size,
+                            totalEquipos = items.size
+                        )
+                        EvidenciasGaleria(
+                            fotos = fotos,
+                            nombresPorFoto = nombresPorFoto,
+                            categoriasPorFoto = categoriasPorFoto,
+                            onQuitar = onQuitarFoto
+                        )
+                    }
                 }
             }
 
@@ -185,12 +205,12 @@ fun ChecklistScreenContent(
                     onClick = onGuardarClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 42.dp),
+                        .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
                 ) {
                     Text(
-                        text = "Continuar al Checklist",
+                        text = "Continuar a Salud",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -202,7 +222,7 @@ fun ChecklistScreenContent(
                     onClick = onGuardarBorradorClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 38.dp),
+                        .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.dp, Color(0xFF0755B8)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0755B8))
@@ -228,9 +248,9 @@ private fun ProgresoChecklist() {
                     Text("2", modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                Text("Paso 2 de 4", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Paso 2 de 5", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            LinearProgressIndicator(progress = 0.5f, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = Color(0xFFE5EAF0))
+            LinearProgressIndicator(progress = { 0.4f }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = Color(0xFFE5EAF0))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("2. INSPECCIÓN DE EQUIPOS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF334155))
                 Text("Sig: Encuesta Salud", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
@@ -277,6 +297,7 @@ fun ChecklistScreenPreview() {
                 )
             ),
             fotos = emptyList(),
+            fotosPorEquipo = emptyMap(),
             onEstadoCambiado = { _, _ -> },
             onTomarFotoClick = {},
             onQuitarFoto = {},

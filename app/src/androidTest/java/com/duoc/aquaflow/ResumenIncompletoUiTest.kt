@@ -15,7 +15,7 @@ class ResumenIncompletoUiTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun ambosBotonesSeHabilitanSoloAlCompletarElExpediente() {
-        val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)))
+        val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("foto"))
         val resumen = mutableStateOf(ResumenFaena(
             PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "Luis", true, true, true),
             c.copy(estado = EstadoSeccion.BORRADOR),

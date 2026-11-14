@@ -7,13 +7,16 @@ import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.fotosAsociadasPorEquipo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class ChecklistUiState(
     val items: List<ItemEquipamiento> = emptyList(),
     val fotos: List<String> = emptyList(),
+    val fotosPorEquipo: Map<String, String> = emptyMap(),
     val pendiente: String? = null,
+    val pendienteEquipoId: String? = null,
     val error: String? = null
 )
 
@@ -21,7 +24,8 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     private val restaurado = saved.get<String>("checklist")?.let(FaenaCodec::checklistDesde)
     private val _ui = MutableStateFlow(ChecklistUiState(
         items = restaurado?.items.orEmpty(), fotos = restaurado?.fotosEvidencia.orEmpty(),
-        pendiente = saved["pendiente"]
+        fotosPorEquipo = restaurado?.fotosAsociadasPorEquipo().orEmpty(),
+        pendiente = saved["pendiente"], pendienteEquipoId = saved["pendienteEquipoId"]
     ))
     val ui = _ui.asStateFlow()
     private var id = restaurado?.idFaena.orEmpty()
@@ -67,8 +71,11 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
                     EstadoEquipo.entries.find { it.name == valor }
                 } ?: item.estado)
             },
-            fotos = if (restaurar) saved.get<ArrayList<String>>("fotos").orEmpty() else inicial?.fotosEvidencia.orEmpty(),
-            pendiente = if (restaurar) saved["pendiente"] else null
+            fotos = if (restaurar) restaurado?.fotosEvidencia.orEmpty() else inicial?.fotosEvidencia.orEmpty(),
+            fotosPorEquipo = if (restaurar) restaurado?.fotosAsociadasPorEquipo().orEmpty()
+                else inicial?.fotosAsociadasPorEquipo().orEmpty(),
+            pendiente = if (restaurar) saved["pendiente"] else null,
+            pendienteEquipoId = if (restaurar) saved["pendienteEquipoId"] else null
         )
         conservar()
     }
@@ -80,16 +87,30 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         conservar()
     }
 
-    fun prepararFoto(uri: String) {
-        _ui.value = _ui.value.copy(pendiente = uri, error = null)
+    fun prepararFoto(itemId: String, uri: String) {
+        require(_ui.value.items.any { it.id == itemId }) { "El equipo no pertenece al checklist." }
+        _ui.value = _ui.value.copy(pendiente = uri, pendienteEquipoId = itemId, error = null)
         conservar()
+    }
+
+    fun prepararFoto(uri: String) {
+        val itemId = _ui.value.items.firstOrNull { it.id !in _ui.value.fotosPorEquipo }?.id
+            ?: _ui.value.items.firstOrNull()?.id
+            ?: return
+        prepararFoto(itemId, uri)
     }
 
     fun terminarFoto(exito: Boolean) {
         val actual = _ui.value
+        val itemId = actual.pendienteEquipoId
+        val nuevasAsignaciones = if (exito && actual.pendiente != null && itemId != null) {
+            actual.fotosPorEquipo + (itemId to actual.pendiente)
+        } else actual.fotosPorEquipo
         _ui.value = actual.copy(
             pendiente = null,
-            fotos = if (exito && actual.pendiente != null) (actual.fotos + actual.pendiente).distinct() else actual.fotos,
+            pendienteEquipoId = null,
+            fotosPorEquipo = nuevasAsignaciones,
+            fotos = nuevasAsignaciones.values.distinct(),
             error = if (exito) null else "No se guardó una fotografía. Puedes intentarlo nuevamente."
         )
         conservar()
@@ -101,7 +122,10 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     }
 
     fun quitarReferencia(uri: String) {
-        _ui.value = _ui.value.copy(fotos = _ui.value.fotos - uri, error = null)
+        val asignaciones = _ui.value.fotosPorEquipo.filterValues { it != uri }
+        _ui.value = _ui.value.copy(
+            fotos = asignaciones.values.distinct(), fotosPorEquipo = asignaciones, error = null
+        )
         conservar()
     }
 
@@ -110,23 +134,28 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
             _ui.value = _ui.value.copy(error = "Revisa todos los equipos antes de continuar.")
             return null
         }
-        if (_ui.value.fotos.size < 4) {
-            val faltantes = 4 - _ui.value.fotos.size
+        val equiposSinFoto = _ui.value.items.filter { _ui.value.fotosPorEquipo[it.id].isNullOrBlank() }
+        if (equiposSinFoto.isNotEmpty()) {
             _ui.value = _ui.value.copy(
-                error = "Debes capturar las 4 fotos obligatorias (Maleta de Aire, Filtros Compresor, Aletas y Dispositivo Census) antes de continuar. Faltan $faltantes captura(s)."
+                error = "Falta una foto asociada a: ${equiposSinFoto.joinToString { it.titulo }}."
             )
             return null
         }
-        return ChecklistFaena(id, _ui.value.items, _ui.value.fotos)
+        return ChecklistFaena(id, _ui.value.items, _ui.value.fotos, fotosPorEquipo = _ui.value.fotosPorEquipo)
     }
 
-    fun borrador(): ChecklistFaena = ChecklistFaena(id, _ui.value.items, _ui.value.fotos, EstadoSeccion.BORRADOR)
+    fun borrador(): ChecklistFaena = ChecklistFaena(
+        id, _ui.value.items, _ui.value.fotos, EstadoSeccion.BORRADOR, _ui.value.fotosPorEquipo
+    )
 
     private fun conservar() {
-        saved["checklist"] = FaenaCodec.checklistATexto(ChecklistFaena(id, _ui.value.items, _ui.value.fotos))
+        saved["checklist"] = FaenaCodec.checklistATexto(
+            ChecklistFaena(id, _ui.value.items, _ui.value.fotos, fotosPorEquipo = _ui.value.fotosPorEquipo)
+        )
         saved["faena"] = id
         saved["estados"] = ArrayList(_ui.value.items.map { it.estado.name })
         saved["fotos"] = ArrayList(_ui.value.fotos)
         saved["pendiente"] = _ui.value.pendiente
+        saved["pendienteEquipoId"] = _ui.value.pendienteEquipoId
     }
 }

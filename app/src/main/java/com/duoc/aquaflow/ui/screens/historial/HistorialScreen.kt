@@ -209,7 +209,7 @@ fun HistorialScreen(
                         Surface(color = Color(0xFFE6F0FF), shape = RoundedCornerShape(7.dp)) {
                             Row(Modifier.padding(start = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("Fecha: ${filtro.fecha}", color = HistorialAzulNoche, style = MaterialTheme.typography.labelSmall)
-                                IconButton(onClick = { onFecha("") }, modifier = Modifier.size(32.dp)) {
+                                IconButton(onClick = { onFecha("") }, modifier = Modifier.size(48.dp)) {
                                     Icon(Icons.Default.Close, contentDescription = "Quitar filtro de fecha", tint = HistorialAzul, modifier = Modifier.size(15.dp))
                                 }
                             }
@@ -342,7 +342,6 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("Faena #${item.codigo}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = HistorialTexto)
                             Surface(color = Color(0xFFE6F0FF), shape = RoundedCornerShape(4.dp)) {
                                 Text(item.fecha.ifBlank { "S/F" }, Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = Color(0xFF334155), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                             }
@@ -377,7 +376,7 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
                 }
                 OutlinedButton(
                     onClick = onDetalle,
-                    modifier = Modifier.fillMaxWidth().height(34.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     contentPadding = PaddingValues(4.dp),
                     shape = RoundedCornerShape(7.dp),
                     border = BorderStroke(0.dp, Color.Transparent),
@@ -385,7 +384,7 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
                 ) {
                     Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.size(5.dp))
-                    Text("VER BITÁCORA", fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                    Text("VER BITÁCORA", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }

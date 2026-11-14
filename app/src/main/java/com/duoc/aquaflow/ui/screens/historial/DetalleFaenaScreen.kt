@@ -514,6 +514,13 @@ private fun SeccionChecklist(checklist: ChecklistFaena?, estado: EstadoSeccion) 
     val items = checklist?.items.orEmpty()
     val conformes = items.count { it.estado == EstadoEquipo.CUMPLE }
     val fotos = checklist?.fotosEvidencia.orEmpty()
+    val asociaciones = checklist?.fotosAsociadasPorEquipo().orEmpty()
+    val nombresPorFoto = items.mapNotNull { item ->
+        asociaciones[item.id]?.let { referencia -> referencia to item.titulo }
+    }.toMap()
+    val categoriasPorFoto = items.mapNotNull { item ->
+        asociaciones[item.id]?.let { referencia -> referencia to item.categoria }
+    }.toMap()
 
     SeccionDetalle(
         titulo = "Checklist de equipos",
@@ -535,7 +542,11 @@ private fun SeccionChecklist(checklist: ChecklistFaena?, estado: EstadoSeccion) 
                 "Evidencias fotográficas (${fotos.size})",
                 style = MaterialTheme.typography.labelLarge
             )
-            EvidenciasGaleria(fotos)
+            EvidenciasGaleria(
+                fotos = fotos,
+                nombresPorFoto = nombresPorFoto,
+                categoriasPorFoto = categoriasPorFoto
+            )
         }
     }
 }

@@ -19,8 +19,13 @@ fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, onCerrar: (Regis
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
     OutlinedTextField(ui.observaciones, vm::observaciones, label = { Text("Observaciones de salida") },
         modifier = Modifier.fillMaxWidth())
-    Row {
-        Checkbox(ui.revisionSalida, vm::revision)
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        CircularCheckbox(
+            checked = ui.revisionSalida,
+            onCheckedChange = vm::revision,
+            contentDescription = "Revisión de salida realizada",
+            enabled = !ocupado
+        )
         Text("Revisión de salida realizada")
     }
     Text("Salud posterior a la inmersión", style = MaterialTheme.typography.titleMedium)

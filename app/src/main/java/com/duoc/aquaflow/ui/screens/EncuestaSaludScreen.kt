@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -49,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -117,7 +119,7 @@ fun EncuestaSaludScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                     shape = RoundedCornerShape(9.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AzulAccion)
-                ) { Text("Continuar al Checklist", fontWeight = FontWeight.Bold) }
+                ) { Text("Continuar a AST", fontWeight = FontWeight.Bold) }
                 OutlinedButton(
                     enabled = !ocupado,
                     onClick = { onGuardarBorrador(vm.borrador()) },
@@ -186,10 +188,10 @@ private fun ProgresoSalud() {
                     Text("3", color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Text("Paso 3 de 4", style = MaterialTheme.typography.labelSmall, color = GrisTexto)
+                Text("Paso 3 de 5", style = MaterialTheme.typography.labelSmall, color = GrisTexto)
             }
             androidx.compose.material3.LinearProgressIndicator(
-                progress = { 0.75f }, modifier = Modifier.fillMaxWidth(), color = AzulAccion,
+                progress = { 0.6f }, modifier = Modifier.fillMaxWidth(), color = AzulAccion,
                 trackColor = Color(0xFFE5EAF0)
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -300,7 +302,7 @@ private fun MedicionSaludCard(
 @Composable
 private fun BotonMedicion(icon: androidx.compose.ui.graphics.vector.ImageVector, descripcion: String, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = modifier.height(34.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        modifier = modifier.heightIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         color = if (enabled) Color(0xFFF1F5F9) else Color(0xFFF7F8FA),
         shape = RoundedCornerShape(7.dp),
         border = BorderStroke(1.dp, Color(0xFFE0E7EF))
@@ -331,12 +333,12 @@ private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean>, onResponder
             PREGUNTAS_SALUD.forEachIndexed { index, pregunta ->
                 if (index > 0) HorizontalDivider(color = Color(0xFFE9EDF2))
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("${index + 1}. $pregunta", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF172033), fontSize = 9.sp, lineHeight = 12.sp)
+                    Text("${index + 1}. $pregunta", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF172033), lineHeight = 20.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        RespuestaSalud("Sí", seleccionada = respuestas[pregunta] == true, afirmativa = true, Modifier.weight(1f)) {
+                        RespuestaSalud("Sí", seleccionada = respuestas[pregunta] == true, afirmativa = true, Modifier.weight(1f).testTag("pregunta-$index-si")) {
                             onResponder(pregunta, true)
                         }
-                        RespuestaSalud("No", seleccionada = respuestas[pregunta] == false, afirmativa = false, Modifier.weight(1f)) {
+                        RespuestaSalud("No", seleccionada = respuestas[pregunta] == false, afirmativa = false, Modifier.weight(1f).testTag("pregunta-$index-no")) {
                             onResponder(pregunta, false)
                         }
                     }
@@ -350,15 +352,23 @@ private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean>, onResponder
 private fun RespuestaSalud(texto: String, seleccionada: Boolean, afirmativa: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colorActivo = if (afirmativa) Color(0xFF078B68) else AzulAccion
     Surface(
-        modifier = modifier.height(32.dp).clickable(role = Role.RadioButton, onClick = onClick),
+        modifier = modifier.heightIn(min = 48.dp).selectable(
+            selected = seleccionada,
+            onClick = onClick,
+            role = Role.RadioButton
+        ),
         color = if (seleccionada) colorActivo else GrisInactivo,
         contentColor = if (seleccionada) Color.White else Color(0xFF475569),
         shape = RoundedCornerShape(7.dp)
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (afirmativa) Icons.Default.CheckCircle else Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(12.dp))
+            Icon(
+                if (afirmativa) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                contentDescription = if (afirmativa) "Check positivo de Sí" else "X de No",
+                modifier = Modifier.size(18.dp)
+            )
             Spacer(Modifier.width(4.dp))
-            Text(texto, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+            Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         }
     }
 }

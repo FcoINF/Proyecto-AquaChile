@@ -27,7 +27,7 @@ class CicloFaenaRoomTest {
             assertTrue(repo.observarFaenas(jefe).first().isEmpty())
             assertNull(repo.observarFaena("f1", jefe).first())
             assertEquals(1, repo.observarFaenas(supervisor).first().size)
-            repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
+            repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("foto")))
             repo.guardarEncuesta("f1", EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
             repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
             repo.guardarTareas("f1", tareasCompletas())

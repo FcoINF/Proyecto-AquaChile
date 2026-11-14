@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,7 +32,9 @@ import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 @Composable
 fun ItemChecklist(
     item: ItemEquipamiento,
-    onEstadoCambiado: (EstadoEquipo) -> Unit
+    fotoCapturada: Boolean = false,
+    onEstadoCambiado: (EstadoEquipo) -> Unit,
+    onTomarFoto: (() -> Unit)? = null
 ) {
     val categoriaTexto = item.categoria.ifBlank {
         when (item.id) {
@@ -57,7 +60,6 @@ fun ItemChecklist(
         item.id == "3" || item.titulo.contains("Botellón", ignoreCase = true) || item.titulo.contains("Rescate", ignoreCase = true) -> Icons.Default.Shield
         else -> Icons.Default.Build
     }
-    val observado = item.estado == EstadoEquipo.OBSERVADO
     val estadoColor = when (item.estado) {
         EstadoEquipo.CUMPLE -> Color(0xFF059669)
         EstadoEquipo.NO_CUMPLE -> Color(0xFFDC2626)
@@ -70,13 +72,24 @@ fun ItemChecklist(
         EstadoEquipo.OBSERVADO -> Color(0xFFFFFBEB)
         EstadoEquipo.PENDIENTE -> Color.White
     }
+    val iconoFondo = when (item.estado) {
+        EstadoEquipo.CUMPLE -> Color(0xFFD1FAE5)
+        EstadoEquipo.NO_CUMPLE -> Color(0xFFFEE2E2)
+        EstadoEquipo.OBSERVADO -> Color(0xFFFEF3C7)
+        EstadoEquipo.PENDIENTE -> Color(0xFFEBF3FC)
+    }
+    val iconoColor = when (item.estado) {
+        EstadoEquipo.CUMPLE -> Color(0xFF047857)
+        EstadoEquipo.NO_CUMPLE -> Color(0xFFB91C1C)
+        EstadoEquipo.OBSERVADO -> Color(0xFFB45309)
+        EstadoEquipo.PENDIENTE -> Color(0xFF2B527C)
+    }
     val observacionBadge = badgeTexto.equals("OBSERVACIÓN", ignoreCase = true)
 
     Card(
         modifier = Modifier
             .testTag("equipo-${item.id}")
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = estadoSuave),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, estadoColor),
@@ -97,7 +110,7 @@ fun ItemChecklist(
                     modifier = Modifier
                         .size(36.dp)
                         .background(
-                            if (observado) Color(0xFFFEF3C7) else Color(0xFFEBF3FC),
+                            iconoFondo,
                             shape = RoundedCornerShape(10.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -105,7 +118,7 @@ fun ItemChecklist(
                     Icon(
                         imageVector = iconVector,
                         contentDescription = null,
-                        tint = if (observado) Color(0xFFD97706) else Color(0xFF2B527C),
+                        tint = iconoColor,
                         modifier = Modifier.size(19.dp)
                     )
                 }
@@ -120,7 +133,7 @@ fun ItemChecklist(
                         text = categoriaTexto,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 8.sp,
+                            fontSize = 10.sp,
                             letterSpacing = 0.5.sp,
                             color = AquaAzulAccion
                         )
@@ -132,7 +145,7 @@ fun ItemChecklist(
                         text = item.titulo,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                            fontSize = 14.sp,
                             color = Color(0xFF0F172A)
                         )
                     )
@@ -143,8 +156,8 @@ fun ItemChecklist(
                         Text(
                             text = item.descripcion,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 10.sp,
-                                lineHeight = 13.sp,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
                                 color = Color(0xFF64748B)
                             )
                         )
@@ -165,8 +178,8 @@ fun ItemChecklist(
                             text = badgeTexto,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 8.sp,
-                            color = if (observacionBadge) Color(0xFFB45309) else Color(0xFF475569)
+                                fontSize = 9.sp,
+                                color = if (observacionBadge) Color(0xFFB45309) else Color(0xFF475569)
                             )
                         )
                     }
@@ -211,6 +224,40 @@ fun ItemChecklist(
                     ) { onEstadoCambiado(EstadoEquipo.OBSERVADO) }
                 }
             }
+
+            if (onTomarFoto != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onTomarFoto,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (fotoCapturada) Color(0xFF86D7BD) else Color(0xFF94A3B8)
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (fotoCapturada) Color(0xFF047857) else AquaAzulAccion
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        if (fotoCapturada) "Evidencia fotográfica capturada" else "Agregar evidencia fotográfica",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (fotoCapturada) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Fotografía capturada",
+                            modifier = Modifier.size(20.dp),
+                            tint = Color(0xFF059669)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -226,7 +273,7 @@ fun EstadoSegmentedButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.height(30.dp),
+        modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(8.dp),
         color = if (seleccionado) colorActivo else Color.Transparent,
         contentColor = if (seleccionado) Color.White else Color(0xFF334155)
@@ -241,7 +288,7 @@ fun EstadoSegmentedButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(12.dp),
+                modifier = Modifier.size(18.dp),
                 tint = if (seleccionado) Color.White else Color(0xFF475569)
             )
             Spacer(modifier = Modifier.width(2.dp))
@@ -249,7 +296,7 @@ fun EstadoSegmentedButton(
                 text = texto,
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 9.sp
+                    fontSize = 12.sp
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

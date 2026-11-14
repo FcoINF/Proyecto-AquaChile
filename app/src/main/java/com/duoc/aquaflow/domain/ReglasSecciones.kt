@@ -12,11 +12,12 @@ object ReglasSecciones {
     const val FOTOS_OBLIGATORIAS_MINIMAS = 4
 
     fun checklist(c: ChecklistFaena?) = c?.let {
+        val fotosAsociadas = it.fotosAsociadasPorEquipo()
         estado(
             it.estado,
             it.items.isNotEmpty() &&
                 it.items.none { item -> item.estado == EstadoEquipo.PENDIENTE } &&
-                it.fotosEvidencia.size >= FOTOS_OBLIGATORIAS_MINIMAS
+                it.items.all { item -> fotosAsociadas[item.id].isNullOrBlank().not() }
         )
     } ?: EstadoSeccion.SIN_REGISTRAR
 
@@ -37,6 +38,7 @@ object ReglasSecciones {
         "Checklist" to (if (r.checklist != null && r.checklist.idFaena != r.apertura.id)
             EstadoSeccion.BORRADOR else checklist(r.checklist)),
         "AST" to ast(r.ast),
-        "Encuesta de salud" to encuesta(r.encuesta)
+        "Encuesta de salud" to encuesta(r.encuesta),
+        "Checklist de tareas" to tareas(r.tareas)
     )
 }

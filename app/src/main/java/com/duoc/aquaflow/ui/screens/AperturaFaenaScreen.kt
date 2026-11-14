@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
@@ -32,8 +34,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +70,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.CircularCheckbox
 import com.duoc.aquaflow.ui.theme.AquaAzulMedio
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.ui.theme.AquaGrisSuave
@@ -235,20 +236,38 @@ fun AperturaFaenaScreen(
                     options = centrosCultivo,
                     onSelected = { onCambiar(apertura.copy(centroCultivo = it)) }
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OperationalValueField(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Filled.Place,
-                        label = "Fecha de Faena",
-                        value = apertura.fecha
-                    )
-                    DropdownField(
-                        modifier = Modifier.weight(1f),
-                        label = "Turno de Marea",
-                        selectedValue = TURNO_MAREA_PREDEFINIDO,
-                        options = listOf(TURNO_MAREA_PREDEFINIDO),
-                        onSelected = {}
-                    )
+                BoxWithConstraints {
+                    if (maxWidth < 520.dp) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OperationalValueField(
+                                icon = Icons.Filled.Place,
+                                label = "Fecha de Faena",
+                                value = apertura.fecha
+                            )
+                            DropdownField(
+                                label = "Turno de Marea",
+                                selectedValue = TURNO_MAREA_PREDEFINIDO,
+                                options = listOf(TURNO_MAREA_PREDEFINIDO),
+                                onSelected = {}
+                            )
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OperationalValueField(
+                                modifier = Modifier.weight(2f),
+                                icon = Icons.Filled.Place,
+                                label = "Fecha de Faena",
+                                value = apertura.fecha
+                            )
+                            DropdownField(
+                                modifier = Modifier.weight(3f),
+                                label = "Turno de Marea",
+                                selectedValue = TURNO_MAREA_PREDEFINIDO,
+                                options = listOf(TURNO_MAREA_PREDEFINIDO),
+                                onSelected = {}
+                            )
+                        }
+                    }
                 }
             }
             AquaSectionCard(title = "Buzo Técnico Asignado") {
@@ -292,9 +311,9 @@ private fun ProgresoApertura() {
                     Text("1", modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = Color.White, style = MaterialTheme.typography.labelMedium)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                Text("Paso 1 de 4", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Paso 1 de 5", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            LinearProgressIndicator(progress = 0.25f, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = AquaGrisSuave)
+            LinearProgressIndicator(progress = { 0.2f }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = AquaGrisSuave)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("1. Apertura & Buceo", style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio)
                 Text("Sig: Inspección de Equipos", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
@@ -517,13 +536,11 @@ private fun CondicionRow(
             .clickable { onCambiar(!marcada) },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(
+        CircularCheckbox(
             checked = marcada,
             onCheckedChange = onCambiar,
-            colors = CheckboxDefaults.colors(
-                checkedColor = AquaVerde,
-                checkmarkColor = MaterialTheme.colorScheme.onTertiary
-            ),
+            contentDescription = texto,
+            checkedColor = AquaVerde,
             modifier = if (testTag == null) Modifier else Modifier.testTag(testTag)
         )
         Text(texto, modifier = Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)

@@ -134,7 +134,7 @@ fun AstScreen(
                     Spacer(Modifier.height(1.dp))
                     TIPOLOGIAS_AST.forEach { tipo ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(28.dp).clickable(enabled = !ocupado) { vm.elegirTipologia(tipo) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = !ocupado) { vm.elegirTipologia(tipo) },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -143,7 +143,7 @@ fun AstScreen(
                                 modifier = Modifier.padding(end = 2.dp),
                                 colors = RadioButtonDefaults.colors(selectedColor = AzulAst)
                             )
-                            Text(tipo, style = MaterialTheme.typography.labelMedium, color = Color(0xFF172033), fontWeight = FontWeight.Medium, fontSize = 10.sp)
+                            Text(tipo, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF172033), fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -178,8 +178,8 @@ fun AstScreen(
                                     modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color(0xFF172033),
-                                    fontSize = 8.sp,
-                                    lineHeight = 10.sp
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
                                 )
                                 Switch(
                                     checked = respuesta,
@@ -223,9 +223,9 @@ private fun ProgresoAst() {
                     Text("4", color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                Text("Paso 4 de 4", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 8.sp)
+                Text("Paso 4 de 5", style = MaterialTheme.typography.labelMedium, color = Color(0xFF64748B))
             }
-            LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth(), color = AzulAst, trackColor = Color(0xFFE5EAF0))
+            LinearProgressIndicator(progress = { 0.8f }, modifier = Modifier.fillMaxWidth(), color = AzulAst, trackColor = Color(0xFFE5EAF0))
             Text("4. FORMULARIO AST", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF172033), fontSize = 8.sp)
         }
     }

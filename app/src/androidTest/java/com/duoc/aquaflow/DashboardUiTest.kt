@@ -18,12 +18,12 @@ class DashboardUiTest {
         resumen = borrador.resumen.copy(apertura = borrador.resumen.apertura.copy(id = "a1", centroCultivo = "Centro autorizado")),
         decision = RegistroDecision(Decision.AUTORIZADA, "", "jefe"))
 
-    private fun mostrar(rol: Rol, onVer: (String) -> Unit = {}, onEditar: (String) -> Unit = {}) {
+    private fun mostrar(rol: Rol, onVer: (String) -> Unit = {}, onBorradores: () -> Unit = {}) {
         compose.setContent {
             AquaFlowTheme {
                 DashboardScreen(usuario = Usuario("Luis", "1234", rol),
                     tabs = listOf(Tab.INICIO, Tab.HISTORIAL), faenas = listOf(borrador, autorizada),
-                    ultimaEncuesta = null, onNuevaFaena = {}, onEditarBorrador = onEditar,
+                    onNuevaFaena = {}, onAbrirBorradores = onBorradores,
                     onTab = {}, onSalir = {}, onVerFaena = onVer)
             }
         }
@@ -32,23 +32,21 @@ class DashboardUiTest {
     @Test fun jefeVeCuatroTarjetasSinBorradoresYAbreDetalle() {
         var id = ""
         mostrar(Rol.JEFE, onVer = { id = it })
-        compose.onNodeWithText("Nueva faena").assertDoesNotExist()
-        compose.onNodeWithText("Editar borrador").assertDoesNotExist()
+        compose.onNodeWithText("Nueva faena y checklist AST").assertDoesNotExist()
         compose.onNodeWithText("Centro borrador").assertDoesNotExist()
         compose.onNodeWithText("Rechazadas").assertExists()
         compose.onNodeWithText("Cerradas").assertExists()
-        compose.onNodeWithText("Autorizadas / en proceso").performScrollTo().performClick()
+        compose.onNodeWithText("Autorizadas").performScrollTo().performClick()
         compose.onNodeWithText("Centro autorizado").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Ver faena").performScrollTo().performClick()
+        compose.onNodeWithText("Revisar Detalle de Operación").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("a1", id) }
     }
 
     @Test fun supervisorConservaNuevaFaenaYEdicionDeSuBorrador() {
         var id = ""
-        mostrar(Rol.SUPERVISOR, onEditar = { id = it })
-        compose.onNodeWithText("Nueva faena").assertExists()
-        compose.onNodeWithText("Centro autorizado").assertDoesNotExist()
-        compose.onNodeWithText("Editar borrador").performScrollTo().performClick()
+        mostrar(Rol.SUPERVISOR, onBorradores = { id = "b1" })
+        compose.onNodeWithText("Nueva faena y checklist AST").assertExists()
+        compose.onNodeWithText("Borradores por completar").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("b1", id) }
     }
 }

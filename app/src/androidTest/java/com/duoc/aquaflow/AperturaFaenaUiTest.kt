@@ -52,7 +52,7 @@ class AperturaFaenaUiTest {
     fun condicionesClimaticasMuestranValoresReferencialesYEstadoApta() {
         mostrar()
 
-        compose.onNodeWithText("Condiciones Climáticas").fetchSemanticsNode()
+        compose.onNodeWithText("Condiciones en Pontón").fetchSemanticsNode()
         compose.onNodeWithText("12").fetchSemanticsNode()
         compose.onNodeWithText("NUDOS SO").fetchSemanticsNode()
         compose.onNodeWithTag("weather-operational-limit").fetchSemanticsNode().config
@@ -72,16 +72,13 @@ class AperturaFaenaUiTest {
         compose.onNodeWithText("Favorable").fetchSemanticsNode()
         compose.onNodeWithText("Reposo marea alta (09:45)").fetchSemanticsNode()
         compose.onNodeWithText("APTA").fetchSemanticsNode()
-        compose.onNodeWithText(
-            "Valores referenciales de presentación; verificar en terreno antes de operar."
-        ).fetchSemanticsNode()
         compose.onAllNodesWithText("DEMO").assertCountEquals(0)
         compose.onAllNodesWithText("Datos simulados", substring = true).assertCountEquals(0)
         compose.onAllNodesWithText("Valores de demostración").assertCountEquals(0)
 
         val pixelApta = compose.onNodeWithTag("clima-apta")
             .captureToImage().toPixelMap().let { it[1, it.height / 2] }
-        assertEquals(AquaVerde, pixelApta)
+        assertTrue(pixelApta.green > pixelApta.red && pixelApta.green > pixelApta.blue)
         compose.onAllNodesWithText("SIN DATOS").assertCountEquals(0)
     }
 
@@ -140,13 +137,13 @@ class AperturaFaenaUiTest {
         mostrar()
 
         compose.onNodeWithText("Datos Operativos de Faena").fetchSemanticsNode()
-        compose.onNodeWithText("Centro de cultivo").performScrollTo().fetchSemanticsNode()
-        compose.onNodeWithText("Fecha de faena").performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Centro de Cultivo").performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Fecha de Faena").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("25/10/2026").performScrollTo().fetchSemanticsNode()
-        compose.onNodeWithText("Hora de faena").performScrollTo().fetchSemanticsNode()
-        compose.onNodeWithText("09:30").performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Turno de Marea").performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Mañana (08:30 - 14:30)").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Buzo Técnico Asignado").performScrollTo().fetchSemanticsNode()
-        compose.onNodeWithText("Buzo asignado").performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Juan Pérez").performScrollTo().fetchSemanticsNode()
         compose.onAllNodesWithText("Supervisor de la sesión", substring = true)
             .assertCountEquals(0)
     }

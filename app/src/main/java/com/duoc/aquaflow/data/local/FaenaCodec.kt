@@ -37,25 +37,32 @@ object FaenaCodec {
             }
         })
         .put("fotos", JSONArray(c.fotosEvidencia))
+        .put("fotosPorEquipo", JSONObject(c.fotosPorEquipo))
         .toString()
 
     fun checklistDesde(texto: String): ChecklistFaena? = runCatching {
         val o = JSONObject(texto)
+        val items = o.getJSONArray("items").objetos().map {
+            ItemEquipamiento(
+                id = it.getString("id"),
+                titulo = it.getString("titulo"),
+                descripcion = it.getString("descripcion"),
+                estado = EstadoEquipo.valueOf(it.getString("estado")),
+                notas = it.optString("notas", ""),
+                categoria = it.optString("categoria", ""),
+                badge = it.optString("badge", "")
+            )
+        }
+        val fotos = o.getJSONArray("fotos").textos()
+        val fotosPorEquipo = o.optJSONObject("fotosPorEquipo")?.let { asignaciones ->
+            asignaciones.keys().asSequence().associateWith { asignaciones.getString(it) }
+        }.orEmpty()
         ChecklistFaena(
             idFaena = o.getString("idFaena"),
-            items = o.getJSONArray("items").objetos().map {
-                ItemEquipamiento(
-                    id = it.getString("id"),
-                    titulo = it.getString("titulo"),
-                    descripcion = it.getString("descripcion"),
-                    estado = EstadoEquipo.valueOf(it.getString("estado")),
-                    notas = it.optString("notas", ""),
-                    categoria = it.optString("categoria", ""),
-                    badge = it.optString("badge", "")
-                )
-            },
-            fotosEvidencia = o.getJSONArray("fotos").textos(),
-            estado = estadoDesde(o)
+            items = items,
+            fotosEvidencia = fotos,
+            estado = estadoDesde(o),
+            fotosPorEquipo = fotosPorEquipo
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.checklist(it)) }
 

@@ -33,6 +33,7 @@ import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResumenFaena
 import com.duoc.aquaflow.model.Rol
+import com.duoc.aquaflow.model.fotosAsociadasPorEquipo
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.SemaforoAst
 import com.duoc.aquaflow.ui.components.SemaforoFaena
@@ -53,6 +54,7 @@ fun ResumenFaenaScreen(
     onDecidir: (RegistroDecision) -> Unit,
     onVolver: () -> Unit,
     onFinalizar: () -> Unit,
+    modoDemo: Boolean = false,
     textoFinalizar: String = "Ir al inicio",
     // Error que no nace en esta pantalla (por ejemplo, al guardar la decisión en el dispositivo)
     cierre: com.duoc.aquaflow.model.RegistroCierre? = null,
@@ -113,8 +115,19 @@ fun ResumenFaenaScreen(
                     if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 resumen.checklist?.let {
+                    val asociaciones = it.fotosAsociadasPorEquipo()
+                    val nombresPorFoto = it.items.mapNotNull { item ->
+                        asociaciones[item.id]?.let { referencia -> referencia to item.titulo }
+                    }.toMap()
+                    val categoriasPorFoto = it.items.mapNotNull { item ->
+                        asociaciones[item.id]?.let { referencia -> referencia to item.categoria }
+                    }.toMap()
                     Text("Fotos de evidencia: ${it.fotosEvidencia.size}")
-                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(it.fotosEvidencia)
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(
+                        fotos = it.fotosEvidencia,
+                        nombresPorFoto = nombresPorFoto,
+                        categoriasPorFoto = categoriasPorFoto
+                    )
                 }
             }
 
@@ -139,6 +152,15 @@ fun ResumenFaenaScreen(
                 }
             }
 
+            Seccion("Checklist de tareas") {
+                Text("Estado: ${estados.getValue("Checklist de tareas").texto}")
+                val tareas = resumen.tareas?.items.orEmpty()
+                if (tareas.isEmpty()) Text("Sin tareas registradas")
+                tareas.forEach { tarea ->
+                    Text("${if (tarea.verificada) "✓" else "•"} ${tarea.descripcion.ifBlank { "Tarea sin descripción" }}")
+                }
+            }
+
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {
@@ -150,7 +172,13 @@ fun ResumenFaenaScreen(
                     }
                     // El supervisor no decide: su parte termina aquí, con la faena guardada para la jefatura
                     !ReglasDecision.puedeDecidir(rol) -> {
-                        Text("Solo la jefatura autoriza o rechaza la faena. Ya quedó guardada en el dispositivo para su revisión.")
+                        Text(
+                            if (modoDemo) {
+                                "Modo demo: la faena se mantiene durante esta sesión y puedes continuar recorriendo la aplicación."
+                            } else {
+                                "Solo la jefatura autoriza o rechaza la faena. Ya quedó guardada en el dispositivo para su revisión."
+                            }
+                        )
                         Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
                     }
                     else -> {

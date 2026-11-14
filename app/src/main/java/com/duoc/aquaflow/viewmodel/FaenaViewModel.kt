@@ -41,7 +41,8 @@ data class FaenaUiState(
 // `registro` guarda cada sección en Room apenas se completa; con null (pruebas) solo vive en memoria.
 class FaenaViewModel(
     private val borradores: BorradoresApertura,
-    private val registro: RegistroFaena? = null
+    private val registro: RegistroFaena? = null,
+    private val persistenciaHabilitada: Boolean = true
 ) : ViewModel() {
     private val _ui = MutableStateFlow(FaenaUiState())
     val ui: StateFlow<FaenaUiState> = _ui.asStateFlow()
@@ -136,6 +137,17 @@ class FaenaViewModel(
         val apertura = completarFechaHora(_ui.value.apertura)
         _ui.update { it.copy(apertura = apertura) }
         if (continuar && !confirmarApertura()) return
+        if (!persistenciaHabilitada) {
+            _ui.update {
+                it.copy(
+                    ocupado = false,
+                    error = null,
+                    mensaje = "Modo demo: los datos se mantienen durante esta sesión."
+                )
+            }
+            alGuardar()
+            return
+        }
         _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
         viewModelScope.launch {
             try {
@@ -241,12 +253,27 @@ class FaenaViewModel(
     private fun puedeRegistrar() = _ui.value.aperturaConfirmada && !_ui.value.ocupado && _ui.value.decision == null
 
     private fun persistir(que: String, alGuardar: () -> Unit, accion: suspend (RegistroFaena, String) -> Unit): Boolean {
+        if (!persistenciaHabilitada) {
+            _ui.update {
+                it.copy(
+                    ocupado = false,
+                    error = null,
+                    mensaje = "Modo demo: los datos se mantienen durante esta sesión."
+                )
+            }
+            alGuardar()
+            return true
+        }
         val r = registro
         if (r == null) { alGuardar(); return true }
         val id = _ui.value.apertura.id
         _ui.update { it.copy(ocupado = true, error = null) }
         viewModelScope.launch {
             try {
+                val aperturaActual = _ui.value.apertura
+                if (aperturaActual.id.isNotBlank() && aperturaActual.supervisorACargo.isNotBlank()) {
+                    borradores.guardar(aperturaActual)
+                }
                 accion(r, id)
                 _ui.update { it.copy(ocupado = false, mensaje = "Guardado en el dispositivo.") }
                 alGuardar()

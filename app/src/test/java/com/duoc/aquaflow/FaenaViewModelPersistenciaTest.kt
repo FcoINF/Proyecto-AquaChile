@@ -85,6 +85,31 @@ class FaenaViewModelPersistenciaTest {
         assertEquals(encuesta, vm.ui.value.encuesta)
     }
 
+    @Test fun modoDemoOmiteEscriturasYPermiteRecorrerElFlujo() {
+        val borradores = BorradoresMemoria().apply { fallar = true }
+        val registro = RegistroMemoria().apply { fallar = true }
+        val vm = FaenaViewModel(
+            borradores = borradores,
+            registro = registro,
+            persistenciaHabilitada = false
+        ).apply { iniciar(supervisor) }
+        vm.actualizar(
+            PreChequeo("x", "Centro demo", "20/10/2026", "09:30", "Buzo demo", "supervisor", true, true, true)
+        )
+
+        var avanzoAChecklist = false
+        vm.guardarApertura(continuar = true) { avanzoAChecklist = true }
+        assertTrue(avanzoAChecklist)
+        assertNull(vm.ui.value.error)
+
+        var avanzoASalud = false
+        val id = vm.ui.value.apertura.id
+        assertTrue(vm.registrarChecklist(ChecklistFaena(id, emptyList())) { avanzoASalud = true })
+        assertTrue(avanzoASalud)
+        assertTrue(registro.llamadas.isEmpty())
+        assertNull(borradores.apertura)
+    }
+
     @Test fun elHistorialMuestraElEstadoRealYFiltraPorEl() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         repo.guardar(PreChequeo("f1", "Norte", "22/10/2026", "09:00", "Ana", "Luis"))

@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -25,9 +24,9 @@ val ITEMS_FOTO_OBLIGATORIOS = listOf(
 @Composable
 fun SeccionFotos(
     cantidadFotos: Int,
-    onTomarFotoClick: () -> Unit
+    totalEquipos: Int = ITEMS_FOTO_OBLIGATORIOS.size
 ) {
-    val suficiente = cantidadFotos >= 4
+    val suficiente = cantidadFotos >= totalEquipos
     val colorProgreso = if (suficiente) Color(0xFF059669) else Color(0xFFD97706)
 
     Card(
@@ -51,18 +50,11 @@ fun SeccionFotos(
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        "$cantidadFotos de 4 fotografías capturadas",
+                        "$cantidadFotos de $totalEquipos equipos con fotografía",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colorProgreso
                         )
-                    )
-                }
-                IconButton(onClick = onTomarFotoClick) {
-                    Icon(
-                        Icons.Filled.PhotoCamera,
-                        contentDescription = "Capturar foto del equipo",
-                        tint = Color(0xFF0755B8)
                     )
                 }
             }
@@ -85,9 +77,9 @@ fun SeccionFotos(
                         )
                         Text(
                             text = if (suficiente)
-                                "Evidencias fotográficas requeridas completadas (4/4)"
+                                "Cada equipo tiene su evidencia fotográfica"
                             else
-                                "Requisito obligatorio: Se requiere foto de los 4 ítems antes de continuar:",
+                                "Captura la evidencia desde la tarjeta de cada equipo:",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = if (suficiente) Color(0xFF065F46) else Color(0xFF92400E)
@@ -113,19 +105,6 @@ fun SeccionFotos(
                         }
                     }
                 }
-            }
-
-            Button(
-                onClick = onTomarFotoClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 40.dp),
-                shape = RoundedCornerShape(9.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
-            ) {
-                Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Capturar Evidencia Fotográfica ($cantidadFotos/4)")
             }
         }
     }
