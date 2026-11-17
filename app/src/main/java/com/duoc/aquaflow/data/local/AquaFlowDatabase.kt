@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [AperturaEntity::class], version = 6, exportSchema = true)
+@Database(entities = [AperturaEntity::class], version = 7, exportSchema = true)
 abstract class AquaFlowDatabase : RoomDatabase() {
     abstract fun preChequeoDao(): PreChequeoDao
 
@@ -89,14 +89,34 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             }
         }
 
+        // v6 -> v7: amplía la ficha del buzo y conserva un registro auditable de bloqueos.
+        // Los registros previos quedan explícitamente "sin registrar" y deben reconfirmarse.
+        val MIGRACION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN centroId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN buzoId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN edadBuzo INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN imcBuzo REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN examenPreocupacionalVigente INTEGER")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN vigenciaExamenPreocupacional TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN puntajeCalbuco INTEGER")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN testEsfuerzoVigente INTEGER")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN vigenciaTestEsfuerzo TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN buzoEmergenciaDisponible INTEGER")
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN intentosBloqueadosJson TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
         @Volatile private var instancia: AquaFlowDatabase? = null
 
         fun obtener(context: Context): AquaFlowDatabase = instancia ?: synchronized(this) {
             instancia ?: Room.databaseBuilder(
                 context.applicationContext, AquaFlowDatabase::class.java, "aquaflow.db"
             )
-                .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6)
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                .addMigrations(
+                    MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5,
+                    MIGRACION_5_6, MIGRACION_6_7
+                )
                 .build()
                 .also { instancia = it }
         }

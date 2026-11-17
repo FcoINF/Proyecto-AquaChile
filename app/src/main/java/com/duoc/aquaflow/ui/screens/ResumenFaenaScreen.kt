@@ -239,10 +239,10 @@ fun ResumenFaenaScreenPreview() {
             vm = ResumenFaenaViewModel(),
             resumen = ResumenFaena(
                 apertura = PreChequeo(
-                    centroCultivo = "Centro Punta de Tralca",
+                    centroCultivo = "Centro Demo Nébula",
                     fecha = "20/10/2026",
                     hora = "09:30",
-                    buzoAsignado = "Pedro Soto",
+                    buzoAsignado = "Buzo Demo Bravo",
                     supervisorACargo = "Carlos Supervisor"
                 ),
                 checklist = null,

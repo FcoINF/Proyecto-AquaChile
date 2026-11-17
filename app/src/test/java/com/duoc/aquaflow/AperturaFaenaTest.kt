@@ -39,6 +39,27 @@ class AperturaFaenaTest {
         ).forEach { assertNotNull(Reglas.errorApertura(it)) }
     }
 
+    @Test fun mayorDe45SinTestDeEsfuerzoVigente_bloqueaApertura() {
+        val bloqueada = apertura().copy(
+            edadBuzo = 46,
+            testEsfuerzoVigente = false,
+            vigenciaTestEsfuerzo = ""
+        )
+        assertNotNull(Reglas.bloqueoTestEsfuerzo(bloqueada))
+        assertTrue(Reglas.errorApertura(bloqueada)!!.contains("mayores de 45"))
+        assertNull(Reglas.errorApertura(bloqueada.copy(
+            testEsfuerzoVigente = true,
+            vigenciaTestEsfuerzo = "31/12/2099"
+        )))
+    }
+
+    @Test fun aperturaMantieneIdentificadoresDeCentroYBuzo() {
+        val vinculada = apertura().copy(centroId = "centro-42", buzoId = "buzo-17")
+        assertNull(Reglas.errorApertura(vinculada))
+        assertEquals("centro-42", vinculada.centroId)
+        assertEquals("buzo-17", vinculada.buzoId)
+    }
+
     @Test fun validaCalendarioYHora() {
         assertNull(Reglas.errorApertura(apertura("29/02/2024", "00:00")))
         assertNull(Reglas.errorApertura(apertura(hora = "23:59")))

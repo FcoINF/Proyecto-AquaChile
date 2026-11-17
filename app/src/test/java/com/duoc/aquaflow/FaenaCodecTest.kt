@@ -13,6 +13,7 @@ import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResultadoAst
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FaenaCodecTest {
@@ -45,6 +46,14 @@ class FaenaCodecTest {
     @Test fun decisionVuelveIgual() {
         val original = RegistroDecision(Decision.RECHAZADA, "Falla en el compresor", "jefe")
         assertEquals(original, FaenaCodec.decisionDesde(FaenaCodec.decisionATexto(original)))
+    }
+
+    @Test fun encuestaHistoricaSinDetalleExigeReconfirmacionSinInventarRespuestas() {
+        val historica = FaenaCodec.encuestaDesde(
+            """{"estado":"COMPLETA","sistolica":120,"diastolica":80,"saturacion":98,"alertas":[],"nivel":"NORMAL"}"""
+        )!!
+        assertTrue(historica.respuestas.values.all { it == null })
+        assertEquals(com.duoc.aquaflow.model.EstadoSeccion.BORRADOR, historica.estado)
     }
 
     @Test fun textoDanadoDevuelveNullEnVezDeFallar() {

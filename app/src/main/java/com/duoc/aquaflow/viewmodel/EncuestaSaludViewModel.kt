@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.NivelSalud
+import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,8 +16,8 @@ data class EncuestaSaludUiState(
     val sistolica: String = "0",
     val diastolica: String = "0",
     val saturacion: String = "0",
-    val alertas: Set<String> = emptySet(),   // preguntas respondidas "Sí"
-    val respuestas: Map<String, Boolean> = emptyMap(),
+    val alertas: Set<String> = emptySet(),
+    val respuestas: Map<String, Boolean?> = PREGUNTAS_SALUD.associateWith { null },
     val error: String? = null
 ) {
     // Nivel de salud en vivo (null mientras falten números)
@@ -54,7 +55,7 @@ class EncuestaSaludViewModel : ViewModel() {
             diastolica = encuesta.diastolica.toString(),
             saturacion = encuesta.saturacion.toString(),
             alertas = encuesta.alertasEncuesta.toSet(),
-            respuestas = encuesta.alertasEncuesta.associateWith { true }
+            respuestas = encuesta.respuestas
         )
     }
 
@@ -62,18 +63,20 @@ class EncuestaSaludViewModel : ViewModel() {
     fun cambiarDiastolica(v: String) = _ui.update { it.copy(diastolica = v.soloNumeros(), error = null) }
     fun cambiarSaturacion(v: String) = _ui.update { it.copy(saturacion = v.soloNumeros(), error = null) }
 
-    // Un "Sí" entra al conjunto de alertas; al desmarcarlo sale
+    // Compatibilidad con el control anterior: alterna la respuesta, no la severidad.
     fun alternarAlerta(pregunta: String) = _ui.update {
-        val afirmativa = pregunta !in it.alertas
+        val afirmativa = it.respuestas[pregunta] != true
+        val generaAlerta = !afirmativa
         it.copy(
-            alertas = if (afirmativa) it.alertas + pregunta else it.alertas - pregunta,
+            alertas = if (generaAlerta) it.alertas + pregunta else it.alertas - pregunta,
             respuestas = it.respuestas + (pregunta to afirmativa),
             error = null
         )
     }
 
     fun responderPregunta(pregunta: String, respuestaAfirmativa: Boolean) = _ui.update {
-        val alertas = if (respuestaAfirmativa) it.alertas + pregunta else it.alertas - pregunta
+        require(pregunta in PREGUNTAS_SALUD) { "La pregunta no pertenece a la encuesta de salud." }
+        val alertas = if (!respuestaAfirmativa) it.alertas + pregunta else it.alertas - pregunta
         it.copy(
             alertas = alertas,
             respuestas = it.respuestas + (pregunta to respuestaAfirmativa),
@@ -92,13 +95,18 @@ class EncuestaSaludViewModel : ViewModel() {
         val error = when {
             sis == null || dia == null || sat == null || sis == 0 || dia == 0 || sat == 0 -> "Completa presión y saturación"
             !Reglas.enRango(sis, dia, sat) -> "Valores de salud fuera de rango"
+            PREGUNTAS_SALUD.any { s.respuestas[it] == null } ->
+                "Responde todas las preguntas de la encuesta (Sí o No)"
             else -> null
         }
         if (error != null || sis == null || dia == null || sat == null) {
             _ui.update { it.copy(error = error) }
             return null
         }
-        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), Reglas.nivelSalud(sis, dia, sat, s.alertas.size))
+        return EncuestaSalud(
+            sis, dia, sat, s.alertas.toList(), Reglas.nivelSalud(sis, dia, sat, s.alertas.size),
+            respuestas = s.respuestas.filterKeys { it in PREGUNTAS_SALUD }
+        )
     }
 
     fun borrador(): EncuestaSalud {
@@ -106,7 +114,10 @@ class EncuestaSaludViewModel : ViewModel() {
         val sis = s.sistolica.toIntOrNull() ?: 0
         val dia = s.diastolica.toIntOrNull() ?: 0
         val sat = s.saturacion.toIntOrNull() ?: 0
-        return EncuestaSalud(sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL, EstadoSeccion.BORRADOR)
+        return EncuestaSalud(
+            sis, dia, sat, s.alertas.toList(), s.salud ?: NivelSalud.NORMAL,
+            EstadoSeccion.BORRADOR, s.respuestas.filterKeys { it in PREGUNTAS_SALUD }
+        )
     }
 }
 

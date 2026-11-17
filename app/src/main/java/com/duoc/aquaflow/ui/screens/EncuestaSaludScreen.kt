@@ -114,12 +114,19 @@ fun EncuestaSaludScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Button(
-                    enabled = !ocupado,
+                    enabled = !ocupado && PREGUNTAS_SALUD.none { ui.respuestas[it] == null },
                     onClick = { vm.guardar()?.let(onGuardar) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                     shape = RoundedCornerShape(9.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AzulAccion)
                 ) { Text("Continuar a AST", fontWeight = FontWeight.Bold) }
+                if (PREGUNTAS_SALUD.any { ui.respuestas[it] == null }) {
+                    Text(
+                        "Responde las ${PREGUNTAS_SALUD.size} preguntas para continuar.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 OutlinedButton(
                     enabled = !ocupado,
                     onClick = { onGuardarBorrador(vm.borrador()) },
@@ -314,7 +321,7 @@ private fun BotonMedicion(icon: androidx.compose.ui.graphics.vector.ImageVector,
 }
 
 @Composable
-private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean>, onResponder: (String, Boolean) -> Unit) {
+private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean?>, onResponder: (String, Boolean) -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(1.dp),
@@ -404,11 +411,11 @@ fun EncuestaSaludScreenPreview() {
     AquaFlowTheme {
         EncuestaSaludScreen(
             vm = EncuestaSaludViewModel(),
-            buzo = "Juan Pérez",
+            buzo = "Buzo Demo Alfa",
             onGuardar = {},
             onGuardarBorrador = {},
             onVolver = {},
-            centroCultivo = "Centro Huito - Balsa Jaula 04"
+            centroCultivo = "Centro Demo Aurora - Jaula 04"
         )
     }
 }

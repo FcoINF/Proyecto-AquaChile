@@ -51,10 +51,10 @@ object ReglasDecision {
 
     // Mensaje de error si la decisión no es válida; null si lo es.
     fun errorDecision(decision: Decision, resultado: ResultadoFaena, motivo: String): String? = when {
+        decision == Decision.AUTORIZADA && resultado == ResultadoFaena.REQUIERE_REVISION ->
+            "Una faena en estado rojo no puede ser autorizada. Corrige los bloqueos críticos y vuelve a evaluarla"
         decision == Decision.RECHAZADA && motivo.isBlank() ->
             "Indica el motivo del rechazo"
-        decision == Decision.AUTORIZADA && resultado == ResultadoFaena.REQUIERE_REVISION && motivo.isBlank() ->
-            "Para autorizar un resultado que requiere revisión, indica el motivo"
         else -> null
     }
 }

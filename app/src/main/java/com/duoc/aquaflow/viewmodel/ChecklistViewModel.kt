@@ -8,6 +8,7 @@ import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.model.fotosAsociadasPorEquipo
+import com.duoc.aquaflow.domain.ReglasSecciones
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -134,6 +135,13 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
             _ui.value = _ui.value.copy(error = "Revisa todos los equipos antes de continuar.")
             return null
         }
+        val noCumplen = _ui.value.items.filter { it.estado == EstadoEquipo.NO_CUMPLE }
+        if (noCumplen.isNotEmpty()) {
+            _ui.value = _ui.value.copy(
+                error = "Bloqueo de seguridad: ${noCumplen.joinToString { it.titulo }} no cumple. Una fotografía no corrige un equipo crítico en rojo."
+            )
+            return null
+        }
         val equiposSinFoto = _ui.value.items.filter { _ui.value.fotosPorEquipo[it.id].isNullOrBlank() }
         if (equiposSinFoto.isNotEmpty()) {
             _ui.value = _ui.value.copy(
@@ -141,7 +149,9 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
             )
             return null
         }
-        return ChecklistFaena(id, _ui.value.items, _ui.value.fotos, fotosPorEquipo = _ui.value.fotosPorEquipo)
+        val checklist = ChecklistFaena(id, _ui.value.items, _ui.value.fotos, fotosPorEquipo = _ui.value.fotosPorEquipo)
+        check(ReglasSecciones.checklistHabilitaContinuidad(checklist)) { "El checklist crítico no puede completarse." }
+        return checklist
     }
 
     fun borrador(): ChecklistFaena = ChecklistFaena(

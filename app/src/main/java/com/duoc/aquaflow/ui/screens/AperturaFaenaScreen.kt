@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.AccessTime
@@ -66,6 +67,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.PreChequeo
@@ -76,6 +78,7 @@ import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.ui.theme.AquaGrisSuave
 import com.duoc.aquaflow.ui.theme.AquaVerde
 import com.duoc.aquaflow.viewmodel.FaenaUiState
+import com.duoc.aquaflow.domain.Reglas
 
 private const val TURNO_MAREA_PREDEFINIDO = "Mañana (08:30 - 14:30)"
 
@@ -96,21 +99,24 @@ fun AperturaFaenaScreen(
     val apertura = ui.apertura
 
     val centrosCultivo = listOf(
-        "Centro Huito - Balsa Jaula 04 (Calbuco)",
-        "Centro Punta de Tralca",
-        "Centro Caleta Abajo",
-        "Centro Bahía Profunda",
-        "Centro Estero Norte",
-        "Centro Norte"
+        "Centro Demo Aurora - Jaula 04",
+        "Centro Demo Nébula",
+        "Centro Demo Fiordo Esmeralda",
+        "Centro Demo Bahía Horizonte",
+        "Centro Demo Estero Boreal",
+        "Centro Demo Faro Sur"
     )
 
     val buzosAsignados = listOf(
-        "Juan Pérez",
-        "Pedro Soto",
-        "Luis Gómez",
-        "Mateo Silva",
-        "Alejandro Ruiz"
+        "Buzo Demo Alfa",
+        "Buzo Demo Bravo",
+        "Buzo Demo Charlie",
+        "Buzo Demo Delta",
+        "Buzo Demo Eco"
     )
+    val centrosIds = centrosCultivo.mapIndexed { indice, nombre -> nombre to "CENTRO-${indice + 1}" }.toMap()
+    val buzosIds = buzosAsignados.mapIndexed { indice, nombre -> nombre to "BUZO-${indice + 1}" }.toMap()
+    val bloqueoEsfuerzo = Reglas.bloqueoTestEsfuerzo(apertura)
 
     if (confirmarRecuperacion) {
         AlertDialog(
@@ -201,12 +207,15 @@ fun AperturaFaenaScreen(
                 if (ui.ocupado) Text("Procesando apertura…", style = MaterialTheme.typography.bodySmall)
                 Button(
                     onClick = onContinuar,
-                    enabled = !ui.ocupado && apertura.id.isNotBlank(),
+                    enabled = !ui.ocupado && apertura.id.isNotBlank() && bloqueoEsfuerzo == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
                 ) {
                     Text(if (ui.checklist == null) "Continuar al Checklist" else "Revisar checklist")
+                }
+                bloqueoEsfuerzo?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
                 androidx.compose.material3.OutlinedButton(
                     onClick = onGuardar,
@@ -234,7 +243,7 @@ fun AperturaFaenaScreen(
                     selectedValue = apertura.centroCultivo,
                     placeholder = "Sin asignar",
                     options = centrosCultivo,
-                    onSelected = { onCambiar(apertura.copy(centroCultivo = it)) }
+                    onSelected = { onCambiar(apertura.copy(centroCultivo = it, centroId = centrosIds.getValue(it))) }
                 )
                 BoxWithConstraints {
                     if (maxWidth < 520.dp) {
@@ -276,8 +285,86 @@ fun AperturaFaenaScreen(
                     selectedValue = apertura.buzoAsignado,
                     placeholder = "Selecciona un buzo para la operación",
                     options = buzosAsignados,
-                    onSelected = { onCambiar(apertura.copy(buzoAsignado = it)) }
+                    onSelected = { nombre ->
+                        onCambiar(apertura.copy(
+                            buzoAsignado = nombre,
+                            buzoId = buzosIds.getValue(nombre),
+                            edadBuzo = 0,
+                            imcBuzo = 0.0,
+                            examenPreocupacionalVigente = null,
+                            vigenciaExamenPreocupacional = "",
+                            puntajeCalbuco = null,
+                            testEsfuerzoVigente = null,
+                            vigenciaTestEsfuerzo = ""
+                        ))
+                    }
                 )
+            }
+            AquaSectionCard(title = "Ficha de salud del buzo", subtitle = "Obligatoria para autorizar la apertura") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = apertura.edadBuzo.takeIf { it > 0 }?.toString().orEmpty(),
+                        onValueChange = { valor ->
+                            onCambiar(apertura.copy(edadBuzo = valor.filter(Char::isDigit).take(2).toIntOrNull() ?: 0))
+                        },
+                        label = { Text("Edad") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = apertura.imcBuzo.takeIf { it > 0 }?.toString().orEmpty(),
+                        onValueChange = { valor ->
+                            onCambiar(apertura.copy(imcBuzo = valor.replace(',', '.').toDoubleOrNull() ?: 0.0))
+                        },
+                        label = { Text("IMC") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                CondicionSiNoRow(
+                    texto = "Examen preocupacional vigente",
+                    respuesta = apertura.examenPreocupacionalVigente,
+                    testTag = "examen-preocupacional",
+                    onCambiar = { onCambiar(apertura.copy(examenPreocupacionalVigente = it)) }
+                )
+                OutlinedTextField(
+                    value = apertura.vigenciaExamenPreocupacional,
+                    onValueChange = { onCambiar(apertura.copy(vigenciaExamenPreocupacional = it.take(10))) },
+                    label = { Text("Vigencia examen (dd/MM/aaaa)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = apertura.puntajeCalbuco?.toString().orEmpty(),
+                    onValueChange = { valor ->
+                        onCambiar(apertura.copy(puntajeCalbuco = valor.filter(Char::isDigit).take(3).toIntOrNull()))
+                    },
+                    label = { Text("Puntaje Calbuco") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                CondicionSiNoRow(
+                    texto = "Test de esfuerzo vigente",
+                    respuesta = apertura.testEsfuerzoVigente,
+                    testTag = "test-esfuerzo",
+                    onCambiar = { onCambiar(apertura.copy(testEsfuerzoVigente = it)) }
+                )
+                OutlinedTextField(
+                    value = apertura.vigenciaTestEsfuerzo,
+                    onValueChange = { onCambiar(apertura.copy(vigenciaTestEsfuerzo = it.take(10))) },
+                    label = { Text("Vigencia test de esfuerzo (dd/MM/aaaa)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                bloqueoEsfuerzo?.let {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(10.dp)) {
+                        Text(
+                            it,
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             AquaSectionCard(title = "Condiciones Iniciales", subtitle = "Confirma cada condición antes de continuar") {
                 CondicionSiNoRow(
@@ -285,6 +372,12 @@ fun AperturaFaenaScreen(
                     respuesta = apertura.embarcacionLista,
                     testTag = "embarcacion",
                     onCambiar = { onCambiar(apertura.copy(embarcacionLista = it)) }
+                )
+                CondicionSiNoRow(
+                    texto = "Buzo de emergencia disponible y apto",
+                    respuesta = apertura.buzoEmergenciaDisponible,
+                    testTag = "buzo-emergencia",
+                    onCambiar = { onCambiar(apertura.copy(buzoEmergenciaDisponible = it)) }
                 )
                 CondicionSiNoRow(
                     texto = "Comunicaciones y respuesta de emergencia operativas",
@@ -691,10 +784,10 @@ fun AperturaFaenaScreenPreview() {
         AperturaFaenaScreen(
             ui = FaenaUiState(
                 apertura = PreChequeo(
-                    centroCultivo = "Centro Punta de Tralca",
+                    centroCultivo = "Centro Demo Nébula",
                     fecha = "20/10/2026",
                     hora = "09:30",
-                    buzoAsignado = "Pedro Soto",
+                    buzoAsignado = "Buzo Demo Bravo",
                     supervisorACargo = "Carlos Supervisor",
                     condicionesListas = true,
                     embarcacionLista = true,

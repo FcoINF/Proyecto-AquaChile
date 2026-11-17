@@ -16,6 +16,8 @@ import com.duoc.aquaflow.domain.ReglasSecciones
 import com.duoc.aquaflow.model.ChecklistTareas
 import com.duoc.aquaflow.model.TareaFaena
 import com.duoc.aquaflow.model.RegistroInicio
+import com.duoc.aquaflow.model.IntentoBloqueado
+import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -107,6 +109,11 @@ object FaenaCodec {
         .put("estado", ReglasSecciones.encuesta(e).name)
         .put("sistolica", e.sistolica).put("diastolica", e.diastolica).put("saturacion", e.saturacion)
         .put("alertas", JSONArray(e.alertasEncuesta))
+        .put("respuestas", JSONObject().also { respuestas ->
+            e.respuestas.forEach { (pregunta, respuesta) ->
+                respuestas.put(pregunta, respuesta ?: JSONObject.NULL)
+            }
+        })
         .put("nivel", e.nivel.name)
         .toString()
 
@@ -118,7 +125,12 @@ object FaenaCodec {
             saturacion = o.getInt("saturacion"),
             alertasEncuesta = o.getJSONArray("alertas").textos(),
             nivel = NivelSalud.valueOf(o.getString("nivel")),
-            estado = estadoDesde(o)
+            estado = estadoDesde(o),
+            respuestas = o.optJSONObject("respuestas")?.let { respuestas ->
+                respuestas.keys().asSequence().associateWith {
+                    if (respuestas.isNull(it)) null else respuestas.getBoolean(it)
+                }
+            } ?: PREGUNTAS_SALUD.associateWith { null }
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.encuesta(it)) }
 
@@ -168,6 +180,26 @@ object FaenaCodec {
         val o = JSONObject(texto)
         RegistroInicio(o.getString("iniciadoPor"), o.getLong("iniciadoEn"))
     }.getOrNull()
+
+    fun intentosBloqueadosATexto(intentos: List<IntentoBloqueado>): String = JSONArray().also { array ->
+        intentos.forEach { intento ->
+            array.put(JSONObject()
+                .put("responsable", intento.responsable)
+                .put("fecha", intento.fecha)
+                .put("motivo", intento.motivo)
+                .put("accion", intento.accion))
+        }
+    }.toString()
+
+    fun intentosBloqueadosDesde(texto: String): List<IntentoBloqueado> = runCatching {
+        val array = JSONArray(texto)
+        (0 until array.length()).map { indice ->
+            array.getJSONObject(indice).let {
+                IntentoBloqueado(it.getString("responsable"), it.getLong("fecha"),
+                    it.getString("motivo"), it.getString("accion"))
+            }
+        }
+    }.getOrDefault(emptyList())
 
     // develop guardaba también borradores sin estado: los registros antiguos necesitan reconfirmación.
     private fun estadoDesde(o: JSONObject): EstadoSeccion =

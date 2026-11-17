@@ -57,6 +57,7 @@ class CierreFaenaViewModel(private val saved: SavedStateHandle) : ViewModel() {
         if (error != null) return null
         return RegistroCierre(requireNotNull(minutos), estado.observaciones.trim(), estado.revisionSalida,
             saludSalida = EncuestaSalud(requireNotNull(sis), requireNotNull(dia), requireNotNull(sat), estado.alertas,
-                Reglas.nivelSalud(sis, dia, sat, estado.alertas.size)))
+                Reglas.nivelSalud(sis, dia, sat, estado.alertas.size),
+                respuestas = PREGUNTAS_SALUD.associateWith { it !in estado.alertas }))
     }
 }

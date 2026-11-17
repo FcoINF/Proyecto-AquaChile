@@ -11,14 +11,18 @@ object ReglasSecciones {
 
     const val FOTOS_OBLIGATORIAS_MINIMAS = 4
 
+    fun checklistCompletable(c: ChecklistFaena): Boolean {
+        val fotosAsociadas = c.fotosAsociadasPorEquipo()
+        return c.items.isNotEmpty() &&
+            c.items.none { it.estado == EstadoEquipo.PENDIENTE } &&
+            c.items.all { fotosAsociadas[it.id].isNullOrBlank().not() }
+    }
+
+    fun checklistHabilitaContinuidad(c: ChecklistFaena) =
+        checklistCompletable(c) && c.items.none { it.estado == EstadoEquipo.NO_CUMPLE }
+
     fun checklist(c: ChecklistFaena?) = c?.let {
-        val fotosAsociadas = it.fotosAsociadasPorEquipo()
-        estado(
-            it.estado,
-            it.items.isNotEmpty() &&
-                it.items.none { item -> item.estado == EstadoEquipo.PENDIENTE } &&
-                it.items.all { item -> fotosAsociadas[item.id].isNullOrBlank().not() }
-        )
+        estado(it.estado, checklistCompletable(it))
     } ?: EstadoSeccion.SIN_REGISTRAR
 
     fun ast(a: FormularioAst?) = a?.let {
@@ -26,7 +30,11 @@ object ReglasSecciones {
     } ?: EstadoSeccion.SIN_REGISTRAR
 
     fun encuesta(e: EncuestaSalud?) = e?.let {
-        estado(it.estado, Reglas.enRango(it.sistolica, it.diastolica, it.saturacion))
+        estado(
+            it.estado,
+            Reglas.enRango(it.sistolica, it.diastolica, it.saturacion) &&
+                PREGUNTAS_SALUD.none { pregunta -> it.respuestas[pregunta] == null }
+        )
     } ?: EstadoSeccion.SIN_REGISTRAR
 
     fun tareas(t: ChecklistTareas?) = t?.let {

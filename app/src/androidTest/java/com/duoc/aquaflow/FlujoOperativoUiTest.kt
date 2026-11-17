@@ -53,4 +53,28 @@ class FlujoOperativoUiTest {
         compose.onNodeWithText("Presión sistólica de salida").assertExists()
         compose.onNodeWithText("Cierre faena").assertDoesNotExist()
     }
+
+    @Test fun resultadoRojoDeshabilitaAutorizarPeroPermiteRechazar() {
+        val resumen = ResumenFaena(
+            PreChequeo("f-roja", "Centro", "26/10/2026", "10:00", "Ana", "supervisor", true, true, true),
+            ChecklistFaena(
+                "f-roja",
+                listOf(ItemEquipamiento("1", "Maleta de aire", "", EstadoEquipo.NO_CUMPLE)),
+                listOf("foto"),
+                fotosPorEquipo = mapOf("1" to "foto")
+            ),
+            FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
+            EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL),
+            tareasCompletas()
+        )
+        compose.setContent {
+            AquaFlowTheme {
+                DetalleFaenaScreen(ResumenFaenaViewModel(), FaenaGuardada(resumen), Rol.JEFE, "jefe", {}, {}, {})
+            }
+        }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Autorizar"))
+        compose.onNodeWithText("Autorizar").assertIsNotEnabled()
+        compose.onNodeWithText("Rechazar").assertIsEnabled()
+        compose.onNodeWithText("Una justificación no puede omitir", substring = true).assertExists()
+    }
 }

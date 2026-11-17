@@ -43,7 +43,11 @@ class BorradorAperturaTest {
             buzoAsignado = "Buzo",
             condicionesListas = true,
             embarcacionLista = true,
-            comunicacionesOperativas = true
+            comunicacionesOperativas = true,
+            centroId = "c1", buzoId = "b1", edadBuzo = 35, imcBuzo = 24.0,
+            examenPreocupacionalVigente = true, vigenciaExamenPreocupacional = "31/12/2099",
+            puntajeCalbuco = 90, testEsfuerzoVigente = true, vigenciaTestEsfuerzo = "31/12/2099",
+            buzoEmergenciaDisponible = true
         ))
         var avances = 0
         datos.fallar = true

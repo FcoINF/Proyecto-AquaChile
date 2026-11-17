@@ -63,4 +63,16 @@ class ChecklistViewModelTest {
         vm.cargar("f2", null)
         assertTrue(vm.ui.value.items.all { it.estado == EstadoEquipo.PENDIENTE })
     }
+
+    @Test fun equipoNoCumpleNoSeCompletaAunqueTengaFoto() {
+        val vm = ChecklistViewModel(SavedStateHandle())
+        vm.cargar("f1", null)
+        vm.ui.value.items.forEach { item ->
+            vm.cambiarEstado(item.id, if (item.id == "1") EstadoEquipo.NO_CUMPLE else EstadoEquipo.CUMPLE)
+            vm.prepararFoto(item.id, "content://aquaflow.evidencias/${item.id}.jpg")
+            vm.terminarFoto(true)
+        }
+        assertNull(vm.guardar())
+        assertTrue(vm.ui.value.error!!.contains("fotografía no corrige"))
+    }
 }

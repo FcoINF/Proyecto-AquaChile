@@ -490,6 +490,14 @@ private fun SeccionSalud(encuesta: EncuestaSalud?) {
                     }
                 }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text("Respuestas de la encuesta", style = MaterialTheme.typography.labelLarge)
+            com.duoc.aquaflow.model.PREGUNTAS_SALUD.forEach { pregunta ->
+                Text(
+                    "$pregunta: ${encuesta.respuestas[pregunta]?.let { if (it) "Sí" else "No" } ?: "Sin responder"}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -506,6 +514,15 @@ private fun SeccionCondiciones(apertura: PreChequeo) {
         FilaCondicion("Embarcación lista", apertura.embarcacionLista)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         FilaCondicion("Comunicaciones operativas", apertura.comunicacionesOperativas)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text("Ficha del buzo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text("Centro ID: ${apertura.centroId.ifBlank { "Sin registrar" }}")
+        Text("Buzo ID: ${apertura.buzoId.ifBlank { "Sin registrar" }}")
+        Text("Edad: ${apertura.edadBuzo} años · IMC: ${apertura.imcBuzo}")
+        Text("Examen preocupacional: ${if (apertura.examenPreocupacionalVigente == true) "Vigente" else "No vigente"} · hasta ${apertura.vigenciaExamenPreocupacional.ifBlank { "sin fecha" }}")
+        Text("Puntaje Calbuco: ${apertura.puntajeCalbuco ?: "Sin registrar"}")
+        Text("Test de esfuerzo: ${if (apertura.testEsfuerzoVigente == true) "Vigente" else "No vigente"} · hasta ${apertura.vigenciaTestEsfuerzo.ifBlank { "sin fecha" }}")
+        FilaCondicion("Buzo de emergencia disponible", apertura.buzoEmergenciaDisponible)
     }
 }
 
@@ -720,6 +737,13 @@ private fun SeccionDecision(
             }
 
             else -> {
+                if (ReglasDecision.resultado(resumen) == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION) {
+                    Text(
+                        "Autorización bloqueada: el expediente está en rojo. Una justificación no puede omitir un bloqueo crítico.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Text(
                     "Revisa el expediente y registra la decisión de la jefatura.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -739,7 +763,8 @@ private fun SeccionDecision(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        enabled = puedeDecidir,
+                        enabled = puedeDecidir &&
+                            ReglasDecision.resultado(resumen) != com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION,
                         onClick = {
                             vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },

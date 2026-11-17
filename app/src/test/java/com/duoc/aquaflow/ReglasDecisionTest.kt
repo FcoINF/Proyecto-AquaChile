@@ -96,8 +96,8 @@ class ReglasDecisionTest {
     @Test fun autorizarRojoSinMotivo_esError() =
         assertNotNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, ""))
 
-    @Test fun autorizarRojoConMotivo_esValido() =
-        assertNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Equipo repuesto"))
+    @Test fun autorizarRojoConMotivo_sigueBloqueado() =
+        assertNotNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Equipo repuesto"))
 }
 
 class ResumenFaenaViewModelTest {
@@ -135,6 +135,13 @@ class ResumenFaenaViewModelTest {
 
     @Test fun autorizarRojoSinMotivo_noRegistra() {
         val vm = ResumenFaenaViewModel()
+        val rojo = resumen(checklist = cl(EstadoEquipo.NO_CUMPLE))
+        assertNull(vm.decidir(Decision.AUTORIZADA, rojo, Rol.JEFE, "Luis"))
+    }
+
+    @Test fun autorizarRojoConMotivo_noRegistra() {
+        val vm = ResumenFaenaViewModel()
+        vm.cambiarMotivo("Equipo repuesto")
         val rojo = resumen(checklist = cl(EstadoEquipo.NO_CUMPLE))
         assertNull(vm.decidir(Decision.AUTORIZADA, rojo, Rol.JEFE, "Luis"))
     }

@@ -1,6 +1,7 @@
 package com.duoc.aquaflow
 
 import com.duoc.aquaflow.data.repository.PreChequeoRepository
+import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,11 @@ class GuardadoSeguroTest {
         val registro = RegistroMemoria().apply { fallar = true }
         val vm = FaenaViewModel(BorradoresMemoria(), registro).apply { iniciar(supervisor) }
         vm.actualizar(vm.ui.value.apertura.copy(centroCultivo = "Centro", buzoAsignado = "Ana",
-            condicionesListas = true, embarcacionLista = true, comunicacionesOperativas = true))
+            condicionesListas = true, embarcacionLista = true, comunicacionesOperativas = true,
+            centroId = "c1", buzoId = "b1", edadBuzo = 35, imcBuzo = 24.0,
+            examenPreocupacionalVigente = true, vigenciaExamenPreocupacional = "31/12/2099",
+            puntajeCalbuco = 90, testEsfuerzoVigente = true, vigenciaTestEsfuerzo = "31/12/2099",
+            buzoEmergenciaDisponible = true))
         assertTrue(vm.confirmarApertura())
         var navegaciones = 0
         assertTrue(vm.registrarEncuesta(salud) { navegaciones++ })
@@ -76,5 +81,37 @@ class GuardadoSeguroTest {
         assertTrue(runCatching { repo.decidir("f1", decision, supervisor) }.isFailure)
         assertTrue(runCatching { repo.decidir("f1", decision, Usuario("jefe", "1234", Rol.JEFE)) }.isFailure)
         assertNull(repo.observarFaena("f1", supervisor).first()!!.decision)
+    }
+
+    @Test fun intentoDeAutorizarRojoQuedaAuditadoConResponsableFechaYMotivo() = runTest {
+        val dao = DaoMemoria()
+        val repo = PreChequeoRepository(dao)
+        val apertura = PreChequeo("f1", "Centro", "24/10/2026", "09:00", "Ana", "supervisor", true, true, true)
+        repo.guardar(apertura)
+        repo.guardarChecklist("f1", ChecklistFaena(
+            "f1",
+            listOf(ItemEquipamiento("1", "Maleta de aire", "", EstadoEquipo.NO_CUMPLE)),
+            listOf("foto"),
+            fotosPorEquipo = mapOf("1" to "foto")
+        ))
+        repo.guardarAst("f1", FormularioAst(
+            "Limpieza", false, List(PREGUNTAS_AST.size) { true },
+            listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE
+        ))
+        repo.guardarEncuesta("f1", salud)
+        repo.guardarTareas("f1", tareasCompletas())
+
+        val resultado = runCatching {
+            repo.decidir(
+                "f1", RegistroDecision(Decision.AUTORIZADA, "Se adjuntó una foto", "suplantado"),
+                Usuario("jefe-real", "1234", Rol.JEFE)
+            )
+        }
+
+        assertTrue(resultado.isFailure)
+        val intento = FaenaCodec.intentosBloqueadosDesde(dao.buscar("f1")!!.intentosBloqueadosJson).single()
+        assertEquals("jefe-real", intento.responsable)
+        assertTrue(intento.fecha > 0)
+        assertTrue(intento.motivo.contains("no puede ser autorizada"))
     }
 }

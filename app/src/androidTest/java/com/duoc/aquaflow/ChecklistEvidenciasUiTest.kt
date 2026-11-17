@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.assertIsNotEnabled
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.ui.screens.ChecklistScreenContent
@@ -49,5 +50,21 @@ class ChecklistEvidenciasUiTest {
         compose.onNodeWithText("EVIDENCIA 01").performScrollTo().assertExists()
         compose.onAllNodesWithText("Maleta de Suministro de Aire").assertCountEquals(2)
         compose.onAllNodesWithText("EQUIPO 01 • SUMINISTRO PRIMARIO").assertCountEquals(2)
+    }
+
+    @Test
+    fun equipoRojoDeshabilitaContinuidadAunqueTengaEvidencia() {
+        val referencia = "content://aquaflow/evidencia-maleta"
+        val equipo = ItemEquipamiento("1", "Maleta de aire", "Crítica", EstadoEquipo.NO_CUMPLE)
+        compose.setContent {
+            AquaFlowTheme {
+                ChecklistScreenContent(
+                    false, null, listOf(equipo), listOf(referencia), mapOf("1" to referencia),
+                    { _, _ -> }, {}, {}, {}, {}, {}
+                )
+            }
+        }
+        compose.onNodeWithText("Continuar a Salud").assertIsNotEnabled()
+        compose.onNodeWithText("La evidencia fotográfica no habilita", substring = true).assertExists()
     }
 }

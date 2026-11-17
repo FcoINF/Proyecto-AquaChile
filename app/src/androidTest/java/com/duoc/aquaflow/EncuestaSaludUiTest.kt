@@ -56,18 +56,18 @@ class EncuestaSaludUiTest {
     }
 
     @Test
-    fun respuestasSiYNoActualizanLaAlertaSeleccionada() {
+    fun soloLaRespuestaNoGeneraAlertaEnPreguntasPositivas() {
         val vm = EncuestaSaludViewModel()
         mostrar(vm)
 
         assertEquals(false, compose.onNodeWithTag("pregunta-0-no").performScrollTo().fetchSemanticsNode().config[SemanticsProperties.Selected])
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().performClick()
-        assertEquals(setOf(PREGUNTAS_SALUD[0]), vm.ui.value.alertas)
+        assertEquals(emptySet<String>(), vm.ui.value.alertas)
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().assertIsSelected()
 
         compose.onNodeWithTag("pregunta-0-no").performScrollTo().performClick()
         compose.onNodeWithTag("pregunta-0-no").performScrollTo().assertIsSelected()
-        assertEquals(emptySet<String>(), vm.ui.value.alertas)
+        assertEquals(setOf(PREGUNTAS_SALUD[0]), vm.ui.value.alertas)
     }
 
     @Test

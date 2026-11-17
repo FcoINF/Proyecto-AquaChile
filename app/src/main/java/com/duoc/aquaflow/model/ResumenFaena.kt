@@ -29,6 +29,13 @@ data class RegistroDecision(
     val decididoPor: String
 )
 
+data class IntentoBloqueado(
+    val responsable: String,
+    val fecha: Long,
+    val motivo: String,
+    val accion: String
+)
+
 // Una faena tal como queda guardada en el dispositivo: sus partes y, si ya existe, la decisión.
 // El estado se obtiene de los registros persistidos de decisión, inicio y cierre.
 data class FaenaGuardada(

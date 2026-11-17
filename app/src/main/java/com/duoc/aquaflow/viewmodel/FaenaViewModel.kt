@@ -60,7 +60,15 @@ class FaenaViewModel(
                 id = UUID.randomUUID().toString(),
                 fecha = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(ahora),
                 hora = SimpleDateFormat("HH:mm", Locale.ROOT).format(ahora),
-                supervisorACargo = usuario.nombre.ifBlank { "supervisor" }
+                supervisorACargo = usuario.nombre.ifBlank { "supervisor" },
+                edadBuzo = 0,
+                imcBuzo = 0.0,
+                examenPreocupacionalVigente = null,
+                vigenciaExamenPreocupacional = "",
+                puntajeCalbuco = null,
+                testEsfuerzoVigente = null,
+                vigenciaTestEsfuerzo = "",
+                buzoEmergenciaDisponible = null
             )
         )
     }

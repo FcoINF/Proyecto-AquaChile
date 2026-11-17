@@ -19,6 +19,16 @@ data class AperturaEntity(
     val condicionesListas: Boolean = false,
     val embarcacionLista: Boolean? = null,
     val comunicacionesOperativas: Boolean? = null,
+    val centroId: String = "",
+    val buzoId: String = "",
+    val edadBuzo: Int = 0,
+    val imcBuzo: Double = 0.0,
+    val examenPreocupacionalVigente: Boolean? = null,
+    val vigenciaExamenPreocupacional: String = "",
+    val puntajeCalbuco: Int? = null,
+    val testEsfuerzoVigente: Boolean? = null,
+    val vigenciaTestEsfuerzo: String = "",
+    val buzoEmergenciaDisponible: Boolean? = null,
     val actualizadoEn: Long,
     val checklistJson: String? = null,
     val astJson: String? = null,
@@ -26,11 +36,15 @@ data class AperturaEntity(
     val decisionJson: String? = null,
     val cierreJson: String? = null,
     val tareasJson: String? = null,
-    val inicioJson: String? = null
+    val inicioJson: String? = null,
+    val intentosBloqueadosJson: String = "[]"
 ) {
     fun aModelo() = PreChequeo(
         id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo,
-        condicionesListas, embarcacionLista, comunicacionesOperativas
+        condicionesListas, embarcacionLista, comunicacionesOperativas,
+        centroId, buzoId, edadBuzo, imcBuzo, examenPreocupacionalVigente,
+        vigenciaExamenPreocupacional, puntajeCalbuco, testEsfuerzoVigente,
+        vigenciaTestEsfuerzo, buzoEmergenciaDisponible
     )
 
     fun aFaena() = FaenaGuardada(
@@ -51,7 +65,10 @@ data class AperturaEntity(
             apertura.id, apertura.centroCultivo, apertura.fecha, apertura.hora,
             apertura.buzoAsignado, apertura.supervisorACargo,
             apertura.condicionesListas, apertura.embarcacionLista, apertura.comunicacionesOperativas,
-            actualizadoEn
+            apertura.centroId, apertura.buzoId, apertura.edadBuzo, apertura.imcBuzo,
+            apertura.examenPreocupacionalVigente, apertura.vigenciaExamenPreocupacional,
+            apertura.puntajeCalbuco, apertura.testEsfuerzoVigente, apertura.vigenciaTestEsfuerzo,
+            apertura.buzoEmergenciaDisponible, actualizadoEn
         )
     }
 }
@@ -60,4 +77,10 @@ internal fun AperturaEntity.mismosDatosQue(otra: AperturaEntity) =
     centroCultivo == otra.centroCultivo && fecha == otra.fecha && hora == otra.hora &&
         buzoAsignado == otra.buzoAsignado && supervisorACargo == otra.supervisorACargo &&
         condicionesListas == otra.condicionesListas && embarcacionLista == otra.embarcacionLista &&
-        comunicacionesOperativas == otra.comunicacionesOperativas
+        comunicacionesOperativas == otra.comunicacionesOperativas && centroId == otra.centroId &&
+        buzoId == otra.buzoId && edadBuzo == otra.edadBuzo && imcBuzo == otra.imcBuzo &&
+        examenPreocupacionalVigente == otra.examenPreocupacionalVigente &&
+        vigenciaExamenPreocupacional == otra.vigenciaExamenPreocupacional &&
+        puntajeCalbuco == otra.puntajeCalbuco && testEsfuerzoVigente == otra.testEsfuerzoVigente &&
+        vigenciaTestEsfuerzo == otra.vigenciaTestEsfuerzo &&
+        buzoEmergenciaDisponible == otra.buzoEmergenciaDisponible

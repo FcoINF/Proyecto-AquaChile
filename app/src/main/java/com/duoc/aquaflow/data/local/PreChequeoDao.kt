@@ -19,7 +19,8 @@ interface PreChequeoDao {
         check(previa?.decisionJson == null) { "La faena ya fue decidida; consulta su historial." }
         guardar(if (previa != null && previa.mismosDatosQue(nueva)) nueva.copy(
             checklistJson = previa.checklistJson, astJson = previa.astJson,
-            encuestaJson = previa.encuestaJson, tareasJson = previa.tareasJson
+            encuestaJson = previa.encuestaJson, tareasJson = previa.tareasJson,
+            intentosBloqueadosJson = previa.intentosBloqueadosJson
         ) else nueva)
     }
 
@@ -77,7 +78,6 @@ interface PreChequeoDao {
         guardar(fila.copy(cierreJson = FaenaCodec.cierreATexto(registro), actualizadoEn = ahora))
     }
 
-    @Transaction
     suspend fun guardarDecisionValidada(id: String, decision: RegistroDecision) {
         val fila = checkNotNull(buscar(id)) { "La faena no existe." }
         check(fila.decisionJson == null) { "La faena ya tiene una decisión." }
@@ -85,7 +85,26 @@ interface PreChequeoDao {
             "Completa las secciones antes de decidir."
         }
         val error = ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
-        require(error == null) { error.orEmpty() }
+        if (error != null) {
+            val intentos = FaenaCodec.intentosBloqueadosDesde(fila.intentosBloqueadosJson) +
+                com.duoc.aquaflow.model.IntentoBloqueado(
+                    responsable = decision.decididoPor.ifBlank { "usuario no identificado" },
+                    fecha = System.currentTimeMillis(),
+                    motivo = buildString {
+                        append(error)
+                        decision.motivo.trim().takeIf { it.isNotEmpty() }?.let {
+                            append(". Justificación ingresada: ")
+                            append(it)
+                        }
+                    },
+                    accion = "AUTORIZAR_FAENA"
+                )
+            guardar(fila.copy(
+                intentosBloqueadosJson = FaenaCodec.intentosBloqueadosATexto(intentos),
+                actualizadoEn = System.currentTimeMillis()
+            ))
+            throw IllegalArgumentException(error)
+        }
         check(guardarDecision(id, FaenaCodec.decisionATexto(decision.copy(motivo = decision.motivo.trim())), System.currentTimeMillis()) == 1) {
             "La faena no existe o ya tiene una decisión."
         }

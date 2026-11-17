@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -143,17 +144,31 @@ class AperturaFaenaUiTest {
         compose.onNodeWithText("Turno de Marea").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Mañana (08:30 - 14:30)").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Buzo Técnico Asignado").performScrollTo().fetchSemanticsNode()
-        compose.onNodeWithText("Juan Pérez").performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Buzo Demo Alfa").performScrollTo().fetchSemanticsNode()
         compose.onAllNodesWithText("Supervisor de la sesión", substring = true)
             .assertCountEquals(0)
+    }
+
+    @Test
+    fun mayorDe45SinTestVigenteMuestraBloqueoYDeshabilitaContinuar() {
+        mostrar(aperturaDemo().copy(
+            edadBuzo = 50,
+            testEsfuerzoVigente = false,
+            vigenciaTestEsfuerzo = ""
+        ))
+
+        compose.onNodeWithText("Continuar al Checklist").assertIsNotEnabled()
+        compose.onNodeWithText("se exige test de esfuerzo vigente", substring = true)
+            .performScrollTo()
+            .fetchSemanticsNode()
     }
 }
 
 private fun aperturaDemo() = PreChequeo(
     id = "demo",
-    centroCultivo = "Centro Punta de Tralca",
+    centroCultivo = "Centro Demo Nébula",
     fecha = "25/10/2026",
     hora = "09:30",
-    buzoAsignado = "Juan Pérez",
+    buzoAsignado = "Buzo Demo Alfa",
     supervisorACargo = "Supervisor Demo"
 )

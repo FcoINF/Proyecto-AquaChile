@@ -7,7 +7,7 @@ enum class NivelSalud(val texto: String) {
     CRITICO("Crítico")
 }
 
-// Encuesta preventiva: responder "Sí" a cualquiera genera una alerta.
+// Todas las preguntas están redactadas en positivo: "Sí" es la respuesta segura.
 val PREGUNTAS_SALUD = listOf(
     "¿Apto físicamente hoy? (Sin dolor de oídos, congestión ni barotraumas)",
     "¿Descansó adecuado y sin fatiga? (Mínimo 8 horas de sueño en pontón)",
@@ -22,5 +22,8 @@ data class EncuestaSalud(
     val saturacion: Int,
     val alertasEncuesta: List<String>,
     val nivel: NivelSalud,
-    val estado: EstadoSeccion = EstadoSeccion.COMPLETA
+    val estado: EstadoSeccion = EstadoSeccion.COMPLETA,
+    val respuestas: Map<String, Boolean?> = PREGUNTAS_SALUD.associateWith {
+        it !in alertasEncuesta
+    }
 )

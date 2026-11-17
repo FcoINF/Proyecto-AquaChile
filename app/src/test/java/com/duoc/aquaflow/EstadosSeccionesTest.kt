@@ -28,7 +28,7 @@ class EstadosSeccionesTest {
         assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.checklist(checklist))
         assertEquals(EstadoSeccion.COMPLETA, ReglasSecciones.encuesta(salud.copy(saturacion = 90)))
         assertEquals(ResultadoFaena.REQUIERE_REVISION, ReglasDecision.resultado(completo.copy(encuesta = salud.copy(saturacion = 90))))
-        assertNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Revisado"))
+        assertNotNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Revisado"))
     }
 
     @Test fun jsonConservaBorradoresInclusoConDatosValidos() {

@@ -39,6 +39,7 @@ class EncuestaSaludViewModelTest {
 
     private fun vmCon(sis: String, dia: String, sat: String) = EncuestaSaludViewModel().apply {
         cambiarSistolica(sis); cambiarDiastolica(dia); cambiarSaturacion(sat)
+        PREGUNTAS_SALUD.forEach { responderPregunta(it, true) }
     }
 
     @Test fun vacio_noGuardaYPideCompletar() {
@@ -55,31 +56,37 @@ class EncuestaSaludViewModelTest {
         assertEquals(NivelSalud.NORMAL, encuesta!!.nivel)
     }
 
-    @Test fun unaAlerta_pasaAAtencionYSeRegistra() {
+    @Test fun unaRespuestaNegativa_pasaAAtencionYSeRegistra() {
         val vm = vmCon("120", "80", "98")
-        vm.alternarAlerta(PREGUNTAS_SALUD[0])
+        vm.responderPregunta(PREGUNTAS_SALUD[0], false)
         val encuesta = vm.guardar()!!
         assertEquals(NivelSalud.ATENCION, encuesta.nivel)
         assertEquals(listOf(PREGUNTAS_SALUD[0]), encuesta.alertasEncuesta)
     }
 
-    @Test fun responderSi_agregaLaAlertaDeLaPregunta() {
+    @Test fun responderSiNoAgregaAlertaEnPreguntaPositiva() {
         val vm = vmCon("120", "80", "98")
 
         vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = true)
+
+        assertEquals(emptySet<String>(), vm.ui.value.alertas)
+        assertEquals(NivelSalud.NORMAL, vm.ui.value.salud)
+    }
+
+    @Test fun responderNoAgregaAlertaEnPreguntaPositiva() {
+        val vm = vmCon("120", "80", "98")
+        vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = false)
 
         assertEquals(setOf(PREGUNTAS_SALUD[0]), vm.ui.value.alertas)
         assertEquals(NivelSalud.ATENCION, vm.ui.value.salud)
     }
 
-    @Test fun responderNo_quitaLaAlertaDeLaPregunta() {
-        val vm = vmCon("120", "80", "98")
-        vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = true)
-
-        vm.responderPregunta(PREGUNTAS_SALUD[0], respuestaAfirmativa = false)
-
-        assertEquals(emptySet<String>(), vm.ui.value.alertas)
-        assertEquals(NivelSalud.NORMAL, vm.ui.value.salud)
+    @Test fun preguntasSinResponder_impidenFinalizar() {
+        val vm = EncuestaSaludViewModel().apply {
+            cambiarSistolica("120"); cambiarDiastolica("80"); cambiarSaturacion("98")
+        }
+        assertNull(vm.guardar())
+        assertEquals("Responde todas las preguntas de la encuesta (Sí o No)", vm.ui.value.error)
     }
 
     @Test fun saturacionFueraDeRango_noGuarda() {

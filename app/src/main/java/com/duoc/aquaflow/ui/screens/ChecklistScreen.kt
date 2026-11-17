@@ -34,6 +34,7 @@ import com.duoc.aquaflow.ui.components.ItemChecklist
 import com.duoc.aquaflow.ui.components.SeccionFotos
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.ChecklistViewModel
+import com.duoc.aquaflow.domain.ReglasSecciones
 
 @Composable
 fun ChecklistScreen(
@@ -107,6 +108,9 @@ fun ChecklistScreenContent(
     onVolver: () -> Unit,
     centroCultivo: String = "Centro sin asignar - Jaula 24"
 ) {
+    val checklistCompletable = ReglasSecciones.checklistHabilitaContinuidad(
+        ChecklistFaena("validacion-ui", items, fotos, fotosPorEquipo = fotosPorEquipo)
+    )
     Scaffold(
         topBar = {
             TopAppBar(
@@ -198,10 +202,17 @@ fun ChecklistScreenContent(
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
+            if (items.any { it.estado == EstadoEquipo.NO_CUMPLE }) {
+                Text(
+                    "Faena bloqueada: uno o más equipos críticos están en rojo. La evidencia fotográfica no habilita la continuidad.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(
-                    enabled = !ocupado,
+                    enabled = !ocupado && checklistCompletable,
                     onClick = onGuardarClick,
                     modifier = Modifier
                         .fillMaxWidth()
