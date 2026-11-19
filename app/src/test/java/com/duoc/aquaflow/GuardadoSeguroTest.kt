@@ -21,6 +21,39 @@ class GuardadoSeguroTest {
     @Before fun preparar() { Dispatchers.setMain(dispatcher) }
     @After fun terminar() { Dispatchers.resetMain() }
 
+    @Test fun borradorLocalYConfirmacionRemotaSonOperacionesDistintas() = runTest {
+        val borradores = BorradoresMemoria()
+        val idsEnviados = mutableListOf<String>()
+        var servidorDisponible = false
+        val vm = FaenaViewModel(borradores, confirmarEnServidor = {
+            idsEnviados += it.id
+            check(servidorDisponible) { "Servidor no disponible" }
+        }).apply { iniciar(supervisor) }
+        val id = vm.ui.value.apertura.id
+        vm.actualizar(PreChequeo(
+            centroCultivo = "Centro ficticio", buzoAsignado = "Buzo ficticio",
+            condicionesListas = true, embarcacionLista = true, comunicacionesOperativas = true
+        ))
+
+        vm.guardarApertura()
+        advanceUntilIdle()
+        assertTrue(idsEnviados.isEmpty())
+        assertEquals(id, borradores.recuperar("supervisor")?.id)
+
+        var navegaciones = 0
+        vm.guardarApertura(continuar = true) { navegaciones++ }
+        advanceUntilIdle()
+        assertEquals(0, navegaciones)
+        assertTrue(vm.ui.value.error.orEmpty().contains("No se confirmó en el servidor"))
+
+        servidorDisponible = true
+        vm.guardarApertura(continuar = true) { navegaciones++ }
+        advanceUntilIdle()
+        assertEquals(1, navegaciones)
+        assertEquals(listOf(id, id), idsEnviados)
+        assertNull(vm.ui.value.error)
+    }
+
     @Test fun navegaSoloTrasGuardarYReintentaSinDuplicar() = runTest {
         val registro = RegistroMemoria().apply { fallar = true }
         val vm = FaenaViewModel(BorradoresMemoria(), registro).apply { iniciar(supervisor) }

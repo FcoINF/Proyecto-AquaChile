@@ -20,7 +20,7 @@ Una aplicación móvil (offline-first) que reemplaza los formularios en papel pa
 
 - **Ingreso basado en roles**: Diferenciación de accesos e interfaces para perfiles de Administrador y Supervisor de Buceo
 - **Digitalización de Formularios Obligatorios**: Pre-chequeo preventivo, AST (Análisis Seguro de Trabajo) y R-DPR-24
-- **Modo Offline Activo**: Guardado local en el dispositivo (SQLite Room DB) previendo la falta de conexión en mar abierto, con sincronización posterior planificada (pendiente de backend)
+- **Guardado local**: Room conserva borradores y los formularios del dispositivo. El modo conectado envía las aperturas confirmadas al backend.
 - **Evidencia Fotográfica**: Uso de la cámara del dispositivo para capturar el estado físico y fallas de los equipos
 - **Encuesta de Salud Física**: Registro de condiciones, presión, oxígeno y temperatura del buzo antes de cada inmersión
 - **Módulo de Toma de Decisión**: Consolidación y resumen de faena para la autorización o rechazo (con motivo registrado) por parte de la jefatura
@@ -57,10 +57,10 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 ### Estado actual: avance funcional local
 
 - **Flujo integrado:** apertura → DPR-24 y fotos → salud inicial → AST → tareas → resumen → autorización de jefatura → inicio por supervisor → salud de salida y cierre desde el historial.
-- **Room v6:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4→5→6 sin recuperación destructiva.
+- **Room v7:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones de 1 a 7 sin recuperación destructiva.
 - **Estados de sección:** distingue borrador, completa y sin registrar al guardar y recuperar; integra los botones de borrador y el detalle de historial de `develop`. Las secciones antiguas sin estado requieren reconfirmación. Bloquea autorizar y rechazar expedientes incompletos en pantalla y en la transacción de persistencia. Ver [alcance de la primera propuesta](docs/ESTADOS_SECCIONES.md).
 - **Guardado confirmado:** se avanza después de persistir; los errores quedan visibles y permiten reintentar. Recuperar una faena restaura sus secciones.
-- **Identidad local:** el supervisor pertenece a la sesión y no puede cambiarse en el formulario. Las faenas decididas no se pueden editar; los cierres no se sobrescriben.
+- **Identidad por sesión:** en modo conectado Spring Security autentica la cuenta y determina su rol. El supervisor pertenece a la sesión y no se edita en el formulario. Las faenas decididas localmente no se pueden editar y los cierres conservan el registro original.
 - **Fotografías:** captura a archivo interno con `TakePicture` y `FileProvider`; referencias en Room y miniaturas en checklist y detalle. Cancelar o fallar la cámara no agrega evidencias simuladas. Los nombres ficticios guardados por versiones antiguas no contienen imágenes recuperables: la app informa cuando la vista previa no está disponible.
 - **Dos recursos del dispositivo:** cámara y fecha/hora automática, visible en apertura y detalle. La captura se delega a la app de cámara con acceso temporal al URI; AquaFlow no solicita el permiso de cámara para usar directamente el hardware.
 - **Inicio:** solo el supervisor propietario inicia una faena autorizada; se registra responsable y fecha/hora, con estado En ejecución.
@@ -85,9 +85,39 @@ La última orden requiere dispositivo o emulador conectado y autorizado por ADB.
 
 La evidencia de pruebas y el guion de demostración se mantienen en [Validación del MVP](docs/VALIDACION_MVP.md). Las tareas implementadas y pendientes se registran en [Planificación](docs/PLANIFICACION_MVP.md); el [roadmap](docs/ROADMAP_MVP.md) conserva la correspondencia con las rúbricas.
 
+### Probar la apertura conectada a Spring Boot
+
+Desde la raíz, inicia el servidor con JDK 17 y el wrapper Gradle del proyecto. Usa PIN de demostración en ambos perfiles. Para reutilizar el acceso demo de Android, escribe `1234` en las dos solicitudes.
+
+```powershell
+$env:AQUAFLOW_SUPERVISOR_PIN = Read-Host 'PIN de demostración de supervisor'
+$env:AQUAFLOW_JEFE_PIN = Read-Host 'PIN de demostración de jefatura'
+.\gradlew.bat -p backend bootRun
+```
+
+El backend escucha en `127.0.0.1:8080` y H2 guarda las aperturas en `backend/data/`. Mantén esa consola abierta. En otra consola, instala la APK debug en el emulador y abre AquaFlow. La URL debug predeterminada es `http://10.0.2.2:8080/`.
+
+```powershell
+.\gradlew.bat :app:installDebug
+adb shell am start -n com.duoc.aquaflow/.MainActivity
+```
+
+1. Ingresa como `supervisor`, crea una faena con datos ficticios, completa la apertura y pulsa **Continuar**. El formulario avanza al checklist tras el guardado local y la confirmación del servidor. **Guardar Borrador** trabaja en Room. Si la confirmación remota falla, el formulario conserva la copia local y permite reintentar con el mismo ID.
+2. Vuelve al panel, cierra sesión y entra como `jefe`. Pulsa **Aperturas recibidas**. La apertura se muestra con su ID y el estado **Prechequeo pendiente**.
+3. Abre [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html), pulsa **Authorize** e ingresa las credenciales de jefatura. Ejecuta `GET /api/faenas/{id}` con ese ID. **Try it out** también permite probar `POST`, `PUT` y `DELETE` con la cuenta supervisora. Jefatura tiene acceso de lectura y el servidor limita las modificaciones al supervisor propietario.
+
+Pruebas de la API y de Android:
+
+```powershell
+.\gradlew.bat -p backend test
+.\gradlew.bat :app:testDebugUnitTest
+```
+
+En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080` y compilar con `-PaquaflowApiUrl=http://127.0.0.1:8080/`. Para ejecutar la demo local sin servidor, instala con `-PaquaflowApiUrl=`. HTTP está habilitado en debug para las direcciones locales de la prueba. Usa HTTPS al configurar un servidor para una build release.
+
 ### Límites del alcance actual
 
-La aplicación funciona localmente y admite el flujo sin conexión. **No hay backend definido, autenticación remota ni sincronización entre dispositivos.** Jefatura revisa las faenas cambiando de cuenta en el mismo dispositivo. Las cuentas, catálogos y reglas de salud son de demostración académica; requieren validación del cliente antes de un uso operativo.
+El servidor autentica y recibe las aperturas confirmadas. Checklist, fotos, salud, AST, tareas, decisión y cierre pertenecen al flujo local de Room. Quedan pendientes la sincronización automática, el traslado del expediente completo y las validaciones de aprobación y cierre en el servidor. Las cuentas, catálogos y reglas de salud son de demostración académica.
 
 Los archivos capturados se conservan en almacenamiento privado. Quitar una referencia del checklist no elimina inmediatamente el archivo, para evitar borrar una evidencia ya guardada antes de confirmar la edición. La limpieza de archivos huérfanos queda pendiente.
 

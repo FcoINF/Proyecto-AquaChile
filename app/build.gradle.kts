@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,19 @@ plugins {
 }
 
 val projectPath = projectDir.toPath().toAbsolutePath().normalize()
+val apiUrl = providers.gradleProperty("aquaflowApiUrl").orNull
+
+fun apiConfig(url: String): String {
+    val normalizada = url.trim().trimEnd('/')
+    if (normalizada.isBlank()) return "\"\""
+    val uri = URI(normalizada)
+    require(uri.scheme in listOf("http", "https") && uri.host != null &&
+        uri.userInfo == null && uri.query == null && uri.fragment == null) {
+        "aquaflowApiUrl debe ser una URL HTTP(S) sin credenciales, consulta ni fragmento."
+    }
+    return "\"$normalizada/\""
+}
+
 if (projectPath.any { it.toString().equals("OneDrive", ignoreCase = true) }) {
     val projectKey = Integer.toHexString(rootProject.projectDir.absolutePath.hashCode())
     layout.buildDirectory.set(
@@ -28,7 +43,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_URL", apiConfig(apiUrl ?: "http://10.0.2.2:8080"))
+        }
         release {
+            buildConfigField("String", "API_URL", apiConfig(apiUrl?.takeIf { it.startsWith("https://") }.orEmpty()))
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -46,6 +65,7 @@ android {
     sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -58,6 +78,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
     // Compose (fijado por el BOM)

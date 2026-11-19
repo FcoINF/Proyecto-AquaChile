@@ -20,6 +20,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.duoc.aquaflow.data.local.AquaFlowDatabase
+import com.duoc.aquaflow.data.remote.FaenasRemotas
 import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.ResumenFaena
@@ -35,9 +36,11 @@ import com.duoc.aquaflow.ui.screens.LoginScreen
 import com.duoc.aquaflow.ui.screens.ResumenFaenaScreen
 import com.duoc.aquaflow.ui.screens.TareasScreen
 import com.duoc.aquaflow.ui.screens.historial.DetalleAperturaScreen
+import com.duoc.aquaflow.ui.screens.historial.AperturasRecibidasScreen
 import com.duoc.aquaflow.ui.screens.historial.DetalleFaenaScreen
 import com.duoc.aquaflow.ui.screens.historial.HistorialScreen
 import com.duoc.aquaflow.viewmodel.AstViewModel
+import com.duoc.aquaflow.viewmodel.AperturasRecibidasViewModel
 import com.duoc.aquaflow.viewmodel.DashboardViewModel
 import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
@@ -52,6 +55,7 @@ object Ruta {
     const val DASHBOARD = "dashboard"
     const val BORRADORES = "borradores"
     const val HISTORIAL = "historial"
+    const val APERTURAS_RECIBIDAS = "aperturas-recibidas"
     const val DETALLE_APERTURA = "historial/{aperturaId}"
     const val FAENA = "faena?aperturaId={aperturaId}"
     const val APERTURA = "faena/apertura"
@@ -63,24 +67,33 @@ object Ruta {
 }
 
 @Composable
-fun AquaFlowNavHost() {
+fun AquaFlowNavHost(backendUrl: String = "") {
     val nav = rememberNavController()
     val context = LocalContext.current.applicationContext
     val repository = remember(context) {
         PreChequeoRepository(AquaFlowDatabase.obtener(context).preChequeoDao())
     }
-    val faenaFactory = remember(context) {
+    val sesionFactory = remember(backendUrl) {
+        viewModelFactory {
+            initializer {
+                SesionViewModel(backendUrl.takeIf { it.isNotBlank() }?.let(::FaenasRemotas))
+            }
+        }
+    }
+    val sesion: SesionViewModel = viewModel(factory = sesionFactory)
+    val servidor = sesion.remoto
+    val faenaFactory = remember(repository, servidor) {
         viewModelFactory {
             initializer {
                 FaenaViewModel(
                     borradores = repository,
                     registro = repository,
-                    persistenciaHabilitada = !MODO_DEMO_SIN_PERSISTENCIA
+                    persistenciaHabilitada = !MODO_DEMO_SIN_PERSISTENCIA,
+                    confirmarEnServidor = servidor?.let { remoto -> remoto::guardar }
                 )
             }
         }
     }
-    val sesion: SesionViewModel = viewModel()
     val usuario by sesion.usuario.collectAsState()
     var ultimaEncuesta by remember { mutableStateOf<EncuestaSalud?>(null) }
 
@@ -132,6 +145,7 @@ fun AquaFlowNavHost() {
                     onVerFaena = { id -> nav.navigate("historial/${Uri.encode(id)}") },
                     onNuevaFaena = { if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena") },
                     onAbrirBorradores = { if (actual.rol == Rol.SUPERVISOR) nav.navigate(Ruta.BORRADORES) },
+                    onAperturasRecibidas = servidor?.let { { nav.navigate(Ruta.APERTURAS_RECIBIDAS) } },
                     onTab = ::irATab,
                     onSalir = {
                         sesion.salir()
@@ -141,6 +155,17 @@ fun AquaFlowNavHost() {
                         }
                     }
                 )
+            }
+        }
+
+        composable(Ruta.APERTURAS_RECIBIDAS) {
+            if (usuario?.rol == Rol.JEFE && servidor != null) {
+                val factory = remember(servidor) {
+                    viewModelFactory { initializer { AperturasRecibidasViewModel(servidor) } }
+                }
+                val vm: AperturasRecibidasViewModel = viewModel(factory = factory)
+                val state by vm.state.collectAsState()
+                AperturasRecibidasScreen(state, vm::actualizar) { nav.popBackStack() }
             }
         }
 

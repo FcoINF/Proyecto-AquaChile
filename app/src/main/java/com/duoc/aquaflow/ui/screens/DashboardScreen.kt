@@ -23,13 +23,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role as SemanticsRole
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -78,13 +81,13 @@ fun DashboardScreen(
     onReintentar: () -> Unit = {},
     onVerFaena: (String) -> Unit = {},
     onAbrirBorradores: () -> Unit = {},
-    onVerHistorial: () -> Unit = { onTab(Tab.HISTORIAL) }
+    onVerHistorial: () -> Unit = { onTab(Tab.HISTORIAL) },
+    onAperturasRecibidas: (() -> Unit)? = null
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
     val borradores = faenas.filter { it.decision == null }
     val nombre = usuario.nombre.substringBefore(" ")
     val tabsDashboard = tabs.filter { it != Tab.ENCUESTA }
-    var mostrarMenuPerfil by remember { mutableStateOf(false) }
     var mostrarGuiaRapida by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -92,16 +95,7 @@ fun DashboardScreen(
         containerColor = AquaGrisSuave,
         topBar = {
             Column(Modifier.fillMaxWidth().background(AquaAzul).statusBarsPadding()) {
-                CabeceraSupervisor(
-                    usuario = usuario,
-                    mostrarMenuPerfil = mostrarMenuPerfil,
-                    onAbrirPerfil = { mostrarMenuPerfil = true },
-                    onCerrarMenu = { mostrarMenuPerfil = false },
-                    onSalir = {
-                        mostrarMenuPerfil = false
-                        onSalir()
-                    }
-                )
+                CabeceraDashboard(usuario = usuario, onSalir = onSalir)
                 BarraCondicionesTerreno()
             }
         },
@@ -190,6 +184,12 @@ fun DashboardScreen(
                 }
             }
 
+            if (!puedeCrear && onAperturasRecibidas != null) {
+                OutlinedButton(onClick = onAperturasRecibidas, modifier = Modifier.fillMaxWidth()) {
+                    Text("Aperturas recibidas")
+                }
+            }
+
             when {
                 cargando -> Text("Cargando faenas…")
                 error != null -> AquaSectionCard(title = "No se pudo actualizar el inicio") {
@@ -235,63 +235,50 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun CabeceraSupervisor(
+private fun CabeceraDashboard(
     usuario: Usuario,
-    mostrarMenuPerfil: Boolean,
-    onAbrirPerfil: () -> Unit,
-    onCerrarMenu: () -> Unit,
     onSalir: () -> Unit
 ) {
+    var mostrarMenuPerfil by remember { mutableStateOf(false) }
+    val rol = if (usuario.rol == Rol.JEFE) "Jefe" else usuario.rol.texto
+
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text("AquaChile", style = MaterialTheme.typography.titleLarge, color = Color.White)
             Text("Puerto Montt - Operaciones", style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E0E6))
         }
         Box {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (usuario.rol == Rol.JEFE) "Jefe" else usuario.rol.texto, style = MaterialTheme.typography.labelMedium, color = Color.White)
-                if (usuario.rol == Rol.JEFE) {
-                    IconButton(onClick = onSalir, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesión", tint = Color.White)
-                    }
-                }
-                IconButton(
-                    onClick = onAbrirPerfil,
-                    modifier = Modifier.size(48.dp).semantics {
-                        contentDescription = "Perfil de ${usuario.nombre}, ${usuario.rol.texto}"
-                    }
+            Surface(
+                onClick = { mostrarMenuPerfil = true },
+                modifier = Modifier.semantics {
+                    contentDescription = "Perfil de ${usuario.nombre}, $rol"
+                    role = SemanticsRole.Button
+                },
+                shape = CircleShape,
+                color = AquaAzulMedio,
+                contentColor = Color.White,
+                border = BorderStroke(1.dp, Color(0xFF92A8B7))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        modifier = Modifier.size(36.dp),
-                        shape = CircleShape,
-                        color = Color.White,
-                        border = BorderStroke(1.dp, AquaAzulMedio)
-                    ) {}
+                    Text(rol, style = MaterialTheme.typography.labelMedium)
+                    Icon(Icons.Default.ExpandMore, contentDescription = null, modifier = Modifier.size(14.dp))
                 }
             }
-            if (mostrarMenuPerfil) {
-                AlertDialog(
-                    onDismissRequest = onCerrarMenu,
-                    title = { Text("Perfil") },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(usuario.nombre, style = MaterialTheme.typography.titleSmall)
-                            Text(usuario.rol.texto, style = MaterialTheme.typography.bodySmall, color = TextoSecundario)
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = onSalir) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                            androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
-                            Text("Cerrar sesión")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = onCerrarMenu) { Text("Cancelar") }
+            DropdownMenu(expanded = mostrarMenuPerfil, onDismissRequest = { mostrarMenuPerfil = false }) {
+                DropdownMenuItem(
+                    text = { Text("Cerrar sesión") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+                    onClick = {
+                        mostrarMenuPerfil = false
+                        onSalir()
                     }
                 )
             }

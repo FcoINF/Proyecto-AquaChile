@@ -42,7 +42,8 @@ data class FaenaUiState(
 class FaenaViewModel(
     private val borradores: BorradoresApertura,
     private val registro: RegistroFaena? = null,
-    private val persistenciaHabilitada: Boolean = true
+    private val persistenciaHabilitada: Boolean = true,
+    private val confirmarEnServidor: (suspend (PreChequeo) -> Unit)? = null
 ) : ViewModel() {
     private val _ui = MutableStateFlow(FaenaUiState())
     val ui: StateFlow<FaenaUiState> = _ui.asStateFlow()
@@ -158,15 +159,27 @@ class FaenaViewModel(
         }
         _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
         viewModelScope.launch {
+            var guardadaLocalmente = false
             try {
-                borradores.guardar(_ui.value.apertura)
-                _ui.update { it.copy(mensaje = "Apertura guardada en el dispositivo.") }
+                val confirmacion = _ui.value.apertura
+                borradores.guardar(confirmacion)
+                guardadaLocalmente = true
+                val remota = confirmarEnServidor?.takeIf { continuar }
+                remota?.invoke(confirmacion)
+                val mensaje = if (remota == null) "Apertura guardada en el dispositivo."
+                    else "Apertura confirmada en el servidor."
+                _ui.update { it.copy(mensaje = mensaje) }
                 alGuardar()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val detalle = e.localizedMessage?.ifBlank { null } ?: e.javaClass.simpleName
-                _ui.update { it.copy(error = "No se pudo guardar la apertura: $detalle") }
+                val error = if (guardadaLocalmente && continuar && confirmarEnServidor != null) {
+                    "Copia guardada en el dispositivo. No se confirmó en el servidor: $detalle"
+                } else {
+                    "No se pudo guardar la apertura: $detalle"
+                }
+                _ui.update { it.copy(error = error) }
             } finally {
                 _ui.update { it.copy(ocupado = false) }
             }

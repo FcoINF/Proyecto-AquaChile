@@ -157,7 +157,7 @@ fun LoginScreen(sesion: SesionViewModel, onIngresoExitoso: () -> Unit) {
             } else {
                 prefs.edit().remove(PREF_USUARIO).apply()
             }
-            if (sesion.ingresar()) onIngresoExitoso()
+            sesion.ingresar(onIngresoExitoso)
         }
     )
 }
@@ -449,6 +449,7 @@ private fun TarjetaCredenciales(
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = onIngresar,
+            enabled = !ui.ocupado,
             modifier = Modifier
                 .width(168.dp)
                 .height(40.dp),
@@ -459,7 +460,7 @@ private fun TarjetaCredenciales(
             )
         ) {
             Text(
-                text = "INGRESAR",
+                text = if (ui.ocupado) "CONECTANDO" else "INGRESAR",
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontSize = 11.sp,
                     letterSpacing = 0.6.sp
