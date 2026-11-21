@@ -45,6 +45,7 @@ fun EvidenciasGaleria(
         fotos.forEachIndexed { indice, referencia ->
             val bitmap = cargarFoto(referencia)
             val metadata = metadatos[referencia]
+            val imagenReferencia = metadata?.referencia
             var comparar by remember(referencia) { mutableStateOf(false) }
             val nombre = nombresPorFoto[referencia]
                 ?.takeIf(String::isNotBlank)
@@ -130,22 +131,24 @@ fun EvidenciasGaleria(
                                 color = Color(0xFF047857)
                             )
                         }
-                        metadata?.let { datos ->
-                            val fecha = DateFormat.getDateTimeInstance().format(Date(datos.capturadaEn))
-                            Text("$fecha · ${datos.capturadaPor}", style = MaterialTheme.typography.bodySmall)
-                            Text(when (datos.coincide) {
+                        val fecha = metadata?.capturadaEn?.let { DateFormat.getDateTimeInstance().format(Date(it)) }
+                        val autor = metadata?.capturadaPor?.takeIf(String::isNotBlank)
+                        val datosCaptura = listOfNotNull(fecha, autor).joinToString(" · ")
+                        Text(datosCaptura.ifBlank { "Datos de captura sin registrar" }, style = MaterialTheme.typography.bodySmall)
+                        if (metadata != null || onElegirReferencia != null) {
+                            Text(when (metadata?.coincide) {
                                 true -> "Coincide con la referencia"
                                 false -> "Difiere de la referencia"
                                 null -> "Comparación pendiente"
                             }, style = MaterialTheme.typography.bodySmall)
-                            if (onElegirReferencia != null) {
-                                TextButton(onClick = { onElegirReferencia(referencia) }) {
-                                    Text(if (datos.referencia == null) "Elegir referencia" else "Cambiar referencia")
-                                }
+                        }
+                        if (onElegirReferencia != null) {
+                            TextButton(onClick = { onElegirReferencia(referencia) }) {
+                                Text(if (imagenReferencia == null) "Elegir referencia" else "Cambiar referencia")
                             }
-                            if (datos.referencia != null) {
-                                TextButton(onClick = { comparar = true }) { Text("Comparar fotos") }
-                            }
+                        }
+                        if (imagenReferencia != null) {
+                            TextButton(onClick = { comparar = true }) { Text("Comparar fotos") }
                         }
                         if (onQuitar != null) {
                             TextButton(
@@ -165,7 +168,6 @@ fun EvidenciasGaleria(
                     }
                 }
             }
-            val imagenReferencia = metadata?.referencia
             if (comparar && imagenReferencia != null) {
                 val imagen = cargarFoto(imagenReferencia)
                 AlertDialog(

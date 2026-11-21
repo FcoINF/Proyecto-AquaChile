@@ -27,8 +27,8 @@ data class ChecklistFaena(
 )
 
 data class MetadatosFoto(
-    val capturadaEn: Long,
-    val capturadaPor: String,
+    val capturadaEn: Long? = null,
+    val capturadaPor: String? = null,
     val referencia: String? = null,
     val coincide: Boolean? = null
 )

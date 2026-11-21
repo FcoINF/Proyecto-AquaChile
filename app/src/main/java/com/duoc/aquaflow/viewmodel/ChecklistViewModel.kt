@@ -170,7 +170,9 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     fun borrador(): ChecklistFaena = checklist(EstadoSeccion.BORRADOR)
 
     fun referencia(uri: String, referencia: String) {
-        val foto = _ui.value.metadatosPorFoto[uri] ?: return
+        val estado = _ui.value
+        if (uri !in estado.fotos) return
+        val foto = estado.metadatosPorFoto[uri] ?: MetadatosFoto()
         actualizarFoto(uri, foto.copy(referencia = referencia, coincide = null))
     }
 

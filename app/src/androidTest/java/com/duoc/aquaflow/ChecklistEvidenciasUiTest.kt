@@ -4,17 +4,34 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsNotEnabled
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.screens.ChecklistScreenContent
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import org.junit.Rule
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ChecklistEvidenciasUiTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun permiteElegirReferenciaParaUnaFotoAntiguaSinMetadatos() {
+        val foto = "content://aquaflow/foto-antigua"
+        var seleccionada: String? = null
+        compose.setContent {
+            AquaFlowTheme {
+                EvidenciasGaleria(fotos = listOf(foto), onElegirReferencia = { seleccionada = it })
+            }
+        }
+        compose.onNodeWithText("Datos de captura sin registrar").assertExists()
+        compose.onNodeWithText("Elegir referencia").performClick()
+        compose.runOnIdle { assertEquals(foto, seleccionada) }
+    }
 
     @Test
     fun evidenciaMuestraNombreYCategoriaDelEquipo() {
@@ -65,6 +82,6 @@ class ChecklistEvidenciasUiTest {
             }
         }
         compose.onNodeWithText("Continuar a Salud").assertIsNotEnabled()
-        compose.onNodeWithText("La evidencia fotográfica no habilita", substring = true).assertExists()
+        compose.onNodeWithText("Equipo crítico sin conformidad: Maleta de aire.", substring = true).assertExists()
     }
 }

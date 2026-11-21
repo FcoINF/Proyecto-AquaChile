@@ -5,6 +5,7 @@ import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.Decision
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.EstadoEquipo
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.model.NivelSalud
@@ -76,6 +77,14 @@ class ReglasDecisionTest {
 
     @Test fun saludCritica_requiereRevision() =
         assertEquals(ResultadoFaena.REQUIERE_REVISION, ReglasDecision.resultado(resumen(encuesta = salud(sat = 90))))
+
+    @Test fun saludSinMedicionesQuedaPendienteDeRevision() {
+        val borrador = salud(sat = 0).copy(sistolica = 0, diastolica = 0, estado = EstadoSeccion.BORRADOR)
+        val evaluacion = ReglasDecision.evaluar(resumen(encuesta = borrador))
+        assertEquals(ResultadoFaena.OBSERVADO, evaluacion.resultado)
+        assertTrue(evaluacion.motivos.any { "Encuesta de salud" in it })
+        assertFalse(evaluacion.motivos.any { "críticos" in it })
+    }
 
     @Test fun saludConAlerta_esObservado() =
         assertEquals(ResultadoFaena.OBSERVADO, ReglasDecision.resultado(resumen(encuesta = salud(alertas = listOf("a")))))

@@ -5,6 +5,7 @@ import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.Decision
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.EstadoEquipo
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.model.MetadatosFoto
@@ -39,6 +40,21 @@ class FaenaCodecTest {
             ResultadoAst.REQUIERE_REVISION, com.duoc.aquaflow.model.EstadoSeccion.BORRADOR
         )
         assertEquals(original, FaenaCodec.astDesde(FaenaCodec.astATexto(original)))
+    }
+
+    @Test fun borradorAstAntiguoRequiereReconfirmarRespuestasAmbiguas() {
+        val texto = """
+            {"estado":"BORRADOR","tipologia":"","requiereNuevoAst":false,
+             "respuestas":[true,false,false,true,false],"pasos":[],"resultado":"OBSERVADO"}
+        """.trimIndent()
+        val ast = FaenaCodec.astDesde(texto)!!
+        assertEquals(EstadoSeccion.BORRADOR, ast.estado)
+        assertEquals(listOf(true, null, null, true, null), ast.respuestas)
+        assertTrue(com.duoc.aquaflow.domain.ReglasAst.condicionesCriticasIncumplidas(ast.respuestas).isEmpty())
+
+        val bloqueo = FaenaCodec.astDesde(texto.replace("OBSERVADO", "REQUIERE_REVISION"))!!
+        assertEquals(listOf(true, false, false, true, false), bloqueo.respuestas)
+        assertTrue(com.duoc.aquaflow.domain.ReglasAst.condicionesCriticasIncumplidas(bloqueo.respuestas).isNotEmpty())
     }
 
     @Test fun encuestaVuelveIgual() {

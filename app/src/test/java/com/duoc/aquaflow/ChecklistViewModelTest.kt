@@ -1,12 +1,33 @@
 package com.duoc.aquaflow
 
 import androidx.lifecycle.SavedStateHandle
+import com.duoc.aquaflow.data.local.FaenaCodec
+import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
+import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.viewmodel.ChecklistViewModel
 import org.junit.Assert.*
 import org.junit.Test
 
 class ChecklistViewModelTest {
+    @Test fun comparaUnaFotoAntiguaYConservaLaReferenciaSinInventarDatosDeCaptura() {
+        val foto = "content://aquaflow.evidencias/antigua.jpg"
+        val referencia = "content://aquaflow.evidencias/referencia.jpg"
+        val saved = SavedStateHandle()
+        val vm = ChecklistViewModel(saved)
+        val equipo = ItemEquipamiento("1", "Maleta de aire", "", EstadoEquipo.CUMPLE)
+        vm.cargar("f1", ChecklistFaena("f1", listOf(equipo), listOf(foto)))
+        vm.referencia(foto, referencia)
+        vm.comparar(foto, false)
+
+        val esperado = MetadatosFoto(referencia = referencia, coincide = false)
+        assertEquals(esperado, ChecklistViewModel(saved).ui.value.metadatosPorFoto[foto])
+        val guardado = vm.guardar()!!
+        val restaurado = FaenaCodec.checklistDesde(FaenaCodec.checklistATexto(guardado))!!
+        assertEquals(esperado, restaurado.metadatosPorFoto[foto])
+    }
+
     @Test fun conservaEstadosYCapturaPendienteAlRecrearElViewModel() {
         val saved = SavedStateHandle()
         val vm = ChecklistViewModel(saved)

@@ -62,6 +62,26 @@ class HistorialRoomViewModelTest {
         assertNull(vm.state.value.error)
     }
 
+    @Test fun elContadorCuentaCadaAlertaDeVelocidadYOmiteBorradores() = runTest {
+        val borrador = FaenaGuardada(ResumenFaena(primera, null, null, null))
+        val cierre = RegistroCierre(25, "Registro", true,
+            mediciones = MedicionesInmersion(20, 15.0, 25.0, 10.0, OrigenMedicion.MANUAL))
+        val valoresAlLimite = cierre.copy(mediciones = cierre.mediciones!!.copy(descensoMaximo = 24.0, ascensoMaximo = 9.0))
+        val tercero = segunda.copy(id = "uuid-3")
+        val consultaConCierres = object : ConsultaAperturas by consulta {
+            override fun observarFaenas(usuario: Usuario) = flowOf(listOf(
+                borrador,
+                FaenaGuardada(ResumenFaena(segunda, null, null, null), cierre = cierre),
+                FaenaGuardada(ResumenFaena(tercero, null, null, null), cierre = valoresAlLimite)
+            ))
+        }
+        val vm = HistorialViewModel(consultaConCierres, usuario)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect() }
+        advanceUntilIdle()
+        assertEquals(2, vm.state.value.alertasVelocidad)
+        assertEquals(listOf(0, 2, 0), vm.state.value.faenas.map { it.alertasVelocidad.size })
+    }
+
     @Test fun falloDeLecturaPuedeReintentarse() = runTest {
         consulta.fallar = true
         val vm = HistorialViewModel(consulta, usuario)

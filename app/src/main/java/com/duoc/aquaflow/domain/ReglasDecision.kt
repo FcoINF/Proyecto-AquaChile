@@ -59,7 +59,7 @@ object ReglasDecision {
                     observaciones += "El AST tiene observaciones para revisar."
             }
         }
-        resumen.encuesta?.let { e ->
+        resumen.encuesta?.takeIf { Reglas.enRango(it.sistolica, it.diastolica, it.saturacion) }?.let { e ->
             when (Reglas.nivelSalud(e.sistolica, e.diastolica, e.saturacion, e.alertasEncuesta.size)) {
                 NivelSalud.CRITICO -> bloqueos += "La encuesta de salud contiene valores críticos."
                 NivelSalud.ATENCION -> observaciones += "La encuesta de salud requiere revisión."

@@ -20,6 +20,7 @@ import com.duoc.aquaflow.model.IntentoBloqueado
 import com.duoc.aquaflow.model.MedicionesInmersion
 import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.model.OrigenMedicion
+import com.duoc.aquaflow.model.PREGUNTAS_AST
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import org.json.JSONArray
 import org.json.JSONObject
@@ -78,9 +79,12 @@ object FaenaCodec {
             metadatosPorFoto = o.optJSONObject("metadatosPorFoto")?.let { fotos ->
                 fotos.keys().asSequence().associateWith { uri ->
                     val foto = fotos.getJSONObject(uri)
-                    MetadatosFoto(foto.getLong("capturadaEn"), foto.getString("capturadaPor"),
-                        foto.optString("referencia", "").takeIf(String::isNotBlank),
-                        if (foto.isNull("coincide")) null else foto.getBoolean("coincide"))
+                    MetadatosFoto(
+                        capturadaEn = if (foto.isNull("capturadaEn")) null else foto.getLong("capturadaEn"),
+                        capturadaPor = if (foto.isNull("capturadaPor")) null else foto.getString("capturadaPor"),
+                        referencia = foto.optString("referencia", "").takeIf(String::isNotBlank),
+                        coincide = if (foto.isNull("coincide")) null else foto.getBoolean("coincide")
+                    )
                 }
             }.orEmpty()
         )
@@ -105,13 +109,21 @@ object FaenaCodec {
 
     fun astDesde(texto: String): FormularioAst? = runCatching {
         val o = JSONObject(texto)
-        val respuestas = o.getJSONArray("respuestas")
+        val jsonRespuestas = o.getJSONArray("respuestas")
+        val respuestas = (0 until jsonRespuestas.length()).map {
+            if (jsonRespuestas.isNull(it)) null else jsonRespuestas.getBoolean(it)
+        }
+        val estado = estadoDesde(o)
+        val resultado = ResultadoAst.valueOf(o.getString("resultado"))
+        // Los borradores antiguos guardaban como false las preguntas sin responder.
+        // Un borrador con un «No» crítico explícito ya registra el resultado rojo.
+        val borradorAntiguo = estado == EstadoSeccion.BORRADOR &&
+            resultado != ResultadoAst.REQUIERE_REVISION && respuestas.none { it == null } &&
+            PREGUNTAS_AST.zip(respuestas).any { (pregunta, respuesta) -> pregunta.critica && respuesta == false }
         FormularioAst(
             tipologia = o.getString("tipologia"),
             requiereNuevoAst = o.getBoolean("requiereNuevoAst"),
-            respuestas = (0 until respuestas.length()).map {
-                if (respuestas.isNull(it)) null else respuestas.getBoolean(it)
-            },
+            respuestas = if (borradorAntiguo) respuestas.map { it?.takeIf { afirmativa -> afirmativa } } else respuestas,
             pasos = o.getJSONArray("pasos").objetos().map {
                 PasoAst(
                     tarea = it.optString("tarea", ""),
@@ -120,8 +132,8 @@ object FaenaCodec {
                     critico = it.optBoolean("critico", false)
                 )
             },
-            resultado = ResultadoAst.valueOf(o.getString("resultado")),
-            estado = estadoDesde(o)
+            resultado = resultado,
+            estado = estado
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.ast(it)) }
 

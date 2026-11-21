@@ -182,7 +182,7 @@ fun HistorialScreen(
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    IndicadorCard("INCIDENTES / DECO", "${state.alertas}", "alertas", "según evaluación AST y salud", Icons.Default.Shield, Modifier.weight(1f), Color(0xFF059669))
+                    IndicadorCard("ALERTAS DE VELOCIDAD", "${state.alertasVelocidad}", "alertas", "ascenso y descenso", Icons.Default.Shield, Modifier.weight(1f), Color(0xFF059669))
                     IndicadorCard("BUZOS ACTIVOS", "${state.buzosActivos}", "en turno", "inmersiones en ejecución", Icons.Default.Group, Modifier.weight(1f), Color(0xFF42658C))
                 }
             }
