@@ -55,14 +55,6 @@ class Faenas {
     }
 
     Guardado guardar(UUID id, String supervisor, AperturaDatos datos) {
-        return guardar(id, supervisor, datos, false);
-    }
-
-    Guardado guardarExpediente(UUID id, String supervisor, AperturaDatos datos) {
-        return guardar(id, supervisor, datos, true);
-    }
-
-    private Guardado guardar(UUID id, String supervisor, AperturaDatos datos, boolean sincronizacion) {
         datos.validarVigencias();
         String contenido;
         try {
@@ -76,7 +68,8 @@ class Faenas {
                 UPDATE aperturas SET datos = :datos, actualizada_en = :ahora
                 WHERE id = :id AND supervisor = :supervisor
                 AND NOT EXISTS (SELECT 1 FROM cierres_historicos WHERE id = :id)
-                """ + (sincronizacion ? "" : " AND NOT EXISTS (SELECT 1 FROM expedientes WHERE id = :id)"))
+                AND NOT EXISTS (SELECT 1 FROM expedientes WHERE id = :id)
+                """)
                 .param("datos", contenido).param("ahora", ahora)
                 .param("id", id).param("supervisor", supervisor).update();
         if (actualizadas == 1) {
@@ -112,14 +105,26 @@ class Faenas {
 
     @Transactional
     public void publicarCierre(UUID id, String supervisor, CierreHistorico cierre) {
-        jdbc.sql("SELECT id FROM aperturas WHERE id = :id AND supervisor = :supervisor FOR UPDATE")
-                .param("id", id).param("supervisor", supervisor).query(UUID.class)
-                .optional().orElseThrow(Faenas::noEncontrada);
+        bloquear(id, supervisor);
         var previo = consultar(id, supervisor).cierre();
         if (cierre.equals(previo)) return;
+        if (jdbc.sql("SELECT COUNT(*) FROM expedientes WHERE id = :id").param("id", id).query(Integer.class).single() > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Usa la bitácora para cerrar un expediente completo.");
+        }
         if (previo != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un cierre histórico para esta faena.");
         }
+        insertarCierre(id, cierre);
+    }
+
+    void bloquear(UUID id, String supervisor) {
+        var seleccion = jdbc.sql("SELECT id FROM aperturas WHERE id = :id"
+                + (supervisor == null ? "" : " AND supervisor = :supervisor") + " FOR UPDATE").param("id", id);
+        if (supervisor != null) seleccion.param("supervisor", supervisor);
+        seleccion.query(UUID.class).optional().orElseThrow(Faenas::noEncontrada);
+    }
+
+    void insertarCierre(UUID id, CierreHistorico cierre) {
         jdbc.sql("""
                 INSERT INTO cierres_historicos (id, cerrado_en, tiempo_fondo, profundidad, descenso, ascenso, origen)
                 VALUES (:id, :fecha, :fondo, :profundidad, :descenso, :ascenso, :origen)

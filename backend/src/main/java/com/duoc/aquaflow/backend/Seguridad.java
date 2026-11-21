@@ -40,6 +40,8 @@ class Seguridad {
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("SUPERVISOR", "JEFE")
                         .requestMatchers(HttpMethod.POST, "/api/faenas/*/decision").hasRole("JEFE")
+                        .requestMatchers(HttpMethod.PUT, "/api/faenas/*/bitacora/alertas/*/revision").hasRole("JEFE")
+                        .requestMatchers("/api/buzos", "/api/buzos/**").hasRole("JEFE")
                         .requestMatchers("/api/faenas", "/api/faenas/**").hasRole("SUPERVISOR")
                         .anyRequest().denyAll())
                 .httpBasic(Customizer.withDefaults())
