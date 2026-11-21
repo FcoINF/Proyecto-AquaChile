@@ -36,6 +36,7 @@ import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.fotosAsociadasPorEquipo
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.SemaforoAst
+import com.duoc.aquaflow.ui.components.DatosMediciones
 import com.duoc.aquaflow.ui.components.SemaforoFaena
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -85,10 +86,12 @@ fun ResumenFaenaScreen(
                 Text("Revisión de la operación", style = MaterialTheme.typography.headlineSmall)
                 Text("Confirma los datos y resuelve la autorización.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            // Semáforo global: solo aparece cuando están todas las partes
-            if (resultado != null) {
-                AquaSectionCard(title = "Estado de la faena") { SemaforoFaena(resultado) }
-            } else {
+            val evaluacion = ReglasDecision.evaluar(resumen)
+            AquaSectionCard(title = "Estado de la faena") {
+                SemaforoFaena(evaluacion.resultado)
+                evaluacion.motivos.forEach { Text(it) }
+            }
+            if (faltantes.isNotEmpty()) {
                 Card(colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Text(
                         "Resumen incompleto · Falta: ${faltantes.joinToString()}",
@@ -126,7 +129,8 @@ fun ResumenFaenaScreen(
                     com.duoc.aquaflow.ui.components.EvidenciasGaleria(
                         fotos = it.fotosEvidencia,
                         nombresPorFoto = nombresPorFoto,
-                        categoriasPorFoto = categoriasPorFoto
+                        categoriasPorFoto = categoriasPorFoto,
+                        metadatos = it.metadatosPorFoto
                     )
                 }
             }
@@ -207,6 +211,7 @@ fun ResumenFaenaScreen(
             if (cierre != null) {
                 Seccion("Faena cerrada") {
                     Text("Tiempo de inmersión: ${cierre.duracionMinutos} minutos")
+                    cierre.mediciones?.let { DatosMediciones(it) }
                     Text("Observaciones: ${cierre.observaciones}")
                     Text("Revisión de salida: ${if (cierre.revisionSalida) "realizada" else "pendiente"}")
                     Text("Cerrada por ${cierre.cerradoPor}")

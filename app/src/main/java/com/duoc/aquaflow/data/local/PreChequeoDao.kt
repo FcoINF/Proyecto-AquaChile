@@ -7,6 +7,9 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.model.RegistroDecision
+import com.duoc.aquaflow.model.IntentoBloqueado
+import com.duoc.aquaflow.model.Decision
+import com.duoc.aquaflow.model.ResultadoFaena
 
 @Dao
 interface PreChequeoDao {
@@ -21,7 +24,7 @@ interface PreChequeoDao {
             checklistJson = previa.checklistJson, astJson = previa.astJson,
             encuestaJson = previa.encuestaJson, tareasJson = previa.tareasJson,
             intentosBloqueadosJson = previa.intentosBloqueadosJson
-        ) else nueva)
+        ) else nueva.copy(intentosBloqueadosJson = previa?.intentosBloqueadosJson ?: "[]"))
     }
 
     @Query("SELECT * FROM aperturas WHERE id = :id")
@@ -58,6 +61,9 @@ interface PreChequeoDao {
             "Solo el supervisor propietario puede iniciar una faena autorizada, una vez."
         }
         check(ReglasDecision.faltantes(faena.resumen).isEmpty()) { "El expediente está incompleto." }
+        check(ReglasDecision.evaluar(faena.resumen).resultado != ResultadoFaena.REQUIERE_REVISION) {
+            "El expediente presenta un bloqueo crítico."
+        }
         val ahora = System.currentTimeMillis()
         guardar(fila.copy(inicioJson = FaenaCodec.inicioATexto(com.duoc.aquaflow.model.RegistroInicio(usuario.nombre, ahora)), actualizadoEn = ahora))
     }
@@ -69,6 +75,7 @@ interface PreChequeoDao {
             "Solo el supervisor propietario puede cerrar una faena en ejecución, una vez."
         }
         val error = com.duoc.aquaflow.domain.ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
+            ?: com.duoc.aquaflow.domain.ReglasCierre.errorMediciones(cierre.mediciones, cierre.duracionMinutos)
         require(error == null) { error.orEmpty() }
         require(com.duoc.aquaflow.domain.ReglasSecciones.encuesta(cierre.saludSalida) == com.duoc.aquaflow.model.EstadoSeccion.COMPLETA) {
             "Completa la encuesta de salud de salida."
@@ -78,36 +85,56 @@ interface PreChequeoDao {
         guardar(fila.copy(cierreJson = FaenaCodec.cierreATexto(registro), actualizadoEn = ahora))
     }
 
-    suspend fun guardarDecisionValidada(id: String, decision: RegistroDecision) {
+    @Query("UPDATE aperturas SET intentosBloqueadosJson = :json WHERE id = :id")
+    suspend fun actualizarIntentos(id: String, json: String)
+
+    @Transaction
+    suspend fun registrarBloqueo(apertura: AperturaEntity, intento: IntentoBloqueado) {
+        val previa = buscar(apertura.id)
+        if (previa == null) guardar(apertura)
+        else require(previa.supervisorACargo == apertura.supervisorACargo)
+        anexarIntento(previa ?: apertura, intento)
+    }
+
+    private suspend fun anexarIntento(fila: AperturaEntity, intento: IntentoBloqueado) {
+        val intentos = FaenaCodec.intentosBloqueadosDesde(fila.intentosBloqueadosJson) + intento
+        actualizarIntentos(fila.id, FaenaCodec.intentosBloqueadosATexto(intentos))
+    }
+
+    @Transaction
+    suspend fun guardarDecisionValidada(id: String, decision: RegistroDecision, soloAuditar: Boolean = false): String? {
         val fila = checkNotNull(buscar(id)) { "La faena no existe." }
         check(fila.decisionJson == null) { "La faena ya tiene una decisión." }
-        val resultado = checkNotNull(ReglasDecision.resultado(fila.aFaena().resumen)) {
-            "Completa las secciones antes de decidir."
+        val resumen = fila.aFaena().resumen
+        val evaluacion = ReglasDecision.evaluar(resumen)
+        if (soloAuditar && (decision.decision != Decision.AUTORIZADA || evaluacion.resultado != ResultadoFaena.REQUIERE_REVISION)) {
+            error("La faena ya no presenta un bloqueo crítico.")
         }
-        val error = ReglasDecision.errorDecision(decision.decision, resultado, decision.motivo)
+        val error = ReglasDecision.errorDecision(decision.decision, evaluacion.resultado, decision.motivo)
+            ?: "Completa las secciones antes de decidir.".takeIf { ReglasDecision.faltantes(resumen).isNotEmpty() }
         if (error != null) {
-            val intentos = FaenaCodec.intentosBloqueadosDesde(fila.intentosBloqueadosJson) +
-                com.duoc.aquaflow.model.IntentoBloqueado(
+            anexarIntento(
+                fila,
+                IntentoBloqueado(
                     responsable = decision.decididoPor.ifBlank { "usuario no identificado" },
                     fecha = System.currentTimeMillis(),
                     motivo = buildString {
                         append(error)
+                        evaluacion.motivos.forEach { append(" ").append(it) }
                         decision.motivo.trim().takeIf { it.isNotEmpty() }?.let {
                             append(". Justificación ingresada: ")
                             append(it)
                         }
                     },
-                    accion = "AUTORIZAR_FAENA"
+                    accion = decision.decision.name
                 )
-            guardar(fila.copy(
-                intentosBloqueadosJson = FaenaCodec.intentosBloqueadosATexto(intentos),
-                actualizadoEn = System.currentTimeMillis()
-            ))
-            throw IllegalArgumentException(error)
+            )
+            return error
         }
         check(guardarDecision(id, FaenaCodec.decisionATexto(decision.copy(motivo = decision.motivo.trim())), System.currentTimeMillis()) == 1) {
             "La faena no existe o ya tiene una decisión."
         }
+        return null
     }
 
     // Una decisión ya tomada no se sobrescribe (queda como respaldo de auditoría).

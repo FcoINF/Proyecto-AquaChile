@@ -101,7 +101,8 @@ class PanelAdministradorTest {
         repo.iniciar("f1", supervisor)
         advanceUntilIdle()
         assertEquals(EstadoFaena.EN_EJECUCION, vm.state.value.faenas.single().estado)
-        repo.cerrar("f1", RegistroCierre(30, "Sin novedades", true, saludSalida = saludSalida()), supervisor)
+        repo.cerrar("f1", RegistroCierre(30, "Sin novedades", true, saludSalida = saludSalida(),
+            mediciones = MedicionesInmersion(25, 16.0, 20.0, 8.0, OrigenMedicion.MANUAL)), supervisor)
         advanceUntilIdle()
         assertEquals(GrupoFaena.CERRADAS, ReglasPanel.grupo(vm.state.value.faenas.single()))
         assertEquals("Luis", vm.state.value.faenas.single().cierre!!.cerradoPor)

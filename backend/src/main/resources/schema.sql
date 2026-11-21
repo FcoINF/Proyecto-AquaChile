@@ -7,6 +7,16 @@ CREATE TABLE IF NOT EXISTS aperturas (
 
 CREATE INDEX IF NOT EXISTS aperturas_supervisor ON aperturas(supervisor);
 
+CREATE TABLE IF NOT EXISTS cierres_historicos (
+    id UUID PRIMARY KEY REFERENCES aperturas(id),
+    cerrado_en BIGINT NOT NULL,
+    tiempo_fondo INT NOT NULL,
+    profundidad DOUBLE PRECISION NOT NULL,
+    descenso DOUBLE PRECISION NOT NULL,
+    ascenso DOUBLE PRECISION NOT NULL,
+    origen VARCHAR(12) NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS expedientes (
     id UUID PRIMARY KEY REFERENCES aperturas(id),
     version BIGINT NOT NULL,

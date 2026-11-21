@@ -56,6 +56,7 @@ object Ruta {
     const val BORRADORES = "borradores"
     const val HISTORIAL = "historial"
     const val APERTURAS_RECIBIDAS = "aperturas-recibidas"
+    const val CIERRES_RECIBIDOS = "cierres-recibidos"
     const val DETALLE_APERTURA = "historial/{aperturaId}"
     const val FAENA = "faena?aperturaId={aperturaId}"
     const val APERTURA = "faena/apertura"
@@ -158,14 +159,20 @@ fun AquaFlowNavHost(backendUrl: String = "") {
             }
         }
 
-        composable(Ruta.APERTURAS_RECIBIDAS) {
-            if (usuario?.rol == Rol.JEFE && servidor != null) {
-                val factory = remember(servidor) {
-                    viewModelFactory { initializer { AperturasRecibidasViewModel(servidor) } }
+        listOf(Ruta.APERTURAS_RECIBIDAS, Ruta.CIERRES_RECIBIDOS).forEach { ruta ->
+            composable(ruta) {
+                if (usuario?.rol == Rol.JEFE && servidor != null) {
+                    val factory = remember(servidor) {
+                        viewModelFactory { initializer { AperturasRecibidasViewModel(servidor) } }
+                    }
+                    val vm: AperturasRecibidasViewModel = viewModel(factory = factory)
+                    val state by vm.state.collectAsState()
+                    AperturasRecibidasScreen(
+                        state, vm::actualizar,
+                        soloCierres = ruta == Ruta.CIERRES_RECIBIDOS,
+                        onVolver = { nav.popBackStack() }
+                    )
                 }
-                val vm: AperturasRecibidasViewModel = viewModel(factory = factory)
-                val state by vm.state.collectAsState()
-                AperturasRecibidasScreen(state, vm::actualizar) { nav.popBackStack() }
             }
         }
 
@@ -203,6 +210,9 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                     onTexto = vm::onTexto, onCategoria = vm::onCategoria, onFecha = vm::onFecha,
                     onLimpiar = vm::limpiar, onReintentar = vm::reintentar,
                     onDetalle = { nav.navigate("historial/${Uri.encode(it)}") },
+                    onCierresRecibidos = if (actual.rol == Rol.JEFE && servidor != null) {
+                        { nav.navigate(Ruta.CIERRES_RECIBIDOS) }
+                    } else null,
                     onSalir = {
                         sesion.salir()
                         ultimaEncuesta = null
@@ -219,8 +229,10 @@ fun AquaFlowNavHost(backendUrl: String = "") {
         ) { entrada ->
             usuario?.let { actual ->
                 val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
-                val factory = remember(repository, actual, id) {
-                    viewModelFactory { initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository) } }
+                val factory = remember(repository, actual, id, servidor) {
+                    viewModelFactory {
+                        initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository, servidor) }
+                    }
                 }
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
                 val state by vm.state.collectAsState()
@@ -232,9 +244,12 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
                         onDecidir = vm::decidir,
+                        onAuditarAutorizacion = vm::auditarAutorizacion,
                         onVolver = { nav.popBackStack() },
                         onFinalizar = { nav.popBackStack() },
                         onCerrar = vm::cerrar,
+                        onPublicarCierre = servidor?.let { vm::publicarCierre },
+                        cierrePublicado = state.cierrePublicado,
                         onIniciar = vm::iniciar,
                         ocupado = state.guardando,
                         errorExterno = state.errorDecision
@@ -296,6 +311,9 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                     faenaId = ui.apertura.id,
                     checklistInicial = ui.checklist,
                     centroCultivo = ui.apertura.centroCultivo,
+                    supervisor = ui.apertura.supervisorACargo,
+                    mensaje = ui.mensaje,
+                    onBloqueo = { faena.registrarBloqueo("Continuar desde checklist", it) },
                     onGuardar = { checklist ->
                         faena.registrarChecklist(checklist) { nav.navigate(Ruta.SALUD) }
                     },
@@ -365,6 +383,8 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                 AstScreen(
                     vm = astVm,
                     ocupado = ui.ocupado, errorExterno = ui.error,
+                    mensaje = ui.mensaje,
+                    onBloqueo = { faena.registrarBloqueo("Continuar desde AST", it) },
                     centro = ui.apertura.centroCultivo.ifBlank { "Centro por definir" },
                     fecha = ui.apertura.fecha.ifBlank { "Sin fecha" },
                     onGuardar = { ast ->

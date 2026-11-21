@@ -100,6 +100,7 @@ fun HistorialScreen(
     onReintentar: () -> Unit,
     onDetalle: (String) -> Unit,
     onTab: (Tab) -> Unit,
+    onCierresRecibidos: (() -> Unit)? = null,
     onSalir: () -> Unit
 ) {
     val filtro = state.filtro
@@ -259,6 +260,11 @@ fun HistorialScreen(
                 }
             }
 
+            if (onCierresRecibidos != null) item {
+                OutlinedButton(onClick = onCierresRecibidos, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cierres recibidos y alertas")
+                }
+            }
             when {
                 state.cargando -> item {
                     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -361,6 +367,7 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
                     MetricaFaena("PRESIÓN", item.encuesta?.let { "${it.sistolica}/${it.diastolica}" } ?: "—", Modifier.weight(1f))
                     MetricaFaena("SPO₂", item.encuesta?.let { "${it.saturacion}%" } ?: "—", Modifier.weight(1f))
                 }
+                item.alertasVelocidad.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
                 if (item.estado == EstadoFaena.PRECHEQUEO && (item.resultado == ResultadoFaena.OBSERVADO || item.resultado == ResultadoFaena.REQUIERE_REVISION)) {
                     Surface(color = Color(0xFFEAF1FF), shape = RoundedCornerShape(7.dp)) {
                         Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {

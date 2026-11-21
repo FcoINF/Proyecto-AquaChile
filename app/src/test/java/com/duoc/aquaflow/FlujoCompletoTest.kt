@@ -14,7 +14,8 @@ class FlujoCompletoTest {
     private val supervisor = Usuario("supervisor", "1234", Rol.SUPERVISOR)
     private val jefe = Usuario("jefe", "1234", Rol.JEFE)
     private val inicial = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
-    private val cierre = RegistroCierre(30, "Revisión final", true, saludSalida = saludSalida())
+    private val cierre = RegistroCierre(30, "Revisión final", true, saludSalida = saludSalida(),
+        mediciones = MedicionesInmersion(25, 15.0, 20.0, 8.0, OrigenMedicion.MANUAL))
     private suspend fun preparar(repo: PreChequeoRepository) {
         repo.guardar(PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", supervisor.nombre, true, true, true))
         repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4")))
@@ -44,6 +45,7 @@ class FlujoCompletoTest {
         assertTrue(runCatching { repo.iniciar("f1", supervisor) }.isFailure)
         assertTrue(runCatching { repo.guardarTareas("f1", tareasCompletas()) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(saludSalida = null), supervisor) }.isFailure)
+        assertTrue(runCatching { repo.cerrar("f1", cierre.copy(mediciones = null), supervisor) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(saludSalida = saludSalida().copy(saturacion = 0)), supervisor) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(saludSalida = saludSalida().copy(estado = EstadoSeccion.BORRADOR)), supervisor) }.isFailure)
         assertTrue(runCatching { repo.cerrar("f1", cierre, jefe) }.isFailure)

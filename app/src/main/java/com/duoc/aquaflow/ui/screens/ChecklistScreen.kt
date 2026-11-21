@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,7 @@ import com.duoc.aquaflow.data.local.EvidenciasFotos
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.ItemChecklist
@@ -35,6 +37,9 @@ import com.duoc.aquaflow.ui.components.SeccionFotos
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.ChecklistViewModel
 import com.duoc.aquaflow.domain.ReglasSecciones
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ChecklistScreen(
@@ -45,7 +50,10 @@ fun ChecklistScreen(
     onGuardar: (ChecklistFaena) -> Unit,
     onGuardarBorrador: (ChecklistFaena) -> Unit,
     onVolver: () -> Unit,
-    centroCultivo: String = "Centro sin asignar - Jaula 24"
+    centroCultivo: String = "Centro sin asignar - Jaula 24",
+    supervisor: String = "",
+    onBloqueo: ((String) -> Unit)? = null,
+    mensaje: String? = null
 ) {
     val context = LocalContext.current
     val vm: ChecklistViewModel = viewModel(key = "checklist-$faenaId")
@@ -56,17 +64,47 @@ fun ChecklistScreen(
         val uri = vm.ui.value.pendiente?.let(Uri::parse)
         val guardada = resultado && uri != null && EvidenciasFotos.existe(context, uri)
         if (!guardada && uri != null) EvidenciasFotos.descartar(context, uri)
-        vm.terminarFoto(guardada)
+        vm.terminarFoto(guardada, supervisor)
+    }
+    val scope = rememberCoroutineScope()
+    var fotoAComparar by rememberSaveable(faenaId) { mutableStateOf<String?>(null) }
+    var importando by remember { mutableStateOf(false) }
+    val importarReferencia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { origen ->
+        val foto = fotoAComparar
+        fotoAComparar = null
+        if (origen != null && foto != null) {
+            importando = true
+            scope.launch {
+                try {
+                    val copia = withContext(Dispatchers.IO) { EvidenciasFotos.importarReferencia(context, origen) }
+                    vm.referencia(foto, copia.toString())
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    vm.errorReferencia()
+                } finally {
+                    importando = false
+                }
+            }
+        }
     }
 
     Guardando(ocupado)
 
     ChecklistScreenContent(
-        ocupado = ocupado,
+        ocupado = ocupado || importando,
         error = errorExterno ?: ui.error,
         items = ui.items,
         fotos = ui.fotos,
         fotosPorEquipo = ui.fotosPorEquipo,
+        metadatos = ui.metadatosPorFoto,
+        onElegirReferencia = { foto ->
+            fotoAComparar = foto
+            importarReferencia.launch("image/*")
+        },
+        onComparar = vm::comparar,
+        onBloqueo = onBloqueo,
+        mensaje = mensaje,
         onEstadoCambiado = vm::cambiarEstado,
         onTomarFotoClick = { itemId ->
             if (ui.pendiente == null) {
@@ -106,7 +144,12 @@ fun ChecklistScreenContent(
     onGuardarClick: () -> Unit,
     onGuardarBorradorClick: () -> Unit,
     onVolver: () -> Unit,
-    centroCultivo: String = "Centro sin asignar - Jaula 24"
+    centroCultivo: String = "Centro sin asignar - Jaula 24",
+    metadatos: Map<String, MetadatosFoto> = emptyMap(),
+    onElegirReferencia: ((String) -> Unit)? = null,
+    onComparar: ((String, Boolean) -> Unit)? = null,
+    onBloqueo: ((String) -> Unit)? = null,
+    mensaje: String? = null
 ) {
     val checklistCompletable = ReglasSecciones.checklistHabilitaContinuidad(
         ChecklistFaena("validacion-ui", items, fotos, fotosPorEquipo = fotosPorEquipo)
@@ -189,7 +232,10 @@ fun ChecklistScreenContent(
                             fotos = fotos,
                             nombresPorFoto = nombresPorFoto,
                             categoriasPorFoto = categoriasPorFoto,
-                            onQuitar = onQuitarFoto
+                            onQuitar = onQuitarFoto.takeUnless { ocupado },
+                            metadatos = metadatos,
+                            onElegirReferencia = onElegirReferencia.takeUnless { ocupado },
+                            onComparar = onComparar.takeUnless { ocupado }
                         )
                     }
                 }
@@ -202,12 +248,18 @@ fun ChecklistScreenContent(
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
-            if (items.any { it.estado == EstadoEquipo.NO_CUMPLE }) {
+            mensaje?.let { Text(it) }
+            val bloqueados = items.filter { it.estado == EstadoEquipo.NO_CUMPLE }
+            if (bloqueados.isNotEmpty()) {
+                val motivo = "Equipo crítico sin conformidad: ${bloqueados.joinToString { it.titulo }}."
                 Text(
-                    "Faena bloqueada: uno o más equipos críticos están en rojo. La evidencia fotográfica no habilita la continuidad.",
+                    "Faena bloqueada. $motivo",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
+                if (onBloqueo != null) TextButton(onClick = { onBloqueo(motivo) }, enabled = !ocupado) {
+                    Text("Registrar intento bloqueado")
+                }
             }
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {

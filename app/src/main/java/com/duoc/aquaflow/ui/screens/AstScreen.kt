@@ -69,7 +69,9 @@ fun AstScreen(
     fecha: String,
     onGuardar: (FormularioAst) -> Unit,
     onGuardarBorrador: (FormularioAst) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    onBloqueo: ((String) -> Unit)? = null,
+    mensaje: String? = null
 ) {
     val ui by vm.ui.collectAsState()
     com.duoc.aquaflow.ui.components.Guardando(ocupado)
@@ -100,7 +102,11 @@ fun AstScreen(
             Column(Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(
                     enabled = !ocupado,
-                    onClick = { vm.guardar()?.let(onGuardar) },
+                    onClick = {
+                        val bloqueos = com.duoc.aquaflow.domain.ReglasAst.condicionesCriticasIncumplidas(ui.respuestas)
+                        if (bloqueos.isNotEmpty()) onBloqueo?.invoke(bloqueos.joinToString(" "))
+                        vm.guardar()?.let(onGuardar)
+                    },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                     shape = RoundedCornerShape(9.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AzulAst)
@@ -202,6 +208,8 @@ fun AstScreen(
                 }
             }
 
+            ui.resultado?.let { com.duoc.aquaflow.ui.components.SemaforoAst(it) }
+            mensaje?.let { Text(it) }
             (errorExterno ?: ui.error)?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }

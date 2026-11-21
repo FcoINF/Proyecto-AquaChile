@@ -216,6 +216,9 @@ fun AperturaFaenaScreen(
                 }
                 bloqueoEsfuerzo?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = onContinuar, enabled = !ui.ocupado) {
+                        Text("Registrar intento bloqueado")
+                    }
                 }
                 androidx.compose.material3.OutlinedButton(
                     onClick = onGuardar,

@@ -136,6 +136,27 @@ class FaenaViewModel(
         return error == null
     }
 
+    fun registrarBloqueo(accion: String, motivo: String) {
+        val estado = _ui.value
+        if (!persistenciaHabilitada || estado.ocupado || estado.apertura.id.isBlank()) return
+        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
+        viewModelScope.launch {
+            try {
+                val apertura = estado.apertura
+                borradores.registrarBloqueo(apertura, com.duoc.aquaflow.model.IntentoBloqueado(
+                    apertura.supervisorACargo, System.currentTimeMillis(), motivo, accion
+                ))
+                _ui.update { it.copy(mensaje = "Intento registrado en la bitácora.") }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = "No se pudo registrar el bloqueo. ${e.localizedMessage.orEmpty()}") }
+            } finally {
+                _ui.update { it.copy(ocupado = false) }
+            }
+        }
+    }
+
     // Un borrador puede estar incompleto. Para avanzar sí se valida todo.
     fun guardarApertura(continuar: Boolean = false, alGuardar: () -> Unit = {}) {
         if (_ui.value.ocupado || _ui.value.apertura.id.isBlank()) return
@@ -145,7 +166,10 @@ class FaenaViewModel(
         }
         val apertura = completarFechaHora(_ui.value.apertura)
         _ui.update { it.copy(apertura = apertura) }
-        if (continuar && !confirmarApertura()) return
+        if (continuar && !confirmarApertura()) {
+            Reglas.bloqueoTestEsfuerzo(_ui.value.apertura)?.let { registrarBloqueo("Confirmar apertura", it) }
+            return
+        }
         if (!persistenciaHabilitada) {
             _ui.update {
                 it.copy(
@@ -217,6 +241,11 @@ class FaenaViewModel(
 
     fun registrarChecklist(checklist: ChecklistFaena, alGuardar: () -> Unit = {}): Boolean {
         if (!puedeRegistrar()) return false
+        val criticos = checklist.items.filter { it.estado == com.duoc.aquaflow.model.EstadoEquipo.NO_CUMPLE }
+        if (criticos.isNotEmpty()) {
+            registrarBloqueo("Continuar desde checklist", "Equipo crítico sin conformidad: ${criticos.joinToString { it.titulo }}.")
+            return false
+        }
         _ui.update { it.copy(checklist = checklist) }
         return persistir("el checklist", alGuardar) { r, id -> r.guardarChecklist(id, checklist) }
     }

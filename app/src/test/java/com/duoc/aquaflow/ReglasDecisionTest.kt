@@ -48,6 +48,8 @@ class ReglasDecisionTest {
         val r = resumen(checklist = null)
         assertNull(ReglasDecision.resultado(r))
         assertEquals(listOf("Checklist"), ReglasDecision.faltantes(r))
+        assertEquals(ResultadoFaena.OBSERVADO, ReglasDecision.evaluar(r).resultado)
+        assertTrue(ReglasDecision.evaluar(r).motivos.any { "Checklist" in it })
     }
 
     @Test fun checklistConPendientes_cuentaComoFaltante() =
@@ -81,6 +83,13 @@ class ReglasDecisionTest {
     @Test fun ganaElPeor() =
         assertEquals(ResultadoFaena.REQUIERE_REVISION,
             ReglasDecision.resultado(resumen(checklist = cl(EstadoEquipo.OBSERVADO), encuesta = salud(sat = 90))))
+
+    @Test fun respuestaCriticaInvalidaSuperaLaRevisionPendiente() {
+        val ast = astDe().copy(respuestas = listOf(false, null, null, null, null))
+        val evaluacion = ReglasDecision.evaluar(resumen(checklist = null, ast = ast))
+        assertEquals(ResultadoFaena.REQUIERE_REVISION, evaluacion.resultado)
+        assertTrue(evaluacion.motivos.any { it.startsWith("AST:") })
+    }
 
     @Test fun soloLaJefaturaDecide() {
         assertTrue(ReglasDecision.puedeDecidir(Rol.JEFE))

@@ -21,13 +21,19 @@ class CierreFormularioUiTest {
         compose.onNodeWithText("Cerrar faena").performScrollTo().performClick()
         compose.onNodeWithText("Ingresa la duración", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Tiempo de inmersión (minutos)").performScrollTo().performTextInput("25")
+        compose.onNodeWithText("Tiempo de fondo (minutos)").performScrollTo().performTextInput("20")
+        compose.onNodeWithText("Profundidad máxima (m)").performScrollTo().performTextInput("18")
+        compose.onNodeWithText("Velocidad máxima de descenso (m/min)").performScrollTo().performTextInput("25")
+        compose.onNodeWithText("Velocidad máxima de ascenso (m/min)").performScrollTo().performTextInput("9")
+        compose.onNodeWithText("Registro manual").performScrollTo().performClick()
         compose.onNodeWithText("Observaciones de salida").performScrollTo().performTextInput("Sin novedades")
-        compose.onAllNodes(isToggleable())[0].performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Revisión de salida realizada").performScrollTo().performClick()
         compose.onNodeWithText("Presión sistólica de salida").performScrollTo().performTextInput("125")
         compose.onNodeWithText("Presión diastólica de salida").performScrollTo().performTextInput("82")
         compose.onNodeWithText("Saturación de salida (%)").performScrollTo().performTextInput("97")
         compose.onNodeWithText("Cerrar faena").performScrollTo().performClick()
         compose.runOnIdle { assertNull(enviado) }
+        compose.onNodeWithText("superó 24 m/min", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Confirmar cierre", substring = false).performClick()
         compose.runOnIdle { assertEquals(25, enviado!!.duracionMinutos); assertTrue(enviado!!.revisionSalida) }
     }

@@ -39,7 +39,7 @@ class HistorialViewModel(consulta: ConsultaAperturas, usuario: Usuario) : ViewMo
             HistorialUiState(
                 cargando = false,
                 total = items.size,
-                tiempoFondoMinutos = lista.sumOf { it.cierre?.duracionMinutos ?: 0 },
+                tiempoFondoMinutos = lista.sumOf { it.cierre?.mediciones?.tiempoFondoMinutos ?: 0 },
                 alertas = items.count { it.resultado == com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO || it.resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION },
                 buzosActivos = items.filter { it.estado == EstadoFaena.EN_EJECUCION }.map { it.buzoAsignado }.filter(String::isNotBlank).distinct().size,
                 aprobadas = items.count { it.estado == EstadoFaena.AUTORIZADA || it.estado == EstadoFaena.CERRADA },

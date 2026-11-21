@@ -117,7 +117,9 @@ En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080
 
 ### Límites del alcance actual
 
-El servidor autentica y recibe las aperturas confirmadas. Checklist, fotos, salud, AST, tareas, decisión y cierre pertenecen al flujo local de Room. Quedan pendientes la sincronización automática, el traslado del expediente completo y las validaciones de aprobación y cierre en el servidor. Las cuentas, catálogos y reglas de salud son de demostración académica.
+Room conserva el expediente, el cierre y la bitácora de bloqueos. En el checklist, **Elegir referencia** importa una imagen local y **Comparar fotos** permite registrar el resultado de la revisión visual. La aplicación guarda la fecha, el responsable y el equipo de cada captura.
+
+Al guardar un cierre en modo conectado, Android publica las mediciones de la inmersión. Si falla el envío, el supervisor puede reintentarlo desde el detalle de la faena. Jefatura puede consultar las mediciones y las alertas en **Historial → Cierres recibidos y alertas**. La aprobación del expediente, la sincronización automática y el envío de fotos pertenecen al paso 2. Las cuentas, catálogos y reglas de salud son de demostración académica.
 
 Los archivos capturados se conservan en almacenamiento privado. Quitar una referencia del checklist no elimina inmediatamente el archivo, para evitar borrar una evidencia ya guardada antes de confirmar la edición. La limpieza de archivos huérfanos queda pendiente.
 

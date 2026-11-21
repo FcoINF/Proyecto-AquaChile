@@ -36,6 +36,7 @@ import com.duoc.aquaflow.domain.ReglasSecciones
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.ui.components.CierreFaenaFormulario
+import com.duoc.aquaflow.ui.components.DatosMediciones
 import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.SemaforoAst
@@ -44,7 +45,7 @@ import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.theme.AquaAzul
 import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 import com.duoc.aquaflow.ui.theme.AquaVerde
-import com.duoc.aquaflow.ui.theme.SemaforoAzul
+import com.duoc.aquaflow.ui.theme.SemaforoAmarillo
 import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -70,7 +71,10 @@ fun DetalleFaenaScreen(
     onCerrar: ((RegistroCierre) -> Unit)? = null,
     onIniciar: (() -> Unit)? = null,
     ocupado: Boolean = false,
-    errorExterno: String? = null
+    errorExterno: String? = null,
+    onPublicarCierre: (() -> Unit)? = null,
+    cierrePublicado: Boolean = false,
+    onAuditarAutorizacion: ((String) -> Unit)? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resumen = faena.resumen
@@ -145,14 +149,34 @@ fun DetalleFaenaScreen(
                     onDecidir = onDecidir,
                     motivo = ui.motivo,
                     uiError = ui.error,
-                    puedeDecidir = resultado != null && !ocupado
+                    puedeDecidir = resultado != null && !ocupado,
+                    ocupado = ocupado,
+                    onAuditarAutorizacion = onAuditarAutorizacion
                 )
+            }
+            if (faena.intentosBloqueados.isNotEmpty()) item {
+                SeccionDetalle("Bitácora de bloqueos", Icons.Filled.Warning, subtitulo = "Intentos registrados") {
+                    faena.intentosBloqueados.asReversed().forEach { intento ->
+                        val accion = when (intento.accion) {
+                            "AUTORIZAR_FAENA", "AUTORIZADA" -> "Autorizar faena"
+                            "RECHAZADA" -> "Rechazar faena"
+                            else -> intento.accion
+                        }
+                        Text(accion, style = MaterialTheme.typography.titleSmall)
+                        Text("${formatearFecha(intento.fecha)} · ${intento.responsable}")
+                        Text(intento.motivo, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
 
             val propietario = rol == Rol.SUPERVISOR && apertura.supervisorACargo == nombreUsuario
             if (faena.inicio != null) item { Text("Inicio: ${formatearFecha(faena.inicio.iniciadoEn)} · ${faena.inicio.iniciadoPor}") }
             if (propietario && faena.estado == EstadoFaena.AUTORIZADA && onIniciar != null) item {
-                Button(onClick = onIniciar, enabled = !ocupado && faltantes.isEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Cierre faena") }
+                Button(
+                    onClick = onIniciar,
+                    enabled = !ocupado && resultado != null && resultado != ResultadoFaena.REQUIERE_REVISION,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Cierre faena") }
             }
             val cierre = faena.cierre
             when {
@@ -161,6 +185,10 @@ fun DetalleFaenaScreen(
                     Text("Salud de salida · Buzo: ${apertura.buzoAsignado}")
                     if (cierre.saludSalida != null) SeccionSalud(cierre.saludSalida)
                     else Text("Cierre histórico sin encuesta de salida registrada.")
+                    if (propietario && cierre.mediciones != null && onPublicarCierre != null) {
+                        if (cierrePublicado) Text("Cierre publicado para jefatura.")
+                        else OutlinedButton(onClick = onPublicarCierre, enabled = !ocupado) { Text("Enviar cierre a jefatura") }
+                    }
                 }
                 propietario && faena.estado == EstadoFaena.EN_EJECUCION && onCerrar != null -> item {
                     SeccionDetalle(
@@ -194,7 +222,7 @@ fun DetalleFaenaScreen(
 @Composable
 private fun CabeceraFaena(faena: FaenaGuardada) {
     val apertura = faena.resumen.apertura
-    val resultado = ReglasDecision.resultado(faena.resumen)
+    val evaluacion = ReglasDecision.evaluar(faena.resumen)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -254,8 +282,9 @@ private fun CabeceraFaena(faena: FaenaGuardada) {
                 )
             }
 
-            if (resultado != null) {
-                SemaforoFaena(resultado)
+            SemaforoFaena(evaluacion.resultado)
+            evaluacion.motivos.forEach {
+                Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall)
             }
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
@@ -562,7 +591,8 @@ private fun SeccionChecklist(checklist: ChecklistFaena?, estado: EstadoSeccion) 
             EvidenciasGaleria(
                 fotos = fotos,
                 nombresPorFoto = nombresPorFoto,
-                categoriasPorFoto = categoriasPorFoto
+                categoriasPorFoto = categoriasPorFoto,
+                metadatos = checklist?.metadatosPorFoto.orEmpty()
             )
         }
     }
@@ -669,8 +699,11 @@ private fun SeccionDecision(
     onDecidir: (RegistroDecision) -> Unit,
     motivo: String,
     uiError: String?,
-    puedeDecidir: Boolean
+    puedeDecidir: Boolean,
+    ocupado: Boolean,
+    onAuditarAutorizacion: ((String) -> Unit)?
 ) {
+    val rojo = ReglasDecision.evaluar(resumen).resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION
     SeccionDetalle(
         titulo = "Decisión",
         icono = Icons.AutoMirrored.Filled.Assignment,
@@ -737,12 +770,17 @@ private fun SeccionDecision(
             }
 
             else -> {
-                if (ReglasDecision.resultado(resumen) == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION) {
+                if (rojo) {
                     Text(
                         "Autorización bloqueada: el expediente está en rojo. Una justificación no puede omitir un bloqueo crítico.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error
                     )
+                    if (onAuditarAutorizacion != null) {
+                        TextButton(enabled = !ocupado, onClick = { onAuditarAutorizacion(motivo.trim()) }) {
+                            Text("Registrar intento bloqueado")
+                        }
+                    }
                 }
                 Text(
                     "Revisa el expediente y registra la decisión de la jefatura.",
@@ -763,8 +801,7 @@ private fun SeccionDecision(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        enabled = puedeDecidir &&
-                            ReglasDecision.resultado(resumen) != com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION,
+                        enabled = puedeDecidir && !rojo,
                         onClick = {
                             vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },
@@ -806,6 +843,7 @@ private fun SeccionCierre(cierre: RegistroCierre) {
             )
         }
 
+        cierre.mediciones?.let { DatosMediciones(it) }
         if (cierre.observaciones.isNotBlank()) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -993,7 +1031,7 @@ private fun FilaEquipo(item: ItemEquipamiento) {
     val color = when (item.estado) {
         EstadoEquipo.CUMPLE -> AquaVerde
         EstadoEquipo.NO_CUMPLE -> MaterialTheme.colorScheme.error
-        EstadoEquipo.OBSERVADO -> SemaforoAzul
+        EstadoEquipo.OBSERVADO -> SemaforoAmarillo
         EstadoEquipo.PENDIENTE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val icono = when (item.estado) {

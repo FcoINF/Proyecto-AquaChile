@@ -69,6 +69,14 @@ class FaenasController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Publicar las mediciones históricas de una faena propia")
+    @PutMapping(value = "/faenas/{id}/cierre-historico", consumes = "application/json")
+    ResponseEntity<Void> publicarCierre(
+            @PathVariable UUID id, @Valid @RequestBody CierreHistorico cierre, Authentication cuenta) {
+        faenas.publicarCierre(id, cuenta.getName(), cierre);
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail datosInvalidos(MethodArgumentNotValidException error) {
         var campos = error.getBindingResult().getFieldErrors().stream()

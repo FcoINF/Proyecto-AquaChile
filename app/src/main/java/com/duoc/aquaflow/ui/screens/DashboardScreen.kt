@@ -329,7 +329,7 @@ private fun UltimaFaenaCard(faena: FaenaGuardada?, onVerHistorial: () -> Unit) {
     val estadoFondo = if (estado == "Aprobado" || estado == "Finalizada") Color(0xFFE7FBF3) else Color(0xFFE6F0FF)
     val detalle = if (faena == null) "Finalizada hoy 10:42 hrs - Jaula 12"
     else "${apertura?.fecha.orEmpty()} · ${apertura?.hora.orEmpty()} - ${apertura?.centroCultivo?.ifBlank { "Faena" }}"
-    val minutos = faena?.cierre?.duracionMinutos ?: 38
+    val mediciones = faena?.cierre?.mediciones
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -365,9 +365,8 @@ private fun UltimaFaenaCard(faena: FaenaGuardada?, onVerHistorial: () -> Unit) {
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE1E5E9)))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricaFaena("◷ TIEMPO", "$minutos", "MIN", Modifier.weight(1f))
-                MetricaFaena("↧ PROF. MÁX", "24.6", "M", Modifier.weight(1f))
-                MetricaFaena("◉ CONSUMO", "145", "BAR", Modifier.weight(1f), resaltar = true)
+                MetricaFaena("TIEMPO FONDO", mediciones?.tiempoFondoMinutos?.toString() ?: "—", "MIN", Modifier.weight(1f))
+                MetricaFaena("PROF. MÁX", mediciones?.profundidadMaximaMetros?.toString() ?: "—", "M", Modifier.weight(1f))
             }
             TextButton(onClick = onVerHistorial, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                 Text("Ver Bitácora de Inmersión Completa →", color = AzulAccion, style = MaterialTheme.typography.labelLarge)
@@ -377,7 +376,7 @@ private fun UltimaFaenaCard(faena: FaenaGuardada?, onVerHistorial: () -> Unit) {
 }
 
 @Composable
-private fun MetricaFaena(label: String, value: String, unit: String, modifier: Modifier = Modifier, resaltar: Boolean = false) {
+private fun MetricaFaena(label: String, value: String, unit: String, modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = AquaGrisSuave, shape = RoundedCornerShape(12.dp)) {
         Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
@@ -386,7 +385,7 @@ private fun MetricaFaena(label: String, value: String, unit: String, modifier: M
         ) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3), maxLines = 1)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(value, style = MaterialTheme.typography.titleLarge, color = if (resaltar) VerdeEstado else AquaAzul)
+                Text(value, style = MaterialTheme.typography.titleLarge, color = AquaAzul)
                 Text(unit, style = MaterialTheme.typography.labelSmall, color = Color(0xFF6F7D90), modifier = Modifier.padding(bottom = 3.dp))
             }
         }

@@ -99,6 +99,30 @@ class FaenasApiTest {
     }
 
     @Test
+    void supervisorPublicaUnCierreUnicoYJefaturaConsultaSusMediciones() throws Exception {
+        UUID id = UUID.randomUUID();
+        faenas.guardar(id, "supervisor", json.treeToValue(datos(), AperturaDatos.class));
+        String ruta = "/api/faenas/" + id + "/cierre-historico";
+        String cierre = """
+                {"cerradoEn":1795110000000,"tiempoFondoMinutos":25,"profundidadMaximaMetros":18,
+                "descensoMaximo":25,"ascensoMaximo":10,"origen":"CENSUS"}
+                """;
+        mvc.perform(put(ruta).headers(jefe()).contentType(MediaType.APPLICATION_JSON).content(cierre))
+                .andExpect(status().isForbidden());
+        mvc.perform(put(ruta).headers(supervisor()).contentType(MediaType.APPLICATION_JSON).content(cierre))
+                .andExpect(status().isNoContent());
+        mvc.perform(put(ruta).headers(supervisor()).contentType(MediaType.APPLICATION_JSON).content(cierre))
+                .andExpect(status().isNoContent());
+        mvc.perform(put(ruta).headers(supervisor()).contentType(MediaType.APPLICATION_JSON)
+                        .content(cierre.replace("CENSUS", "MANUAL")))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/faenas/" + id).headers(jefe()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cierre.descensoMaximo").value(25.0))
+                .andExpect(jsonPath("$.cierre.origen").value("CENSUS"));
+    }
+
+    @Test
     void swaggerDescribeLasRutasYPermiteAutorizarUnaCuenta() throws Exception {
         mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
         mvc.perform(get("/v3/api-docs"))

@@ -20,18 +20,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.DatosMediciones
 import com.duoc.aquaflow.viewmodel.AperturasRecibidasUiState
+import java.text.DateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AperturasRecibidasScreen(
     state: AperturasRecibidasUiState,
     onActualizar: () -> Unit,
+    soloCierres: Boolean = false,
     onVolver: () -> Unit
 ) {
+    val registros = if (soloCierres) state.aperturas.filter { it.cierre != null }
+        .sortedByDescending { it.cierre?.cerradoEn } else state.aperturas
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("Aperturas recibidas") },
+            title = { Text(if (soloCierres) "Cierres recibidos" else "Aperturas recibidas") },
             navigationIcon = {
                 IconButton(onClick = onVolver) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -52,17 +58,22 @@ fun AperturasRecibidasScreen(
                 state.error != null -> item {
                     Text(state.error, color = MaterialTheme.colorScheme.error)
                 }
-                state.aperturas.isEmpty() -> item { Text("Aún no hay aperturas confirmadas.") }
+                registros.isEmpty() -> item {
+                    Text(if (soloCierres) "Aún no hay cierres publicados." else "Aún no hay aperturas confirmadas.")
+                }
             }
-            items(state.aperturas, key = { it.id }) { apertura ->
+            items(registros, key = { it.id }) { apertura ->
                 val datos = apertura.datos
+                val cierre = apertura.cierre
+                val fecha = cierre?.let { DateFormat.getDateTimeInstance().format(Date(it.cerradoEn)) }
                 AquaSectionCard(
                     title = datos.centroCultivo,
-                    subtitle = "Prechequeo pendiente · ${datos.fecha} ${datos.hora}"
+                    subtitle = if (fecha != null) "Cerrada · $fecha" else "Prechequeo pendiente · ${datos.fecha} ${datos.hora}"
                 ) {
                     Text("Buzo · ${datos.buzoAsignado}")
                     Text("Supervisor · ${apertura.supervisorACargo}")
                     Text("ID · ${apertura.id}", style = MaterialTheme.typography.bodySmall)
+                    cierre?.let { DatosMediciones(it.mediciones()) }
                 }
             }
         }

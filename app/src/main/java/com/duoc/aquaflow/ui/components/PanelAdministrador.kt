@@ -207,7 +207,7 @@ private data class EstiloGrupo(
 @Composable
 private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerFaena: (String) -> Unit) {
     val apertura = faena.resumen.apertura
-    val resultado = ReglasDecision.resultado(faena.resumen)
+    val resultado = ReglasDecision.evaluar(faena.resumen).resultado
     val colorBorde = when {
         grupo == GrupoFaena.RECHAZADAS || resultado == ResultadoFaena.REQUIERE_REVISION -> Color(0xFFDC2626)
         resultado == ResultadoFaena.OBSERVADO -> Color(0xFFF59E0B)
@@ -220,6 +220,7 @@ private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerF
     val centro = apertura.centroCultivo.ifBlank { "Centro sin asignar" }
     val codigo = apertura.id.takeLast(9).uppercase()
     val fotos = faena.resumen.checklist?.fotosEvidencia?.size ?: 0
+    val mediciones = faena.cierre?.mediciones
 
     Card(
         modifier = Modifier.fillMaxWidth().drawWithContent {
@@ -275,9 +276,12 @@ private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerF
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ValorOperativo("Prof. Máx.", "—", Modifier.weight(1f))
-                    ValorOperativo("Tiempo Fondo", faena.cierre?.duracionMinutos?.let { "$it min" } ?: "—", Modifier.weight(1f))
+                    ValorOperativo("Prof. Máx.", mediciones?.let { "${it.profundidadMaximaMetros} m" } ?: "—", Modifier.weight(1f))
+                    ValorOperativo("Tiempo Fondo", mediciones?.let { "${it.tiempoFondoMinutos} min" } ?: "—", Modifier.weight(1f))
                     ValorOperativo("DPR-24", if (progreso == 5) "100%" else "$progreso/5", Modifier.weight(1f))
+                }
+                mediciones?.alertas.orEmpty().forEach { alerta ->
+                    Text(alerta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
 
                 if (fotos > 0 || resultado == ResultadoFaena.OBSERVADO) {

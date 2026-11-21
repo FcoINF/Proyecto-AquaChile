@@ -24,7 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.data.local.EvidenciasFotos
+import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.ui.theme.AquaAzulAccion
+import java.text.DateFormat
+import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,26 +36,16 @@ fun EvidenciasGaleria(
     fotos: List<String>,
     nombresPorFoto: Map<String, String> = emptyMap(),
     categoriasPorFoto: Map<String, String> = emptyMap(),
-    onQuitar: ((String) -> Unit)? = null
+    onQuitar: ((String) -> Unit)? = null,
+    metadatos: Map<String, MetadatosFoto> = emptyMap(),
+    onElegirReferencia: ((String) -> Unit)? = null,
+    onComparar: ((String, Boolean) -> Unit)? = null
 ) {
-    val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         fotos.forEachIndexed { indice, referencia ->
-            val bitmap by produceState<android.graphics.Bitmap?>(null, referencia) {
-                value = withContext(Dispatchers.IO) {
-                    runCatching {
-                        val uri = Uri.parse(referencia)
-                        if (!EvidenciasFotos.esPropia(context, uri)) null else
-                            context.contentResolver.openInputStream(uri)?.use {
-                                BitmapFactory.decodeStream(
-                                    it,
-                                    null,
-                                    BitmapFactory.Options().apply { inSampleSize = 4 }
-                                )
-                            }
-                    }.getOrNull()
-                }
-            }
+            val bitmap = cargarFoto(referencia)
+            val metadata = metadatos[referencia]
+            var comparar by remember(referencia) { mutableStateOf(false) }
             val nombre = nombresPorFoto[referencia]
                 ?.takeIf(String::isNotBlank)
                 ?: "Evidencia ${indice + 1}"
@@ -137,6 +130,23 @@ fun EvidenciasGaleria(
                                 color = Color(0xFF047857)
                             )
                         }
+                        metadata?.let { datos ->
+                            val fecha = DateFormat.getDateTimeInstance().format(Date(datos.capturadaEn))
+                            Text("$fecha · ${datos.capturadaPor}", style = MaterialTheme.typography.bodySmall)
+                            Text(when (datos.coincide) {
+                                true -> "Coincide con la referencia"
+                                false -> "Difiere de la referencia"
+                                null -> "Comparación pendiente"
+                            }, style = MaterialTheme.typography.bodySmall)
+                            if (onElegirReferencia != null) {
+                                TextButton(onClick = { onElegirReferencia(referencia) }) {
+                                    Text(if (datos.referencia == null) "Elegir referencia" else "Cambiar referencia")
+                                }
+                            }
+                            if (datos.referencia != null) {
+                                TextButton(onClick = { comparar = true }) { Text("Comparar fotos") }
+                            }
+                        }
                         if (onQuitar != null) {
                             TextButton(
                                 onClick = { onQuitar(referencia) },
@@ -155,6 +165,70 @@ fun EvidenciasGaleria(
                     }
                 }
             }
+            val imagenReferencia = metadata?.referencia
+            if (comparar && imagenReferencia != null) {
+                val imagen = cargarFoto(imagenReferencia)
+                AlertDialog(
+                    onDismissRequest = { comparar = false },
+                    title = { Text(nombre) },
+                    text = {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            FotoComparacion("Captura", bitmap, Modifier.weight(1f))
+                            FotoComparacion("Referencia", imagen, Modifier.weight(1f))
+                        }
+                    },
+                    confirmButton = {
+                        if (onComparar == null) {
+                            TextButton(onClick = { comparar = false }) { Text("Cerrar") }
+                        } else {
+                            TextButton(enabled = imagen != null && bitmap != null, onClick = {
+                                onComparar(referencia, true)
+                                comparar = false
+                            }) { Text("Coincide") }
+                        }
+                    },
+                    dismissButton = {
+                        if (onComparar != null) {
+                            TextButton(enabled = imagen != null && bitmap != null, onClick = {
+                                onComparar(referencia, false)
+                                comparar = false
+                            }) { Text("Difiere") }
+                        }
+                    }
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun cargarFoto(referencia: String): android.graphics.Bitmap? {
+    val context = LocalContext.current
+    val bitmap by produceState<android.graphics.Bitmap?>(null, referencia) {
+        value = null
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val uri = Uri.parse(referencia)
+                if (!EvidenciasFotos.esPropia(context, uri)) return@runCatching null
+                val resolver = context.contentResolver
+                val opciones = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) }
+                var muestra = 1
+                while (maxOf(opciones.outWidth, opciones.outHeight) / muestra > 1024) muestra *= 2
+                opciones.inJustDecodeBounds = false
+                opciones.inSampleSize = muestra
+                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) }
+            }.getOrNull()
+        }
+    }
+    return bitmap
+}
+
+@Composable
+private fun FotoComparacion(etiqueta: String, foto: android.graphics.Bitmap?, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(etiqueta, style = MaterialTheme.typography.labelMedium)
+        if (foto == null) Text("Imagen no disponible")
+        else Image(foto.asImageBitmap(), etiqueta, Modifier.fillMaxWidth().height(160.dp), contentScale = ContentScale.Fit)
     }
 }

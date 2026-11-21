@@ -384,9 +384,9 @@ private fun RespuestaSalud(texto: String, seleccionada: Boolean, afirmativa: Boo
 private fun ResultadoSaludCard(nivel: NivelSalud?) {
     val fondo = when (nivel) {
         NivelSalud.NORMAL -> Color(0xFF07966D)
-        NivelSalud.ATENCION -> AzulAccion
+        NivelSalud.ATENCION -> com.duoc.aquaflow.ui.theme.SemaforoAmarillo
         NivelSalud.CRITICO -> Color(0xFFDC2626)
-        null -> Color(0xFF94A3B8)
+        null -> com.duoc.aquaflow.ui.theme.SemaforoAmarillo
     }
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp), shape = RoundedCornerShape(12.dp)) {
         Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -395,7 +395,7 @@ private fun ResultadoSaludCard(nivel: NivelSalud?) {
                 Text(
                     "SALUD: ${nivel?.texto?.uppercase() ?: "PENDIENTE"}",
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 6.dp),
-                    color = Color.White,
+                    color = if (nivel == null || nivel == NivelSalud.ATENCION) Color(0xFF422006) else Color.White,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     fontSize = 9.sp

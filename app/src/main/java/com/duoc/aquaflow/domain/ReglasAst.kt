@@ -13,9 +13,13 @@ object ReglasAst {
     fun respuestasCompletas(respuestas: List<Boolean?>) =
         respuestas.size == PREGUNTAS_AST.size && respuestas.none { it == null }
 
+    fun condicionesCriticasIncumplidas(respuestas: List<Boolean?>): List<String> =
+        PREGUNTAS_AST.zip(respuestas).filter { (pregunta, respuesta) -> pregunta.critica && respuesta == false }
+            .map { (pregunta, _) -> pregunta.texto }
+
     // Mensaje de error del formulario; null si está completo. La primera falla define el mensaje.
     fun error(tipologia: String, respuestas: List<Boolean?>, pasos: List<PasoAst> = emptyList()): String? {
-        val criticaFalla = PREGUNTAS_AST.zip(respuestas).any { (p, r) -> p.critica && r != true }
+        val criticaFalla = condicionesCriticasIncumplidas(respuestas).isNotEmpty()
         return when {
             tipologia.isBlank() -> "Elige la tipología de la tarea"
             !respuestasCompletas(respuestas) -> "Responde todas las preguntas del chequeo inicial"
@@ -31,6 +35,8 @@ object ReglasAst {
         val hayNo = respuestas.any { it == false }
         val hayRiesgoCritico = pasos.any { it.critico }
         return when {
+            condicionesCriticasIncumplidas(respuestas).isNotEmpty() ->
+                ResultadoAst.REQUIERE_REVISION
             hayNo || hayRiesgoCritico || requiereNuevoAst -> ResultadoAst.OBSERVADO
             else -> ResultadoAst.CUMPLE
         }

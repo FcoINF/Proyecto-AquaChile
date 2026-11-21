@@ -1,6 +1,9 @@
 package com.duoc.aquaflow.data.remote
 
 import com.duoc.aquaflow.model.PreChequeo
+import com.duoc.aquaflow.model.MedicionesInmersion
+import com.duoc.aquaflow.model.OrigenMedicion
+import com.duoc.aquaflow.model.RegistroCierre
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import java.io.IOException
@@ -19,8 +22,25 @@ import retrofit2.http.Path
 data class AperturaRemota(
     val id: String,
     val supervisorACargo: String,
-    val datos: AperturaDatos
+    val datos: AperturaDatos,
+    val cierre: CierreHistoricoRemoto? = null
 )
+
+data class CierreHistoricoRemoto(
+    val cerradoEn: Long,
+    val tiempoFondoMinutos: Int,
+    val profundidadMaximaMetros: Double,
+    val descensoMaximo: Double,
+    val ascensoMaximo: Double,
+    val origen: OrigenMedicion
+) {
+    constructor(cerradoEn: Long, mediciones: MedicionesInmersion) : this(
+        cerradoEn, mediciones.tiempoFondoMinutos, mediciones.profundidadMaximaMetros,
+        mediciones.descensoMaximo, mediciones.ascensoMaximo, mediciones.origen
+    )
+
+    fun mediciones() = MedicionesInmersion(tiempoFondoMinutos, profundidadMaximaMetros, descensoMaximo, ascensoMaximo, origen)
+}
 
 data class AperturaDatos(
     val centroCultivo: String,
@@ -77,6 +97,13 @@ internal interface AquaFlowApi {
 
     @GET("api/faenas")
     suspend fun listar(@Header("Authorization") autorizacion: String): List<AperturaRemota>
+
+    @PUT("api/faenas/{id}/cierre-historico")
+    suspend fun publicarCierre(
+        @Header("Authorization") autorizacion: String,
+        @Path("id") id: String,
+        @Body cierre: CierreHistoricoRemoto
+    ): Unit
 }
 
 class FaenasRemotas(url: String) {
@@ -107,6 +134,11 @@ class FaenasRemotas(url: String) {
 
     suspend fun listar(): List<AperturaRemota> =
         consultar { api.listar(sesionActiva()) }
+
+    suspend fun publicarCierre(id: String, cierre: RegistroCierre) {
+        val mediciones = requireNotNull(cierre.mediciones)
+        consultar { api.publicarCierre(sesionActiva(), id, CierreHistoricoRemoto(cierre.cerradoEn, mediciones)) }
+    }
 
     private fun sesionActiva(): String =
         checkNotNull(autorizacion) { "Vuelve a ingresar para conectarte al servidor." }

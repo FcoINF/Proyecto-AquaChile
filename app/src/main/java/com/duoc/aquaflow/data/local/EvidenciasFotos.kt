@@ -7,6 +7,35 @@ import java.io.File
 import java.util.UUID
 
 object EvidenciasFotos {
+    fun importarReferencia(context: Context, origen: Uri): Uri {
+        val destino = crear(context)
+        try {
+            val resolver = context.contentResolver
+            val opciones = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            requireNotNull(resolver.openInputStream(origen)).use {
+                android.graphics.BitmapFactory.decodeStream(it, null, opciones)
+            }
+            require(opciones.outWidth > 0 && opciones.outHeight > 0)
+            requireNotNull(resolver.openInputStream(origen)).use { entrada ->
+                requireNotNull(resolver.openOutputStream(destino)).use { salida ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var total = 0
+                    while (true) {
+                        val cantidad = entrada.read(buffer)
+                        if (cantidad == -1) break
+                        total += cantidad
+                        require(total <= 15 * 1024 * 1024)
+                        salida.write(buffer, 0, cantidad)
+                    }
+                }
+            }
+            return destino
+        } catch (e: Exception) {
+            descartar(context, destino)
+            throw e
+        }
+    }
+
     fun crear(context: Context): Uri {
         val carpeta = File(context.filesDir, "evidencias")
         check(carpeta.isDirectory || carpeta.mkdirs()) { "No se pudo preparar el almacenamiento." }

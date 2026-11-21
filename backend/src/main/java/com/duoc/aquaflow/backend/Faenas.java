@@ -12,11 +12,18 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 class Faenas {
-    public record Apertura(UUID id, String supervisorACargo, OffsetDateTime actualizadaEn, AperturaDatos datos) {}
+    public record Apertura(UUID id, String supervisorACargo, OffsetDateTime actualizadaEn,
+                           AperturaDatos datos, CierreHistorico cierre) {}
+
+    private static final String CONSULTA_APERTURAS = """
+            SELECT a.*, c.cerrado_en, c.tiempo_fondo, c.profundidad, c.descenso, c.ascenso, c.origen
+            FROM aperturas a LEFT JOIN cierres_historicos c ON a.id = c.id
+            """;
 
     record Guardado(Apertura apertura, boolean creada) {}
 
@@ -29,8 +36,8 @@ class Faenas {
     }
 
     List<Apertura> listar(String supervisor) {
-        String consulta = "SELECT * FROM aperturas";
-        String orden = " ORDER BY actualizada_en DESC, id";
+        String consulta = CONSULTA_APERTURAS;
+        String orden = " ORDER BY a.actualizada_en DESC, a.id";
         if (supervisor == null) {
             return jdbc.sql(consulta + orden).query(this::leer).list();
         }
@@ -39,7 +46,7 @@ class Faenas {
     }
 
     Apertura consultar(UUID id, String supervisor) {
-        String consulta = "SELECT * FROM aperturas WHERE id = :id";
+        String consulta = CONSULTA_APERTURAS + " WHERE a.id = :id";
         var fila = supervisor == null
                 ? jdbc.sql(consulta).param("id", id)
                 : jdbc.sql(consulta + " AND supervisor = :supervisor").param("id", id)
@@ -64,10 +71,11 @@ class Faenas {
             throw new IllegalStateException("No se pudo codificar la apertura.", e);
         }
         var ahora = OffsetDateTime.now(ZoneOffset.UTC);
-        var apertura = new Apertura(id, supervisor, ahora, datos);
+        var apertura = new Apertura(id, supervisor, ahora, datos, null);
         int actualizadas = jdbc.sql("""
                 UPDATE aperturas SET datos = :datos, actualizada_en = :ahora
                 WHERE id = :id AND supervisor = :supervisor
+                AND NOT EXISTS (SELECT 1 FROM cierres_historicos WHERE id = :id)
                 """ + (sincronizacion ? "" : " AND NOT EXISTS (SELECT 1 FROM expedientes WHERE id = :id)"))
                 .param("datos", contenido).param("ahora", ahora)
                 .param("id", id).param("supervisor", supervisor).update();
@@ -91,19 +99,44 @@ class Faenas {
         int eliminadas = jdbc.sql("""
                 DELETE FROM aperturas WHERE id = :id AND supervisor = :supervisor
                 AND NOT EXISTS (SELECT 1 FROM expedientes WHERE id = :id)
+                AND NOT EXISTS (SELECT 1 FROM cierres_historicos WHERE id = :id)
                 """)
                 .param("id", id).param("supervisor", supervisor).update();
         if (eliminadas == 0) {
-            consultar(id, supervisor);
+            if (consultar(id, supervisor).cierre() != null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "La apertura tiene un cierre histórico.");
+            }
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La apertura tiene un expediente sincronizado.");
         }
     }
 
+    @Transactional
+    public void publicarCierre(UUID id, String supervisor, CierreHistorico cierre) {
+        jdbc.sql("SELECT id FROM aperturas WHERE id = :id AND supervisor = :supervisor FOR UPDATE")
+                .param("id", id).param("supervisor", supervisor).query(UUID.class)
+                .optional().orElseThrow(Faenas::noEncontrada);
+        var previo = consultar(id, supervisor).cierre();
+        if (cierre.equals(previo)) return;
+        if (previo != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un cierre histórico para esta faena.");
+        }
+        jdbc.sql("""
+                INSERT INTO cierres_historicos (id, cerrado_en, tiempo_fondo, profundidad, descenso, ascenso, origen)
+                VALUES (:id, :fecha, :fondo, :profundidad, :descenso, :ascenso, :origen)
+                """).param("id", id).param("fecha", cierre.cerradoEn()).param("fondo", cierre.tiempoFondoMinutos())
+                .param("profundidad", cierre.profundidadMaximaMetros()).param("descenso", cierre.descensoMaximo())
+                .param("ascenso", cierre.ascensoMaximo()).param("origen", cierre.origen().name()).update();
+    }
+
     private Apertura leer(ResultSet fila, int numero) throws SQLException {
         try {
+            var origen = fila.getString("origen");
+            var cierre = origen == null ? null : new CierreHistorico(
+                    fila.getLong("cerrado_en"), fila.getInt("tiempo_fondo"), fila.getDouble("profundidad"),
+                    fila.getDouble("descenso"), fila.getDouble("ascenso"), CierreHistorico.Origen.valueOf(origen));
             return new Apertura(fila.getObject("id", UUID.class), fila.getString("supervisor"),
                     fila.getObject("actualizada_en", OffsetDateTime.class),
-                    json.readValue(fila.getString("datos"), AperturaDatos.class));
+                    json.readValue(fila.getString("datos"), AperturaDatos.class), cierre);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("La apertura persistida no se pudo leer.", e);
         }

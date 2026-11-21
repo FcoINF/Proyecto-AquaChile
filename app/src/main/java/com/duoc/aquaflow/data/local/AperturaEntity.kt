@@ -57,7 +57,8 @@ data class AperturaEntity(
         ),
         decision = decisionJson?.let(FaenaCodec::decisionDesde),
         cierre = cierreJson?.let(FaenaCodec::cierreDesde),
-        inicio = inicioJson?.let(FaenaCodec::inicioDesde)
+        inicio = inicioJson?.let(FaenaCodec::inicioDesde),
+        intentosBloqueados = FaenaCodec.intentosBloqueadosDesde(intentosBloqueadosJson)
     )
 
     companion object {

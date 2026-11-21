@@ -47,6 +47,8 @@ class DaoMemoria : PreChequeoDao {
         cambiarEditable(id) { it.copy(astJson = json, actualizadoEn = ahora) }
     override suspend fun guardarEncuesta(id: String, json: String, ahora: Long) =
         cambiarEditable(id) { it.copy(encuestaJson = json, actualizadoEn = ahora) }
+    override suspend fun actualizarIntentos(id: String, json: String) =
+        cambiar(id) { it.copy(intentosBloqueadosJson = json) }
 
     override suspend fun guardarCierre(id: String, json: String, ahora: Long, decisionEsperada: String): Int {
         val actual = filas.value[id] ?: return 0

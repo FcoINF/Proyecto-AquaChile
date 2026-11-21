@@ -22,7 +22,15 @@ data class ChecklistFaena(
     val items: List<ItemEquipamiento>,
     val fotosEvidencia: List<String> = emptyList(),
     val estado: EstadoSeccion = EstadoSeccion.COMPLETA,
-    val fotosPorEquipo: Map<String, String> = emptyMap()
+    val fotosPorEquipo: Map<String, String> = emptyMap(),
+    val metadatosPorFoto: Map<String, MetadatosFoto> = emptyMap()
+)
+
+data class MetadatosFoto(
+    val capturadaEn: Long,
+    val capturadaPor: String,
+    val referencia: String? = null,
+    val coincide: Boolean? = null
 )
 
 /**

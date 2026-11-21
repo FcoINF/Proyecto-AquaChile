@@ -17,6 +17,9 @@ import com.duoc.aquaflow.model.ChecklistTareas
 import com.duoc.aquaflow.model.TareaFaena
 import com.duoc.aquaflow.model.RegistroInicio
 import com.duoc.aquaflow.model.IntentoBloqueado
+import com.duoc.aquaflow.model.MedicionesInmersion
+import com.duoc.aquaflow.model.MetadatosFoto
+import com.duoc.aquaflow.model.OrigenMedicion
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,6 +43,13 @@ object FaenaCodec {
         })
         .put("fotos", JSONArray(c.fotosEvidencia))
         .put("fotosPorEquipo", JSONObject(c.fotosPorEquipo))
+        .put("metadatosPorFoto", JSONObject().also { fotos ->
+            c.metadatosPorFoto.forEach { (uri, foto) ->
+                fotos.put(uri, JSONObject().put("capturadaEn", foto.capturadaEn)
+                    .put("capturadaPor", foto.capturadaPor).put("referencia", foto.referencia)
+                    .put("coincide", foto.coincide))
+            }
+        })
         .toString()
 
     fun checklistDesde(texto: String): ChecklistFaena? = runCatching {
@@ -64,7 +74,15 @@ object FaenaCodec {
             items = items,
             fotosEvidencia = fotos,
             estado = estadoDesde(o),
-            fotosPorEquipo = fotosPorEquipo
+            fotosPorEquipo = fotosPorEquipo,
+            metadatosPorFoto = o.optJSONObject("metadatosPorFoto")?.let { fotos ->
+                fotos.keys().asSequence().associateWith { uri ->
+                    val foto = fotos.getJSONObject(uri)
+                    MetadatosFoto(foto.getLong("capturadaEn"), foto.getString("capturadaPor"),
+                        foto.optString("referencia", "").takeIf(String::isNotBlank),
+                        if (foto.isNull("coincide")) null else foto.getBoolean("coincide"))
+                }
+            }.orEmpty()
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.checklist(it)) }
 
@@ -72,7 +90,7 @@ object FaenaCodec {
         .put("estado", ReglasSecciones.ast(a).name)
         .put("tipologia", a.tipologia)
         .put("requiereNuevoAst", a.requiereNuevoAst)
-        .put("respuestas", JSONArray(a.respuestas))
+        .put("respuestas", JSONArray(a.respuestas.map { it ?: JSONObject.NULL }))
         .put("pasos", JSONArray().also { arr ->
             a.pasos.forEach {
                 arr.put(
@@ -91,7 +109,9 @@ object FaenaCodec {
         FormularioAst(
             tipologia = o.getString("tipologia"),
             requiereNuevoAst = o.getBoolean("requiereNuevoAst"),
-            respuestas = (0 until respuestas.length()).map { respuestas.getBoolean(it) },
+            respuestas = (0 until respuestas.length()).map {
+                if (respuestas.isNull(it)) null else respuestas.getBoolean(it)
+            },
             pasos = o.getJSONArray("pasos").objetos().map {
                 PasoAst(
                     tarea = it.optString("tarea", ""),
@@ -151,13 +171,21 @@ object FaenaCodec {
         .put("duracionMinutos", c.duracionMinutos).put("observaciones", c.observaciones)
         .put("revisionSalida", c.revisionSalida).put("cerradoPor", c.cerradoPor)
         .put("cerradoEn", c.cerradoEn)
-        .put("saludSalida", c.saludSalida?.let { JSONObject(encuestaATexto(it)) }).toString()
+        .put("saludSalida", c.saludSalida?.let { JSONObject(encuestaATexto(it)) })
+        .put("mediciones", c.mediciones?.let {
+            JSONObject().put("fondo", it.tiempoFondoMinutos).put("profundidad", it.profundidadMaximaMetros)
+                .put("descenso", it.descensoMaximo).put("ascenso", it.ascensoMaximo).put("origen", it.origen.name)
+        }).toString()
 
     fun cierreDesde(texto: String): RegistroCierre? = runCatching {
         val o = JSONObject(texto)
         RegistroCierre(o.getInt("duracionMinutos"), o.getString("observaciones"),
             o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"),
-            o.optJSONObject("saludSalida")?.let { encuestaDesde(it.toString()) })
+            o.optJSONObject("saludSalida")?.let { encuestaDesde(it.toString()) },
+            o.optJSONObject("mediciones")?.let {
+                MedicionesInmersion(it.getInt("fondo"), it.getDouble("profundidad"), it.getDouble("descenso"),
+                    it.getDouble("ascenso"), OrigenMedicion.valueOf(it.getString("origen")))
+            })
     }.getOrNull()
 
     fun tareasATexto(t: ChecklistTareas): String = JSONObject()

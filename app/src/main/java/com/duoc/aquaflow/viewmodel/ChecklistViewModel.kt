@@ -7,6 +7,7 @@ import com.duoc.aquaflow.data.local.FaenaCodec
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.model.fotosAsociadasPorEquipo
 import com.duoc.aquaflow.domain.ReglasSecciones
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,8 @@ data class ChecklistUiState(
     val fotosPorEquipo: Map<String, String> = emptyMap(),
     val pendiente: String? = null,
     val pendienteEquipoId: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val metadatosPorFoto: Map<String, MetadatosFoto> = emptyMap()
 )
 
 class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
@@ -26,7 +28,8 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     private val _ui = MutableStateFlow(ChecklistUiState(
         items = restaurado?.items.orEmpty(), fotos = restaurado?.fotosEvidencia.orEmpty(),
         fotosPorEquipo = restaurado?.fotosAsociadasPorEquipo().orEmpty(),
-        pendiente = saved["pendiente"], pendienteEquipoId = saved["pendienteEquipoId"]
+        pendiente = saved["pendiente"], pendienteEquipoId = saved["pendienteEquipoId"],
+        metadatosPorFoto = restaurado?.metadatosPorFoto.orEmpty()
     ))
     val ui = _ui.asStateFlow()
     private var id = restaurado?.idFaena.orEmpty()
@@ -76,7 +79,8 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
             fotosPorEquipo = if (restaurar) restaurado?.fotosAsociadasPorEquipo().orEmpty()
                 else inicial?.fotosAsociadasPorEquipo().orEmpty(),
             pendiente = if (restaurar) saved["pendiente"] else null,
-            pendienteEquipoId = if (restaurar) saved["pendienteEquipoId"] else null
+            pendienteEquipoId = if (restaurar) saved["pendienteEquipoId"] else null,
+            metadatosPorFoto = (if (restaurar) restaurado else inicial)?.metadatosPorFoto.orEmpty()
         )
         conservar()
     }
@@ -101,17 +105,25 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         prepararFoto(itemId, uri)
     }
 
-    fun terminarFoto(exito: Boolean) {
+    fun terminarFoto(exito: Boolean, responsable: String = "") {
         val actual = _ui.value
         val itemId = actual.pendienteEquipoId
         val nuevasAsignaciones = if (exito && actual.pendiente != null && itemId != null) {
             actual.fotosPorEquipo + (itemId to actual.pendiente)
         } else actual.fotosPorEquipo
+        val anteriores = actual.metadatosPorFoto.filterKeys { it in nuevasAsignaciones.values }
+        val metadatos = if (exito && actual.pendiente != null && itemId != null) {
+            val anterior = actual.fotosPorEquipo[itemId]?.let(actual.metadatosPorFoto::get)
+            anteriores + (actual.pendiente to MetadatosFoto(
+                System.currentTimeMillis(), responsable, referencia = anterior?.referencia
+            ))
+        } else anteriores
         _ui.value = actual.copy(
             pendiente = null,
             pendienteEquipoId = null,
             fotosPorEquipo = nuevasAsignaciones,
             fotos = nuevasAsignaciones.values.distinct(),
+            metadatosPorFoto = metadatos,
             error = if (exito) null else "No se guardó una fotografía. Puedes intentarlo nuevamente."
         )
         conservar()
@@ -125,7 +137,8 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
     fun quitarReferencia(uri: String) {
         val asignaciones = _ui.value.fotosPorEquipo.filterValues { it != uri }
         _ui.value = _ui.value.copy(
-            fotos = asignaciones.values.distinct(), fotosPorEquipo = asignaciones, error = null
+            fotos = asignaciones.values.distinct(), fotosPorEquipo = asignaciones, error = null,
+            metadatosPorFoto = _ui.value.metadatosPorFoto - uri
         )
         conservar()
     }
@@ -149,19 +162,38 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
             )
             return null
         }
-        val checklist = ChecklistFaena(id, _ui.value.items, _ui.value.fotos, fotosPorEquipo = _ui.value.fotosPorEquipo)
+        val checklist = checklist(EstadoSeccion.COMPLETA)
         check(ReglasSecciones.checklistHabilitaContinuidad(checklist)) { "El checklist crítico no puede completarse." }
         return checklist
     }
 
-    fun borrador(): ChecklistFaena = ChecklistFaena(
-        id, _ui.value.items, _ui.value.fotos, EstadoSeccion.BORRADOR, _ui.value.fotosPorEquipo
+    fun borrador(): ChecklistFaena = checklist(EstadoSeccion.BORRADOR)
+
+    fun referencia(uri: String, referencia: String) {
+        val foto = _ui.value.metadatosPorFoto[uri] ?: return
+        actualizarFoto(uri, foto.copy(referencia = referencia, coincide = null))
+    }
+
+    fun comparar(uri: String, coincide: Boolean) {
+        val foto = _ui.value.metadatosPorFoto[uri]?.takeIf { it.referencia != null } ?: return
+        actualizarFoto(uri, foto.copy(coincide = coincide))
+    }
+
+    fun errorReferencia() {
+        _ui.value = _ui.value.copy(error = "No se pudo importar la imagen de referencia.")
+    }
+
+    private fun actualizarFoto(uri: String, foto: MetadatosFoto) {
+        _ui.value = _ui.value.copy(metadatosPorFoto = _ui.value.metadatosPorFoto + (uri to foto), error = null)
+        conservar()
+    }
+
+    private fun checklist(estado: EstadoSeccion) = ChecklistFaena(
+        id, _ui.value.items, _ui.value.fotos, estado, _ui.value.fotosPorEquipo, _ui.value.metadatosPorFoto
     )
 
     private fun conservar() {
-        saved["checklist"] = FaenaCodec.checklistATexto(
-            ChecklistFaena(id, _ui.value.items, _ui.value.fotos, fotosPorEquipo = _ui.value.fotosPorEquipo)
-        )
+        saved["checklist"] = FaenaCodec.checklistATexto(checklist(EstadoSeccion.COMPLETA))
         saved["faena"] = id
         saved["estados"] = ArrayList(_ui.value.items.map { it.estado.name })
         saved["fotos"] = ArrayList(_ui.value.fotos)
