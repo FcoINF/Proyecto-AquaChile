@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -88,7 +87,6 @@ fun DashboardScreen(
     val borradores = faenas.filter { it.decision == null }
     val nombre = usuario.nombre.substringBefore(" ")
     val tabsDashboard = tabs.filter { it != Tab.ENCUESTA }
-    var mostrarGuiaRapida by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -138,7 +136,7 @@ fun DashboardScreen(
                             Text("Gestiona la preparación y seguridad de cada faena.", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE0E7EF))
                         }
                     } else {
-                        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth()) {
+                        Box(Modifier.fillMaxWidth()) {
                             Surface(
                                 modifier = Modifier.align(Alignment.BottomEnd).size(width = 150.dp, height = 150.dp),
                                 color = Color.White.copy(alpha = 0.06f),
@@ -210,25 +208,7 @@ fun DashboardScreen(
                         detalle = if (cargando || error != null) null else "${borradores.size} pendiente${if (borradores.size == 1) "" else "s"}",
                         onClick = onAbrirBorradores
                     )
-                    ModuloTerreno(
-                        titulo = "Guía rápida DPR - 24 & AST",
-                        descripcion = "Tablas de descompresión y medidas preventivas.",
-                        onClick = { mostrarGuiaRapida = true }
-                    )
                 }
-            }
-
-            if (mostrarGuiaRapida) {
-                AlertDialog(
-                    onDismissRequest = { mostrarGuiaRapida = false },
-                    title = { Text("Guía rápida DPR - 24 & AST") },
-                    text = {
-                        Text("Completa la apertura de faena, el checklist, el control de salud y el AST antes de iniciar la operación.")
-                    },
-                    confirmButton = {
-                        Button(onClick = { mostrarGuiaRapida = false }) { Text("Entendido") }
-                    }
-                )
             }
         }
     }
