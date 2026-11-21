@@ -72,6 +72,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.CampoFecha
 import com.duoc.aquaflow.ui.components.CircularCheckbox
 import com.duoc.aquaflow.ui.theme.AquaAzulMedio
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -81,6 +82,8 @@ import com.duoc.aquaflow.viewmodel.FaenaUiState
 import com.duoc.aquaflow.domain.Reglas
 
 private const val TURNO_MAREA_PREDEFINIDO = "Mañana (08:30 - 14:30)"
+
+private enum class CalendarioVigencia { EXAMEN, TEST_ESFUERZO }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +97,12 @@ fun AperturaFaenaScreen(
 ) {
     var confirmarSalida by rememberSaveable { mutableStateOf(false) }
     var mostrarMenuAcciones by rememberSaveable { mutableStateOf(false) }
-    BackHandler { if (!ui.ocupado) confirmarSalida = true }
+    var calendarioActivo by rememberSaveable { mutableStateOf<CalendarioVigencia?>(null) }
+    BackHandler {
+        if (!ui.ocupado) {
+            if (calendarioActivo != null) calendarioActivo = null else confirmarSalida = true
+        }
+    }
     var confirmarRecuperacion by rememberSaveable { mutableStateOf(false) }
     val apertura = ui.apertura
 
@@ -330,11 +338,18 @@ fun AperturaFaenaScreen(
                     testTag = "examen-preocupacional",
                     onCambiar = { onCambiar(apertura.copy(examenPreocupacionalVigente = it)) }
                 )
-                OutlinedTextField(
-                    value = apertura.vigenciaExamenPreocupacional,
-                    onValueChange = { onCambiar(apertura.copy(vigenciaExamenPreocupacional = it.take(10))) },
-                    label = { Text("Vigencia examen (dd/MM/aaaa)") },
-                    modifier = Modifier.fillMaxWidth()
+                CampoFecha(
+                    etiqueta = "Vigencia examen",
+                    fecha = apertura.vigenciaExamenPreocupacional,
+                    desplegado = calendarioActivo == CalendarioVigencia.EXAMEN,
+                    habilitado = !ui.ocupado,
+                    onAlternar = {
+                        calendarioActivo = CalendarioVigencia.EXAMEN.takeUnless { it == calendarioActivo }
+                    },
+                    onFechaSeleccionada = {
+                        calendarioActivo = null
+                        onCambiar(apertura.copy(vigenciaExamenPreocupacional = it))
+                    }
                 )
                 OutlinedTextField(
                     value = apertura.puntajeCalbuco?.toString().orEmpty(),
@@ -351,11 +366,18 @@ fun AperturaFaenaScreen(
                     testTag = "test-esfuerzo",
                     onCambiar = { onCambiar(apertura.copy(testEsfuerzoVigente = it)) }
                 )
-                OutlinedTextField(
-                    value = apertura.vigenciaTestEsfuerzo,
-                    onValueChange = { onCambiar(apertura.copy(vigenciaTestEsfuerzo = it.take(10))) },
-                    label = { Text("Vigencia test de esfuerzo (dd/MM/aaaa)") },
-                    modifier = Modifier.fillMaxWidth()
+                CampoFecha(
+                    etiqueta = "Vigencia test de esfuerzo",
+                    fecha = apertura.vigenciaTestEsfuerzo,
+                    desplegado = calendarioActivo == CalendarioVigencia.TEST_ESFUERZO,
+                    habilitado = !ui.ocupado,
+                    onAlternar = {
+                        calendarioActivo = CalendarioVigencia.TEST_ESFUERZO.takeUnless { it == calendarioActivo }
+                    },
+                    onFechaSeleccionada = {
+                        calendarioActivo = null
+                        onCambiar(apertura.copy(vigenciaTestEsfuerzo = it))
+                    }
                 )
                 bloqueoEsfuerzo?.let {
                     Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(10.dp)) {
