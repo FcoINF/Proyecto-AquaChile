@@ -58,6 +58,12 @@ private val ZonaCalendario = TimeZone.getTimeZone("UTC")
 private val Espanol = Locale.forLanguageTag("es-CL")
 private val DiasSemana = listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do")
 
+private class DiaCalendario(
+    val numero: Int,
+    val texto: String,
+    val deshabilitado: Boolean
+)
+
 @Composable
 fun CampoFecha(
     etiqueta: String,
@@ -65,7 +71,8 @@ fun CampoFecha(
     desplegado: Boolean,
     onAlternar: () -> Unit,
     onFechaSeleccionada: (String) -> Unit,
-    habilitado: Boolean = true
+    habilitado: Boolean = true,
+    soloDesdeHoy: Boolean = false
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(etiqueta, style = MaterialTheme.typography.labelLarge)
@@ -99,21 +106,42 @@ fun CampoFecha(
                 val formato = formatoFecha("dd/MM/yyyy")
                 runCatching { formato.parse(fecha) }.getOrNull()?.takeIf { formato.format(it) == fecha }
             }
-            CalendarioDesplegable(fechaSeleccionada, onFechaSeleccionada)
+            CalendarioDesplegable(fechaSeleccionada, soloDesdeHoy, onFechaSeleccionada)
         }
     }
 }
 
 @Composable
-private fun CalendarioDesplegable(fechaSeleccionada: Date?, onFechaSeleccionada: (String) -> Unit) {
+private fun CalendarioDesplegable(
+    fechaSeleccionada: Date?,
+    soloDesdeHoy: Boolean,
+    onFechaSeleccionada: (String) -> Unit
+) {
+    val hoyUtc = remember {
+        val local = GregorianCalendar()
+        GregorianCalendar(ZonaCalendario).apply {
+            clear()
+            set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH))
+        }
+    }
+    val anioActual = hoyUtc.get(Calendar.YEAR)
+    val mesActual = anioActual * 12 + hoyUtc.get(Calendar.MONTH)
+
     val fechaInicial = remember(fechaSeleccionada) {
         if (fechaSeleccionada == null) GregorianCalendar()
         else GregorianCalendar(ZonaCalendario).apply { time = fechaSeleccionada }
     }
     val anioInicial = fechaInicial.get(Calendar.YEAR)
-    val anios = minOf(1900, anioInicial)..maxOf(2100, anioInicial)
-    var mesVisible by rememberSaveable {
-        mutableIntStateOf(anioInicial * 12 + fechaInicial.get(Calendar.MONTH))
+    val anios = if (soloDesdeHoy) {
+        anioActual..maxOf(2100, anioInicial)
+    } else {
+        minOf(1900, anioInicial)..maxOf(2100, anioInicial)
+    }
+    val mesMinimo = if (soloDesdeHoy) mesActual else anios.first * 12
+    val mesInicial = maxOf(anioInicial * 12 + fechaInicial.get(Calendar.MONTH), mesMinimo)
+
+    var mesVisible by rememberSaveable(soloDesdeHoy) {
+        mutableIntStateOf(mesInicial)
     }
     var eligiendoAnio by rememberSaveable { mutableStateOf(false) }
     val anio = mesVisible / 12
@@ -140,7 +168,7 @@ private fun CalendarioDesplegable(fechaSeleccionada: Date?, onFechaSeleccionada:
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 FlechaMes(
                     anterior = true,
-                    habilitada = !eligiendoAnio && mesVisible > anios.first * 12
+                    habilitada = !eligiendoAnio && mesVisible > mesMinimo
                 ) { mesVisible-- }
                 Surface(
                     onClick = { eligiendoAnio = !eligiendoAnio },
@@ -168,7 +196,7 @@ private fun CalendarioDesplegable(fechaSeleccionada: Date?, onFechaSeleccionada:
                         Box(
                             Modifier.fillMaxWidth().heightIn(min = 44.dp)
                                 .selectable(selected = opcion == anio, role = Role.RadioButton) {
-                                    mesVisible = opcion * 12 + mes
+                                    mesVisible = maxOf(opcion * 12 + mes, mesMinimo)
                                     eligiendoAnio = false
                                 },
                             contentAlignment = Alignment.Center
@@ -182,7 +210,12 @@ private fun CalendarioDesplegable(fechaSeleccionada: Date?, onFechaSeleccionada:
                     }
                 }
             } else {
-                DiasDelMes(primerDia, fechaMarcada, onFechaSeleccionada)
+                DiasDelMes(
+                    primerDia = primerDia,
+                    fechaMarcada = fechaMarcada,
+                    fechaMinima = if (soloDesdeHoy) hoyUtc.time else null,
+                    onFechaSeleccionada = onFechaSeleccionada
+                )
             }
         }
     }
@@ -209,17 +242,26 @@ private fun FlechaMes(anterior: Boolean, habilitada: Boolean, onClick: () -> Uni
 }
 
 @Composable
-private fun DiasDelMes(primerDia: Calendar, fechaMarcada: String?, onFechaSeleccionada: (String) -> Unit) {
-    val fechas = remember(primerDia.timeInMillis) {
+private fun DiasDelMes(
+    primerDia: Calendar,
+    fechaMarcada: String?,
+    fechaMinima: Date?,
+    onFechaSeleccionada: (String) -> Unit
+) {
+    val dias = remember(primerDia.timeInMillis, fechaMinima) {
         val formato = formatoFecha("dd/MM/yyyy")
         val calendario = primerDia.clone() as Calendar
         (1..primerDia.getActualMaximum(Calendar.DAY_OF_MONTH)).map { dia ->
             calendario.set(Calendar.DAY_OF_MONTH, dia)
-            formato.format(calendario.time)
+            DiaCalendario(
+                numero = dia,
+                texto = formato.format(calendario.time),
+                deshabilitado = fechaMinima != null && calendario.time.before(fechaMinima)
+            )
         }
     }
     val inicio = (primerDia.get(Calendar.DAY_OF_WEEK) + 5) % 7
-    val semanas = (inicio + fechas.size + 6) / 7
+    val semanas = (inicio + dias.size + 6) / 7
     val formaDia = RoundedCornerShape(10.dp)
     Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(Modifier.fillMaxWidth()) {
@@ -233,21 +275,29 @@ private fun DiasDelMes(primerDia: Calendar, fechaMarcada: String?, onFechaSelecc
             Row(Modifier.fillMaxWidth()) {
                 repeat(7) { columna ->
                     val indice = semana * 7 + columna - inicio
-                    val fecha = fechas.getOrNull(indice)
-                    val seleccionado = fecha != null && fecha == fechaMarcada
+                    val diaInfo = dias.getOrNull(indice)
+                    val seleccionado = diaInfo != null && diaInfo.texto == fechaMarcada
                     val celda = Modifier.weight(1f).heightIn(min = 42.dp)
                     Box(
-                        modifier = if (fecha == null) celda else celda.padding(1.dp).clip(formaDia)
-                            .selectable(selected = seleccionado, role = Role.RadioButton) { onFechaSeleccionada(fecha) }
-                            .semantics { contentDescription = fecha },
+                        modifier = if (diaInfo == null) celda else celda.padding(1.dp).clip(formaDia)
+                            .selectable(
+                                selected = seleccionado,
+                                enabled = !diaInfo.deshabilitado,
+                                role = Role.RadioButton
+                            ) { onFechaSeleccionada(diaInfo.texto) }
+                            .semantics { contentDescription = diaInfo.texto },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (fecha != null) {
+                        if (diaInfo != null) {
                             Surface(shape = formaDia, color = if (seleccionado) FondoDiaSeleccionado else Color.Transparent) {
                                 Box(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), contentAlignment = Alignment.Center) {
                                     Text(
-                                        (indice + 1).toString(),
-                                        color = if (seleccionado) FondoCampo else TextoCalendario,
+                                        diaInfo.numero.toString(),
+                                        color = when {
+                                            seleccionado -> FondoCampo
+                                            diaInfo.deshabilitado -> TextoCalendario.copy(alpha = 0.3f)
+                                            else -> TextoCalendario
+                                        },
                                         fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Normal,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
