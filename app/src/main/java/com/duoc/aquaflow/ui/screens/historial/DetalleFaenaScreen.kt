@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.duoc.aquaflow.domain.Reglas
+import com.duoc.aquaflow.domain.ReglasCierre
 import com.duoc.aquaflow.domain.ReglasSecciones
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.model.*
@@ -197,7 +198,7 @@ fun DetalleFaenaScreen(
                         subtitulo = "Completa los datos al finalizar la inmersión"
                     ) {
                         Text("Encuesta de salud de salida · Buzo: ${apertura.buzoAsignado}")
-                        CierreFaenaFormulario(apertura.id, ocupado = ocupado) { onCerrar(it) }
+                        CierreFaenaFormulario(apertura.id, ocupado = ocupado, bloqueo = ReglasCierre.bloqueoCritico(resumen), onCerrar = onCerrar)
                     }
                 }
             }

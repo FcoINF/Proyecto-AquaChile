@@ -26,6 +26,10 @@ object ReglasCierre {
     fun puedeCerrar(faena: FaenaGuardada, usuario: Usuario) =
         faena.decision?.decision == Decision.AUTORIZADA && faena.inicio != null && faena.cierre == null && propietario(faena, usuario)
 
+    fun bloqueoCritico(resumen: ResumenFaena): String? =
+        "Cierre bloqueado: el expediente registra una condición crítica."
+            .takeIf { ReglasDecision.evaluar(resumen).resultado == ResultadoFaena.REQUIERE_REVISION }
+
     private fun propietario(faena: FaenaGuardada, usuario: Usuario) =
         usuario.rol == Rol.SUPERVISOR && faena.resumen.apertura.supervisorACargo == usuario.nombre
 }

@@ -77,4 +77,27 @@ class FlujoOperativoUiTest {
         compose.onNodeWithText("Rechazar").assertIsEnabled()
         compose.onNodeWithText("Una justificación no puede omitir", substring = true).assertExists()
     }
+
+    @Test fun expedienteCriticoMuestraAlertaYDeshabilitaCerrarFaena() {
+        val apertura = PreChequeo("f-critica", "Centro", "26/10/2026", "10:00", "Ana", "supervisor", true, true, true)
+        val encuesta = EncuestaSalud(120, 80, 90, emptyList(), NivelSalud.CRITICO)
+        val faena = FaenaGuardada(
+            ResumenFaena(apertura, null, null, encuesta),
+            decision = RegistroDecision(Decision.AUTORIZADA, "", "jefe"),
+            inicio = RegistroInicio("supervisor", 1)
+        )
+        compose.setContent {
+            AquaFlowTheme {
+                DetalleFaenaScreen(
+                    ResumenFaenaViewModel(), faena, Rol.SUPERVISOR, "supervisor",
+                    onDecidir = {}, onVolver = {}, onFinalizar = {},
+                    onCerrar = { error("El cierre crítico debe permanecer bloqueado.") }
+                )
+            }
+        }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Cerrar faena"))
+        compose.onNodeWithText("Cerrar faena").assertIsNotEnabled()
+        compose.onNodeWithText("Cierre bloqueado: el expediente registra una condición crítica.").assertExists()
+        compose.onNodeWithText("Confirmar cierre").assertDoesNotExist()
+    }
 }

@@ -48,12 +48,6 @@ import java.util.GregorianCalendar
 import java.util.Locale
 import java.util.TimeZone
 
-private val FondoCampo = Color(0xFF0D1C25)
-private val FondoCalendario = Color(0xFF233542)
-private val BordeCalendario = Color(0xFF748994)
-private val TextoCalendario = Color(0xFFDBE3E6)
-private val TextoSecundarioCalendario = Color(0xFFB1BEC3)
-private val FondoDiaSeleccionado = Color(0xFFA8B9BE)
 private val ZonaCalendario = TimeZone.getTimeZone("UTC")
 private val Espanol = Locale.forLanguageTag("es-CL")
 private val DiasSemana = listOf("Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do")
@@ -74,6 +68,7 @@ fun CampoFecha(
     habilitado: Boolean = true,
     soloDesdeHoy: Boolean = false
 ) {
+    val colores = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(etiqueta, style = MaterialTheme.typography.labelLarge)
         Surface(
@@ -84,8 +79,8 @@ fun CampoFecha(
                 stateDescription = if (desplegado) "Calendario desplegado" else "Calendario cerrado"
             },
             shape = CircleShape,
-            color = FondoCampo,
-            border = BorderStroke(1.dp, BordeCalendario)
+            color = colores.surface,
+            border = BorderStroke(1.dp, if (desplegado && habilitado) colores.primary else colores.outline)
         ) {
             Row(
                 Modifier.heightIn(min = 48.dp).padding(horizontal = 16.dp, vertical = 8.dp),
@@ -95,10 +90,10 @@ fun CampoFecha(
                 Text(
                     fecha.ifBlank { "Seleccionar fecha" },
                     Modifier.weight(1f),
-                    color = if (fecha.isBlank()) TextoSecundarioCalendario else TextoCalendario,
+                    color = if (fecha.isBlank()) colores.onSurfaceVariant else colores.onSurface,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = TextoCalendario, modifier = Modifier.size(19.dp))
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = colores.primary, modifier = Modifier.size(19.dp))
             }
         }
         if (desplegado && habilitado) {
@@ -117,6 +112,7 @@ private fun CalendarioDesplegable(
     soloDesdeHoy: Boolean,
     onFechaSeleccionada: (String) -> Unit
 ) {
+    val colores = MaterialTheme.colorScheme
     val hoyUtc = remember {
         val local = GregorianCalendar()
         GregorianCalendar(ZonaCalendario).apply {
@@ -158,8 +154,8 @@ private fun CalendarioDesplegable(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = FondoCalendario,
-        border = BorderStroke(1.dp, Color(0xFF344855))
+        color = colores.surface,
+        border = BorderStroke(1.dp, colores.outlineVariant)
     ) {
         Column(
             Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
@@ -178,7 +174,7 @@ private fun CalendarioDesplegable(
                     color = Color.Transparent
                 ) {
                     Box(Modifier.heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
-                        Text(tituloMes, color = TextoCalendario, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text(tituloMes, color = colores.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 FlechaMes(
@@ -203,7 +199,7 @@ private fun CalendarioDesplegable(
                         ) {
                             Text(
                                 opcion.toString(),
-                                color = TextoCalendario,
+                                color = if (opcion == anio) colores.primary else colores.onSurface,
                                 fontWeight = if (opcion == anio) FontWeight.Bold else FontWeight.Normal
                             )
                         }
@@ -223,19 +219,20 @@ private fun CalendarioDesplegable(
 
 @Composable
 private fun FlechaMes(anterior: Boolean, habilitada: Boolean, onClick: () -> Unit) {
+    val colores = MaterialTheme.colorScheme
     Surface(
         onClick = onClick,
         enabled = habilitada,
         modifier = Modifier.size(44.dp),
         shape = CircleShape,
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, BordeCalendario)
+        color = colores.surfaceVariant,
+        border = BorderStroke(1.dp, colores.outlineVariant)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 if (anterior) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = if (anterior) "Mes anterior" else "Mes siguiente",
-                tint = TextoCalendario.copy(alpha = if (habilitada) 1f else 0.4f)
+                tint = if (habilitada) colores.primary else colores.onSurface.copy(alpha = 0.38f)
             )
         }
     }
@@ -248,6 +245,7 @@ private fun DiasDelMes(
     fechaMinima: Date?,
     onFechaSeleccionada: (String) -> Unit
 ) {
+    val colores = MaterialTheme.colorScheme
     val dias = remember(primerDia.timeInMillis, fechaMinima) {
         val formato = formatoFecha("dd/MM/yyyy")
         val calendario = primerDia.clone() as Calendar
@@ -267,7 +265,7 @@ private fun DiasDelMes(
         Row(Modifier.fillMaxWidth()) {
             DiasSemana.forEach { dia ->
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(dia, color = TextoSecundarioCalendario, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
+                    Text(dia, color = colores.onSurfaceVariant, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -289,14 +287,14 @@ private fun DiasDelMes(
                         contentAlignment = Alignment.Center
                     ) {
                         if (diaInfo != null) {
-                            Surface(shape = formaDia, color = if (seleccionado) FondoDiaSeleccionado else Color.Transparent) {
+                            Surface(shape = formaDia, color = if (seleccionado) colores.primary else Color.Transparent) {
                                 Box(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), contentAlignment = Alignment.Center) {
                                     Text(
                                         diaInfo.numero.toString(),
                                         color = when {
-                                            seleccionado -> FondoCampo
-                                            diaInfo.deshabilitado -> TextoCalendario.copy(alpha = 0.3f)
-                                            else -> TextoCalendario
+                                            seleccionado -> colores.onPrimary
+                                            diaInfo.deshabilitado -> colores.onSurface.copy(alpha = 0.38f)
+                                            else -> colores.onSurface
                                         },
                                         fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Normal,
                                         style = MaterialTheme.typography.bodyMedium

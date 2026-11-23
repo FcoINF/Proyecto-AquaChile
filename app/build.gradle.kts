@@ -9,6 +9,14 @@ plugins {
 
 val projectPath = projectDir.toPath().toAbsolutePath().normalize()
 val apiUrl = providers.gradleProperty("aquaflowApiUrl").orNull
+val releaseStore = providers.environmentVariable("AQUAFLOW_RELEASE_KEYSTORE").orNull
+val releaseStorePassword = providers.environmentVariable("AQUAFLOW_RELEASE_STORE_PASSWORD").orNull
+val releaseAlias = providers.environmentVariable("AQUAFLOW_RELEASE_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("AQUAFLOW_RELEASE_KEY_PASSWORD").orNull
+val releaseSigning = listOf(releaseStore, releaseStorePassword, releaseAlias, releaseKeyPassword)
+if (releaseSigning.any { it != null }) {
+    require(releaseSigning.none { it.isNullOrBlank() }) { "Completa las cuatro variables AQUAFLOW_RELEASE_* para firmar la APK." }
+}
 
 fun apiConfig(url: String): String {
     val normalizada = url.trim().trimEnd('/')
@@ -36,10 +44,21 @@ android {
         applicationId = "com.duoc.aquaflow"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.0-rc.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (releaseStore != null) {
+            create("entrega") {
+                storeFile = rootProject.file(releaseStore)
+                storePassword = releaseStorePassword
+                keyAlias = releaseAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -47,6 +66,7 @@ android {
             buildConfigField("String", "API_URL", apiConfig(apiUrl ?: "http://10.0.2.2:8080"))
         }
         release {
+            signingConfig = signingConfigs.findByName("entrega")
             buildConfigField("String", "API_URL", apiConfig(apiUrl?.takeIf { it.startsWith("https://") }.orEmpty()))
             isMinifyEnabled = false
             proguardFiles(

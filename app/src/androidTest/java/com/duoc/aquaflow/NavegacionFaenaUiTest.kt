@@ -14,8 +14,8 @@ class NavegacionFaenaUiTest {
         compose.setContent { AquaFlowTheme { AquaFlowNavHost() } }
 
         compose.onNodeWithText("Supervisor de Buceo").performScrollTo().performClick()
-        compose.onAllNodes(hasSetTextAction())[0].performTextInput("supervisor")
-        compose.onAllNodes(hasSetTextAction())[1].performTextInput("1234")
+        compose.onAllNodes(hasSetTextAction())[0].performScrollTo().performTextReplacement("supervisor")
+        compose.onAllNodes(hasSetTextAction())[1].performScrollTo().performTextReplacement("1234")
         compose.onNodeWithText("INGRESAR").performScrollTo().performClick()
 
         compose.waitUntil(20_000) {

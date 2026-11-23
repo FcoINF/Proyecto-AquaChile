@@ -223,7 +223,6 @@ fun AperturaFaenaScreen(
                     Text(if (ui.checklist == null) "Continuar al Checklist" else "Revisar checklist")
                 }
                 bloqueoEsfuerzo?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     TextButton(onClick = onContinuar, enabled = !ui.ocupado) {
                         Text("Registrar intento bloqueado")
                     }
@@ -281,3 +280,561 @@ fun AperturaFaenaScreen(
                             )
                             DropdownField(
                                 modifier = Modifier.weight(3f),
+                                label = "Turno de Marea",
+                                selectedValue = TURNO_MAREA_PREDEFINIDO,
+                                options = listOf(TURNO_MAREA_PREDEFINIDO),
+                                onSelected = {}
+                            )
+                        }
+                    }
+                }
+            }
+            AquaSectionCard(title = "Buzo Técnico Asignado") {
+                DropdownField(
+                    label = "",
+                    selectedValue = apertura.buzoAsignado,
+                    placeholder = "Selecciona un buzo para la operación",
+                    options = buzosAsignados,
+                    onSelected = { nombre ->
+                        onCambiar(apertura.copy(
+                            buzoAsignado = nombre,
+                            buzoId = buzosIds.getValue(nombre),
+                            edadBuzo = 0,
+                            imcBuzo = 0.0,
+                            examenPreocupacionalVigente = null,
+                            vigenciaExamenPreocupacional = "",
+                            puntajeCalbuco = null,
+                            testEsfuerzoVigente = null,
+                            vigenciaTestEsfuerzo = ""
+                        ))
+                    }
+                )
+            }
+            AquaSectionCard(title = "Ficha de salud del buzo", subtitle = "Obligatoria para autorizar la apertura") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = apertura.edadBuzo.takeIf { it > 0 }?.toString().orEmpty(),
+                        onValueChange = { valor ->
+                            onCambiar(apertura.copy(edadBuzo = valor.filter(Char::isDigit).take(2).toIntOrNull() ?: 0))
+                        },
+                        label = { Text("Edad") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = apertura.imcBuzo.takeIf { it > 0 }?.toString().orEmpty(),
+                        onValueChange = { valor ->
+                            onCambiar(apertura.copy(imcBuzo = valor.replace(',', '.').toDoubleOrNull() ?: 0.0))
+                        },
+                        label = { Text("IMC") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                CondicionSiNoRow(
+                    texto = "Examen preocupacional vigente",
+                    respuesta = apertura.examenPreocupacionalVigente,
+                    testTag = "examen-preocupacional",
+                    onCambiar = { vigente ->
+                        if (!vigente && calendarioActivo == CalendarioVigencia.EXAMEN) calendarioActivo = null
+                        onCambiar(apertura.copy(examenPreocupacionalVigente = vigente))
+                    }
+                )
+                if (apertura.examenPreocupacionalVigente != false) {
+                    CampoFecha(
+                        etiqueta = "Vigencia examen",
+                        fecha = apertura.vigenciaExamenPreocupacional,
+                        desplegado = calendarioActivo == CalendarioVigencia.EXAMEN,
+                        habilitado = !ui.ocupado,
+                        soloDesdeHoy = true,
+                        onAlternar = {
+                            calendarioActivo = CalendarioVigencia.EXAMEN.takeUnless { it == calendarioActivo }
+                        },
+                        onFechaSeleccionada = {
+                            calendarioActivo = null
+                            onCambiar(apertura.copy(vigenciaExamenPreocupacional = it))
+                        }
+                    )
+                }
+                OutlinedTextField(
+                    value = apertura.puntajeCalbuco?.toString().orEmpty(),
+                    onValueChange = { valor ->
+                        onCambiar(apertura.copy(puntajeCalbuco = valor.filter(Char::isDigit).take(3).toIntOrNull()))
+                    },
+                    label = { Text("Puntaje Calbuco") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                CondicionSiNoRow(
+                    texto = "Test de esfuerzo vigente",
+                    respuesta = apertura.testEsfuerzoVigente,
+                    testTag = "test-esfuerzo",
+                    onCambiar = { vigente ->
+                        if (!vigente && calendarioActivo == CalendarioVigencia.TEST_ESFUERZO) calendarioActivo = null
+                        onCambiar(apertura.copy(testEsfuerzoVigente = vigente))
+                    }
+                )
+                if (apertura.testEsfuerzoVigente != false) {
+                    CampoFecha(
+                        etiqueta = "Vigencia test de esfuerzo",
+                        fecha = apertura.vigenciaTestEsfuerzo,
+                        desplegado = calendarioActivo == CalendarioVigencia.TEST_ESFUERZO,
+                        habilitado = !ui.ocupado,
+                        soloDesdeHoy = true,
+                        onAlternar = {
+                            calendarioActivo = CalendarioVigencia.TEST_ESFUERZO.takeUnless { it == calendarioActivo }
+                        },
+                        onFechaSeleccionada = {
+                            calendarioActivo = null
+                            onCambiar(apertura.copy(vigenciaTestEsfuerzo = it))
+                        }
+                    )
+                }
+                bloqueoEsfuerzo?.let {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(10.dp)) {
+                        Text(
+                            it,
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            AquaSectionCard(title = "Condiciones Iniciales", subtitle = "Confirma cada condición antes de continuar") {
+                CondicionSiNoRow(
+                    texto = "Embarcación o plataforma de apoyo lista",
+                    respuesta = apertura.embarcacionLista,
+                    testTag = "embarcacion",
+                    onCambiar = { onCambiar(apertura.copy(embarcacionLista = it)) }
+                )
+                CondicionSiNoRow(
+                    texto = "Buzo de emergencia disponible y apto",
+                    respuesta = apertura.buzoEmergenciaDisponible,
+                    testTag = "buzo-emergencia",
+                    onCambiar = { onCambiar(apertura.copy(buzoEmergenciaDisponible = it)) }
+                )
+                CondicionSiNoRow(
+                    texto = "Comunicaciones y respuesta de emergencia operativas",
+                    respuesta = apertura.comunicacionesOperativas,
+                    testTag = "comunicaciones",
+                    onCambiar = { onCambiar(apertura.copy(comunicacionesOperativas = it)) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgresoApertura() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(color = Color(0xFF0755B8), shape = CircleShape) {
+                    Text("1", modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                }
+                Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text("Paso 1 de 5", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            LinearProgressIndicator(progress = { 0.2f }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = AquaGrisSuave)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("1. Apertura & Buceo", style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio)
+                Text("Sig: Inspección de Equipos", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeatherConditionsCard(
+    condicionesListas: Boolean,
+    onCondicionesListasChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = CardDefaults.outlinedCardBorder(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = AquaGrisSuave
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Filled.Air,
+                            contentDescription = null,
+                            tint = AquaAzulMedio,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text("Condiciones en Pontón", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Telemetría ambiental en tiempo real",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.testTag("clima-apta"),
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFE7FBF3),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CE6CA))
+                    ) {
+                        Text(
+                            "APTA",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AquaVerde
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                WeatherMetricCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Filled.Air,
+                    title = "Viento Superficie",
+                    value = "12",
+                    detail = "NUDOS SO",
+                    supportingLabel = "LÍMITE OPERATIVO",
+                    supportingText = "< 20 kts"
+                )
+                WeatherMetricCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Filled.Waves,
+                    title = "Estado Marea",
+                    value = "Favorable",
+                    detail = null,
+                    supportingText = "Reposo marea alta (09:45)"
+                )
+            }
+            CondicionRow(
+                texto = "Confirmo la verificación meteorológica real en terreno",
+                marcada = condicionesListas,
+                onCambiar = onCondicionesListasChange,
+                testTag = "weather-manual-confirmation"
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeatherMetricCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    value: String,
+    detail: String?,
+    supportingLabel: String? = null,
+    supportingText: String
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(AquaGrisSuave)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = AquaAzulMedio,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                value,
+                style = if (detail == null) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (detail != null) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+        }
+        if (supportingLabel != null) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(supportingLabel)
+                    }
+                    append(" ")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(supportingText)
+                    }
+                },
+                modifier = Modifier.testTag("weather-operational-limit"),
+                style = MaterialTheme.typography.bodySmall,
+                color = AquaVerde
+            )
+        } else {
+            Text(
+                supportingText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun OperationalValueField(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    label: String,
+    value: String
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            color = AquaGrisSuave,
+            border = CardDefaults.outlinedCardBorder()
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(value, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                if (icon == Icons.Filled.AccessTime) {
+                    androidx.compose.material3.Icon(icon, contentDescription = null, tint = AquaAzulMedio, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CondicionRow(
+    texto: String,
+    marcada: Boolean,
+    testTag: String? = null,
+    onCambiar: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCambiar(!marcada) },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CircularCheckbox(
+            checked = marcada,
+            onCheckedChange = onCambiar,
+            contentDescription = texto,
+            checkedColor = AquaVerde,
+            modifier = if (testTag == null) Modifier else Modifier.testTag(testTag)
+        )
+        Text(texto, modifier = Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun CondicionSiNoRow(
+    texto: String,
+    respuesta: Boolean?,
+    testTag: String,
+    onCambiar: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(texto, style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CondicionChoice(
+                texto = "Sí",
+                seleccionada = respuesta == true,
+                positiva = true,
+                testTag = "$testTag-si",
+                modifier = Modifier.weight(1f),
+                onClick = { onCambiar(true) }
+            )
+            CondicionChoice(
+                texto = "No",
+                seleccionada = respuesta == false,
+                positiva = false,
+                testTag = "$testTag-no",
+                modifier = Modifier.weight(1f),
+                onClick = { onCambiar(false) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CondicionChoice(
+    texto: String,
+    seleccionada: Boolean,
+    positiva: Boolean,
+    testTag: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val afirmativaSeleccionada = seleccionada && positiva
+    val negativaSeleccionada = seleccionada && !positiva
+    Surface(
+        modifier = modifier
+            .heightIn(min = 56.dp)
+            .selectable(
+                selected = seleccionada,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .testTag(testTag),
+        shape = RoundedCornerShape(16.dp),
+        color = when {
+            afirmativaSeleccionada -> AquaVerde
+            negativaSeleccionada -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
+        contentColor = when {
+            afirmativaSeleccionada -> MaterialTheme.colorScheme.onTertiary
+            negativaSeleccionada -> MaterialTheme.colorScheme.onError
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        border = if (seleccionada && !positiva) CardDefaults.outlinedCardBorder() else null
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = if (positiva) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(texto, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DropdownField(
+    label: String,
+    selectedValue: String,
+    options: List<String>,
+    placeholder: String = "Selecciona una opción",
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    onSelected: (String) -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        Column {
+            if (label.isNotBlank()) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio, modifier = Modifier.padding(bottom = 5.dp))
+            }
+            OutlinedTextField(
+                value = selectedValue,
+                onValueChange = {},
+                readOnly = true,
+                placeholder = { Text(placeholder, style = MaterialTheme.typography.bodySmall) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = AquaGrisSuave,
+                    focusedContainerColor = AquaGrisSuave
+                ),
+                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth().heightIn(min = 48.dp)
+            )
+        }
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelected(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AperturaFaenaScreenPreview() {
+    AquaFlowTheme {
+        AperturaFaenaScreen(
+            ui = FaenaUiState(
+                apertura = PreChequeo(
+                    centroCultivo = "Centro Demo Nébula",
+                    fecha = "20/10/2026",
+                    hora = "09:30",
+                    buzoAsignado = "Buzo Demo Bravo",
+                    supervisorACargo = "Carlos Supervisor",
+                    condicionesListas = true,
+                    embarcacionLista = true,
+                    comunicacionesOperativas = true
+                )
+            ),
+            onCambiar = {},
+            onGuardar = {},
+            onRecuperar = {},
+            onContinuar = {},
+            onSalir = {}
+        )
+    }
+}

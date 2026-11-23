@@ -16,3 +16,6 @@ local.properties
 .idea/
 # Estado local del compilador de Kotlin
 .kotlin/
+*.jks
+*.keystore
+*.p12

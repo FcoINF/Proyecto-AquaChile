@@ -85,6 +85,8 @@ La última orden requiere dispositivo o emulador conectado y autorizado por ADB.
 
 La evidencia de pruebas y el guion de demostración se mantienen en [Validación del MVP](docs/VALIDACION_MVP.md). Las tareas implementadas y pendientes se registran en [Planificación](docs/PLANIFICACION_MVP.md); el [roadmap](docs/ROADMAP_MVP.md) conserva la correspondencia con las rúbricas.
 
+La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y reunir las evidencias están en [Entrega EA4](docs/ENTREGA_EA4.md).
+
 ### Probar la apertura conectada a Spring Boot
 
 Desde la raíz, inicia el servidor con JDK 17 y el wrapper Gradle del proyecto. Usa PIN de demostración en ambos perfiles. Para reutilizar el acceso demo de Android, escribe `1234` en las dos solicitudes.

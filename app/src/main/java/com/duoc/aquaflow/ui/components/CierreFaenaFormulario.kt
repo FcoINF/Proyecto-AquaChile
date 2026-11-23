@@ -13,7 +13,7 @@ import com.duoc.aquaflow.model.OrigenMedicion
 import com.duoc.aquaflow.viewmodel.CierreFaenaViewModel
 
 @Composable
-fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, onCerrar: (RegistroCierre) -> Unit) {
+fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, bloqueo: String? = null, onCerrar: (RegistroCierre) -> Unit) {
     val vm: CierreFaenaViewModel = viewModel(key = "cierre-$id")
     val ui by vm.ui.collectAsState()
     var confirmar by remember { mutableStateOf<RegistroCierre?>(null) }
@@ -53,7 +53,8 @@ fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, onCerrar: (Regis
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
 
     ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Button(enabled = !ocupado, onClick = { confirmar = vm.validar() }, modifier = Modifier.fillMaxWidth()) {
+    bloqueo?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    Button(enabled = !ocupado && bloqueo == null, onClick = { confirmar = vm.validar() }, modifier = Modifier.fillMaxWidth()) {
         Text("Cerrar faena")
     }
     confirmar?.let { cierre ->
@@ -65,7 +66,7 @@ fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, onCerrar: (Regis
                     cierre.mediciones?.alertas.orEmpty().forEach { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },
-            confirmButton = { TextButton(enabled = !ocupado, onClick = { confirmar = null; onCerrar(cierre) }) { Text("Confirmar cierre") } },
+            confirmButton = { TextButton(enabled = !ocupado && bloqueo == null, onClick = { confirmar = null; onCerrar(cierre) }) { Text("Confirmar cierre") } },
             dismissButton = { TextButton(onClick = { confirmar = null }) { Text("Volver") } }
         )
     }

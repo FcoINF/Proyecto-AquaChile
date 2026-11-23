@@ -71,10 +71,12 @@ interface PreChequeoDao {
     @Transaction
     suspend fun cerrarValidada(id: String, cierre: com.duoc.aquaflow.model.RegistroCierre, usuario: com.duoc.aquaflow.model.Usuario) {
         val fila = checkNotNull(buscar(id)) { "La faena no existe." }
-        check(com.duoc.aquaflow.domain.ReglasCierre.puedeCerrar(fila.aFaena(), usuario)) {
+        val faena = fila.aFaena()
+        check(com.duoc.aquaflow.domain.ReglasCierre.puedeCerrar(faena, usuario)) {
             "Solo el supervisor propietario puede cerrar una faena en ejecución, una vez."
         }
-        val error = com.duoc.aquaflow.domain.ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
+        val error = com.duoc.aquaflow.domain.ReglasCierre.bloqueoCritico(faena.resumen)
+            ?: com.duoc.aquaflow.domain.ReglasCierre.errorCampos(cierre.duracionMinutos, cierre.observaciones, cierre.revisionSalida)
             ?: com.duoc.aquaflow.domain.ReglasCierre.errorMediciones(cierre.mediciones, cierre.duracionMinutos)
         require(error == null) { error.orEmpty() }
         require(com.duoc.aquaflow.domain.ReglasSecciones.encuesta(cierre.saludSalida) == com.duoc.aquaflow.model.EstadoSeccion.COMPLETA) {
