@@ -69,12 +69,19 @@ class FaenasController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Publicar las mediciones históricas de una faena propia")
+    @Operation(summary = "Confirmar el reenvío de mediciones de un cierre existente", deprecated = true,
+            description = "Los cierres nuevos se registran mediante PUT /api/faenas/{id}/bitacora.")
     @PutMapping(value = "/faenas/{id}/cierre-historico", consumes = "application/json")
     ResponseEntity<Void> publicarCierre(
             @PathVariable UUID id, @Valid @RequestBody CierreHistorico cierre, Authentication cuenta) {
         faenas.publicarCierre(id, cuenta.getName(), cierre);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/faenas/{id}/bloqueos")
+    @Operation(summary = "Consultar motivos y responsables de los bloqueos de la faena")
+    List<Faenas.Bloqueo> bloqueos(@PathVariable UUID id, Authentication cuenta) {
+        return faenas.bloqueos(id, supervisorVisible(cuenta));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

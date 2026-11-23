@@ -26,6 +26,13 @@ class Faenas {
             """;
 
     record Guardado(Apertura apertura, boolean creada) {}
+    public record Bloqueo(String operacion, String motivo, OffsetDateTime registradaEn, String responsable) {}
+
+    static final class BloqueoRegistrado extends ResponseStatusException {
+        BloqueoRegistrado(String motivo) {
+            super(HttpStatus.CONFLICT, motivo);
+        }
+    }
 
     private final JdbcClient jdbc;
     private final ObjectMapper json;
@@ -103,18 +110,32 @@ class Faenas {
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BloqueoRegistrado.class)
     public void publicarCierre(UUID id, String supervisor, CierreHistorico cierre) {
         bloquear(id, supervisor);
         var previo = consultar(id, supervisor).cierre();
         if (cierre.equals(previo)) return;
-        if (jdbc.sql("SELECT COUNT(*) FROM expedientes WHERE id = :id").param("id", id).query(Integer.class).single() > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Usa la bitácora para cerrar un expediente completo.");
-        }
-        if (previo != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un cierre histórico para esta faena.");
-        }
-        insertarCierre(id, cierre);
+        throw registrarBloqueo(id, "CIERRE", supervisor, previo == null
+                ? "Registra el cierre en la bitácora de un expediente autorizado y completo."
+                : "Ya existe un cierre para esta faena.");
+    }
+
+    BloqueoRegistrado registrarBloqueo(UUID id, String operacion, String responsable, String motivo) {
+        jdbc.sql("""
+                INSERT INTO bloqueos_faena (faena, operacion, motivo, registrada_en, responsable)
+                VALUES (:id, :operacion, :motivo, :fecha, :responsable)
+                """).param("id", id).param("operacion", operacion).param("motivo", motivo)
+                .param("fecha", OffsetDateTime.now(ZoneOffset.UTC)).param("responsable", responsable).update();
+        return new BloqueoRegistrado(motivo);
+    }
+
+    List<Bloqueo> bloqueos(UUID id, String supervisor) {
+        consultar(id, supervisor);
+        return jdbc.sql("""
+                SELECT operacion, motivo, registrada_en, responsable
+                FROM bloqueos_faena WHERE faena = :id ORDER BY id
+                """).param("id", id).query((rs, n) -> new Bloqueo(rs.getString("operacion"), rs.getString("motivo"),
+                        rs.getObject("registrada_en", OffsetDateTime.class), rs.getString("responsable"))).list();
     }
 
     void bloquear(UUID id, String supervisor) {

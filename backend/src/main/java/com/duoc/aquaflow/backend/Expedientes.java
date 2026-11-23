@@ -20,7 +20,8 @@ import static com.duoc.aquaflow.backend.ExpedienteDatos.*;
 @Service
 class Expedientes {
     public record Expediente(Faenas.Apertura apertura, long version, ExpedienteDatos prechequeo,
-                             List<Foto> fotos, Decision decision, Inicio inicio, Bitacora bitacora) {}
+                             List<Foto> fotos, Decision decision, Inicio inicio, Bitacora bitacora,
+                             SemaforoFaena.Evaluacion semaforo) {}
     public record Foto(UUID faena, Equipo equipo, TipoFoto tipo, String formato,
                        OffsetDateTime tomadaEn, String responsable) {}
     record Imagen(Foto foto, byte[] bytes) {}
@@ -35,11 +36,13 @@ class Expedientes {
     private final JdbcClient jdbc;
     private final ObjectMapper json;
     private final Faenas faenas;
+    private final SemaforoFaena semaforo;
 
-    Expedientes(JdbcClient jdbc, ObjectMapper json, Faenas faenas) {
+    Expedientes(JdbcClient jdbc, ObjectMapper json, Faenas faenas, SemaforoFaena semaforo) {
         this.jdbc = jdbc;
         this.json = json;
         this.faenas = faenas;
+        this.semaforo = semaforo;
     }
 
     @Transactional
@@ -96,17 +99,28 @@ class Expedientes {
         jdbc.sql("DELETE FROM expedientes WHERE id = :id").param("id", id).update();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = Faenas.BloqueoRegistrado.class)
     public Expediente decidir(UUID id, String jefe, long version, SolicitudDecision solicitud) {
         faenas.bloquear(id, null);
-        var fila = fila(id);
+        var fila = buscar(id);
+        if (fila == null && solicitud.resultado() == Resultado.AUTORIZADA) {
+            throw faenas.registrarBloqueo(id, "APROBACION", jefe, "Falta el expediente de prechequeo.");
+        }
+        if (fila == null) throw noEncontrado("Expediente no encontrado.");
         verificarVersion(fila, version);
         exigirEditable(fila);
         String motivo = solicitud.motivo() == null ? null : solicitud.motivo().strip();
         if (solicitud.resultado() == Resultado.RECHAZADA && (motivo == null || motivo.isEmpty())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Indica el motivo del rechazo.");
         }
-        if (solicitud.resultado() == Resultado.AUTORIZADA) validarAprobacion(id, fila.datos());
+        if (solicitud.resultado() == Resultado.AUTORIZADA) {
+            var evaluacion = evaluar(faenas.consultar(id, null), fila.datos(), fotos(id));
+            bloquearSiCorresponde(id, "APROBACION", jefe, evaluacion);
+            if (evaluacion.nivel() == SemaforoFaena.Nivel.AMARILLO && (motivo == null || motivo.isEmpty())) {
+                throw faenas.registrarBloqueo(id, "APROBACION", jefe,
+                        "Justifica la revisión de las observaciones: " + String.join(" ", evaluacion.observaciones()));
+            }
+        }
         var decision = new Decision(solicitud.resultado(), motivo, jefe, ahora());
         jdbc.sql("UPDATE expedientes SET decision = :decision, version = version + 1 WHERE id = :id")
                 .param("id", id).param("decision", codificar(decision)).update();
@@ -129,11 +143,13 @@ class Expedientes {
         return expediente(id, supervisor);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = Faenas.BloqueoRegistrado.class)
     public Bitacora cerrar(UUID id, String supervisor, Cierre cierre) {
         faenas.bloquear(id, supervisor);
-        var fila = fila(id);
-        exigir(fila.inicio() != null, "La faena debe estar en ejecución.");
+        var fila = buscar(id);
+        if (fila == null) {
+            throw faenas.registrarBloqueo(id, "CIERRE", supervisor, "Falta el expediente de prechequeo.");
+        }
         var apertura = faenas.consultar(id, supervisor);
         if (apertura.cierre() != null) {
             var existente = bitacora(apertura);
@@ -143,6 +159,10 @@ class Expedientes {
                             && existente.saludSalida().equals(cierre.saludSalida()),
                     "Ya existe un cierre distinto para esta faena.");
             return existente;
+        }
+        bloquearSiCorresponde(id, "CIERRE", supervisor, evaluar(apertura, fila.datos(), fotos(id)));
+        if (fila.inicio() == null || fila.decision() == null || fila.decision().resultado() != Resultado.AUTORIZADA) {
+            throw faenas.registrarBloqueo(id, "CIERRE", supervisor, "La faena debe estar autorizada y en ejecución.");
         }
         exigir(cierre.mediciones().cerradoEn() >= fila.inicio().registradaEn().toInstant().toEpochMilli(),
                 "La fecha de cierre debe ser posterior al inicio.");
@@ -219,29 +239,25 @@ class Expedientes {
         invalidarComparacion(id, fila.datos(), equipo);
     }
 
-    private void validarAprobacion(UUID id, ExpedienteDatos datos) {
-        exigir(datos.saludInicial() != null && datos.ast() != null && !datos.tareas().isEmpty(),
-                "Completa la salud inicial, el AST y la lista de tareas.");
-        exigir(datos.tareas().stream().allMatch(Tarea::verificada), "Quedan tareas sin verificar.");
-        exigir(datos.ast().respuestas().subList(0, 3).stream().allMatch(Boolean.TRUE::equals),
-                "El AST registra una condición crítica.");
-        var salud = datos.saludInicial();
-        exigir(salud.saturacion() >= 92 && salud.sistolica() < 160 && salud.diastolica() < 100,
-                "La encuesta de salud contiene valores críticos.");
-        exigir(datos.checklist().size() == Equipo.values().length, "Completa la inspección de los cuatro equipos.");
-        var fotos = fotos(id);
-        for (Inspeccion inspeccion : datos.checklist()) {
-            exigir(inspeccion.estado() != EstadoEquipo.NO_CUMPLE && inspeccion.estado() != EstadoEquipo.PENDIENTE,
-                    "Equipo sin conformidad: " + inspeccion.equipo() + ".");
-            exigir(tieneFoto(fotos, inspeccion.equipo(), TipoFoto.CAPTURA),
-                    "Falta la evidencia de " + inspeccion.equipo() + ".");
+    private SemaforoFaena.Evaluacion evaluar(Faenas.Apertura apertura, ExpedienteDatos datos, List<Foto> fotos) {
+        var capturas = EnumSet.noneOf(Equipo.class);
+        fotos.stream().filter(foto -> foto.tipo() == TipoFoto.CAPTURA)
+                .forEach(foto -> capturas.add(foto.equipo()));
+        return semaforo.evaluar(apertura.datos(), datos, capturas);
+    }
+
+    private void bloquearSiCorresponde(UUID id, String operacion, String responsable, SemaforoFaena.Evaluacion evaluacion) {
+        if (evaluacion.nivel() == SemaforoFaena.Nivel.ROJO) {
+            throw faenas.registrarBloqueo(id, operacion, responsable, String.join(" ", evaluacion.bloqueos()));
         }
     }
 
     private Expediente expediente(UUID id, String supervisor) {
         var apertura = faenas.consultar(id, supervisor);
         var fila = fila(id);
-        return new Expediente(apertura, fila.version(), fila.datos(), fotos(id), fila.decision(), fila.inicio(), bitacora(apertura));
+        var fotos = fotos(id);
+        return new Expediente(apertura, fila.version(), fila.datos(), fotos, fila.decision(), fila.inicio(),
+                bitacora(apertura), evaluar(apertura, fila.datos(), fotos));
     }
 
     private Bitacora bitacora(Faenas.Apertura apertura) {

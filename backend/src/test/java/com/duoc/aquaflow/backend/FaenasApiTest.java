@@ -99,7 +99,7 @@ class FaenasApiTest {
     }
 
     @Test
-    void supervisorPublicaUnCierreUnicoYJefaturaConsultaSusMediciones() throws Exception {
+    void rutaHistoricaNoCreaCierresSinValidarYRegistraElBloqueo() throws Exception {
         UUID id = UUID.randomUUID();
         faenas.guardar(id, "supervisor", json.treeToValue(datos(), AperturaDatos.class));
         String ruta = "/api/faenas/" + id + "/cierre-historico";
@@ -110,16 +110,12 @@ class FaenasApiTest {
         mvc.perform(put(ruta).headers(jefe()).contentType(MediaType.APPLICATION_JSON).content(cierre))
                 .andExpect(status().isForbidden());
         mvc.perform(put(ruta).headers(supervisor()).contentType(MediaType.APPLICATION_JSON).content(cierre))
-                .andExpect(status().isNoContent());
-        mvc.perform(put(ruta).headers(supervisor()).contentType(MediaType.APPLICATION_JSON).content(cierre))
-                .andExpect(status().isNoContent());
-        mvc.perform(put(ruta).headers(supervisor()).contentType(MediaType.APPLICATION_JSON)
-                        .content(cierre.replace("CENSUS", "MANUAL")))
                 .andExpect(status().isConflict());
-        mvc.perform(get("/api/faenas/" + id).headers(jefe()))
+        mvc.perform(get("/api/faenas/" + id + "/bloqueos").headers(jefe()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cierre.descensoMaximo").value(25.0))
-                .andExpect(jsonPath("$.cierre.origen").value("CENSUS"));
+                .andExpect(jsonPath("$[0].operacion").value("CIERRE"))
+                .andExpect(jsonPath("$[0].responsable").value("supervisor"))
+                .andExpect(jsonPath("$[0].registradaEn").exists());
     }
 
     @Test
