@@ -39,8 +39,7 @@ data class HistorialFiltro(
     }
 
     private fun coincide(item: HistorialItem, consulta: String): Boolean =
-        item.codigo.lowercase().contains(consulta) ||
-            item.centroCultivo.lowercase().contains(consulta) ||
+        item.centroCultivo.lowercase().contains(consulta) ||
             item.buzoAsignado.lowercase().contains(consulta) ||
             item.supervisorACargo.lowercase().contains(consulta)
 

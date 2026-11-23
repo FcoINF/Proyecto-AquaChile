@@ -44,11 +44,13 @@ class HistorialRoomViewModelTest {
         assertEquals(2, vm.state.value.faenas.size)
     }
 
-    @Test fun filtrosBuscanTodosLosCamposYCombinanEstado() {
-        val item = primera.aHistorialItem()
-        listOf("uuid-1", "norte", "ANA", "luis").forEach {
+    @Test fun filtrosOmitenIdentificadoresYCombinanEstado() {
+        val item = primera.aHistorialItem().copy(codigo = "FAENA-001", centroCultivo = "Centro Norte - Jaula 04")
+        listOf("norte", "jaula 04", "ANA", "luis").forEach {
             assertEquals(listOf(item), HistorialFiltro(it, EstadoFaena.PRECHEQUEO).aplicar(listOf(item)))
         }
+        assertTrue(HistorialFiltro("uuid-1").aplicar(listOf(item)).isEmpty())
+        assertTrue(HistorialFiltro("FAENA-001").aplicar(listOf(item)).isEmpty())
         assertTrue(HistorialFiltro("Ana", EstadoFaena.AUTORIZADA).aplicar(listOf(item)).isEmpty())
     }
 
