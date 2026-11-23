@@ -22,12 +22,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -63,10 +61,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -79,6 +74,9 @@ import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.ui.theme.AquaGrisSuave
 import com.duoc.aquaflow.ui.theme.AquaVerde
 import com.duoc.aquaflow.viewmodel.FaenaUiState
+import com.duoc.aquaflow.viewmodel.MeteorologiaUi
+import com.duoc.aquaflow.model.CENTROS_MARITIMOS
+import com.duoc.aquaflow.data.repository.ResultadoMeteorologia
 import com.duoc.aquaflow.domain.Reglas
 
 private const val TURNO_MAREA_PREDEFINIDO = "Mañana (08:30 - 14:30)"
@@ -93,7 +91,9 @@ fun AperturaFaenaScreen(
     onGuardar: () -> Unit,
     onRecuperar: () -> Unit,
     onContinuar: () -> Unit,
-    onSalir: () -> Unit
+    onSalir: () -> Unit,
+    meteorologia: MeteorologiaUi = MeteorologiaUi(),
+    onActualizarMeteorologia: () -> Unit = {}
 ) {
     var confirmarSalida by rememberSaveable { mutableStateOf(false) }
     var mostrarMenuAcciones by rememberSaveable { mutableStateOf(false) }
@@ -106,14 +106,7 @@ fun AperturaFaenaScreen(
     var confirmarRecuperacion by rememberSaveable { mutableStateOf(false) }
     val apertura = ui.apertura
 
-    val centrosCultivo = listOf(
-        "Centro Demo Aurora - Jaula 04",
-        "Centro Demo Nébula",
-        "Centro Demo Fiordo Esmeralda",
-        "Centro Demo Bahía Horizonte",
-        "Centro Demo Estero Boreal",
-        "Centro Demo Faro Sur"
-    )
+    val centrosIds = CENTROS_MARITIMOS.associate { it.nombre to it.id }
 
     val buzosAsignados = listOf(
         "Buzo Demo Alfa",
@@ -122,7 +115,6 @@ fun AperturaFaenaScreen(
         "Buzo Demo Delta",
         "Buzo Demo Eco"
     )
-    val centrosIds = centrosCultivo.mapIndexed { indice, nombre -> nombre to "CENTRO-${indice + 1}" }.toMap()
     val buzosIds = buzosAsignados.mapIndexed { indice, nombre -> nombre to "BUZO-${indice + 1}" }.toMap()
     val bloqueoEsfuerzo = Reglas.bloqueoTestEsfuerzo(apertura)
 
@@ -244,6 +236,8 @@ fun AperturaFaenaScreen(
         ) {
             ProgresoApertura()
             WeatherConditionsCard(
+                meteorologia = meteorologia.takeIf { it.centro?.id == apertura.centroId } ?: MeteorologiaUi(),
+                onActualizar = onActualizarMeteorologia,
                 condicionesListas = apertura.condicionesListas,
                 onCondicionesListasChange = { onCambiar(apertura.copy(condicionesListas = it)) }
             )
@@ -252,8 +246,12 @@ fun AperturaFaenaScreen(
                     label = "Centro de Cultivo",
                     selectedValue = apertura.centroCultivo,
                     placeholder = "Sin asignar",
-                    options = centrosCultivo,
-                    onSelected = { onCambiar(apertura.copy(centroCultivo = it, centroId = centrosIds.getValue(it))) }
+                    options = centrosIds.keys.toList(),
+                    onSelected = { nombre ->
+                        val id = centrosIds.getValue(nombre)
+                        onCambiar(apertura.copy(centroCultivo = nombre, centroId = id,
+                            condicionesListas = apertura.condicionesListas && apertura.centroId == id))
+                    }
                 )
                 BoxWithConstraints {
                     if (maxWidth < 520.dp) {
@@ -453,87 +451,46 @@ private fun ProgresoApertura() {
 
 @Composable
 private fun WeatherConditionsCard(
+    meteorologia: MeteorologiaUi,
+    onActualizar: () -> Unit,
     condicionesListas: Boolean,
     onCondicionesListasChange: (Boolean) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = AquaGrisSuave
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        androidx.compose.material3.Icon(
-                            imageVector = Icons.Filled.Air,
-                            contentDescription = null,
-                            tint = AquaAzulMedio,
-                            modifier = Modifier.size(20.dp)
-                        )
+    Card(modifier = Modifier.fillMaxWidth(), border = CardDefaults.outlinedCardBorder()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Meteorología marítima", style = MaterialTheme.typography.titleSmall)
+            Text("Open-Meteo · contexto de revisión. Confirma las condiciones en terreno.",
+                style = MaterialTheme.typography.bodySmall)
+            val centro = meteorologia.centro
+            if (centro == null) {
+                Text("Selecciona un centro para consultar las condiciones.")
+            } else {
+                Text("${centro.sector} · punto de referencia del centro demo",
+                    style = MaterialTheme.typography.bodyMedium)
+                if (meteorologia.cargando) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text("Consultando condiciones marítimas…")
+                }
+                when (val resultado = meteorologia.resultado) {
+                    is ResultadoMeteorologia.Disponible -> {
+                        val datos = resultado.condiciones
+                        Text("Oleaje: ${medidaMaritima(datos.alturaOla, "m")} · Período: ${medidaMaritima(datos.periodoOla, "s")}")
+                        Text("Dirección del oleaje: ${medidaMaritima(datos.direccionOla, "°")}")
+                        Text("Temperatura superficial: ${medidaMaritima(datos.temperaturaSuperficial, "°C")}")
+                        Text(java.lang.String.format(java.util.Locale.ROOT, "Punto del modelo: %.2f°, %.2f°",
+                            datos.latitudModelo, datos.longitudModelo), style = MaterialTheme.typography.bodySmall)
+                        Text("Hora del modelo: ${fechaMaritima(datos.horaModelo)}",
+                            style = MaterialTheme.typography.bodySmall)
+                        Text("Consulta: ${fechaMaritima(datos.consultadaEn)}",
+                            style = MaterialTheme.typography.bodySmall)
                     }
+                    ResultadoMeteorologia.SinConexion -> Text("Sin conexión. Puedes seguir con la verificación en terreno.")
+                    is ResultadoMeteorologia.Error -> Text(resultado.mensaje, color = MaterialTheme.colorScheme.error)
+                    null -> Unit
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text("Condiciones en Pontón", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "Telemetría ambiental en tiempo real",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                TextButton(onClick = onActualizar, enabled = !meteorologia.cargando) {
+                    Text(if (meteorologia.resultado is ResultadoMeteorologia.Disponible) "Actualizar" else "Reintentar consulta")
                 }
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.testTag("clima-apta"),
-                        shape = RoundedCornerShape(50),
-                        color = Color(0xFFE7FBF3),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF9CE6CA))
-                    ) {
-                        Text(
-                            "APTA",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = AquaVerde
-                        )
-                    }
-                }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                WeatherMetricCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.Air,
-                    title = "Viento Superficie",
-                    value = "12",
-                    detail = "NUDOS SO",
-                    supportingLabel = "LÍMITE OPERATIVO",
-                    supportingText = "< 20 kts"
-                )
-                WeatherMetricCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.Waves,
-                    title = "Estado Marea",
-                    value = "Favorable",
-                    detail = null,
-                    supportingText = "Reposo marea alta (09:45)"
-                )
             }
             CondicionRow(
                 texto = "Confirmo la verificación meteorológica real en terreno",
@@ -545,81 +502,14 @@ private fun WeatherConditionsCard(
     }
 }
 
-@Composable
-private fun WeatherMetricCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    title: String,
-    value: String,
-    detail: String?,
-    supportingLabel: String? = null,
-    supportingText: String
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(AquaGrisSuave)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            androidx.compose.material3.Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = AquaAzulMedio,
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                title,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                value,
-                style = if (detail == null) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (detail != null) {
-                Text(
-                    detail,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+private fun medidaMaritima(valor: Double?, unidad: String): String =
+    valor?.let { java.text.NumberFormat.getNumberInstance(java.util.Locale("es", "CL")).format(it) + " " + unidad }
+        ?: "Sin datos"
 
-        }
-        if (supportingLabel != null) {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append(supportingLabel)
-                    }
-                    append(" ")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append(supportingText)
-                    }
-                },
-                modifier = Modifier.testTag("weather-operational-limit"),
-                style = MaterialTheme.typography.bodySmall,
-                color = AquaVerde
-            )
-        } else {
-            Text(
-                supportingText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
+private fun fechaMaritima(fecha: Long): String =
+    java.text.SimpleDateFormat("dd/MM/yyyy HH:mm z", java.util.Locale("es", "CL")).apply {
+        timeZone = java.util.TimeZone.getTimeZone("America/Santiago")
+    }.format(java.util.Date(fecha))
 
 @Composable
 private fun OperationalValueField(

@@ -52,6 +52,9 @@ import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
 import com.duoc.aquaflow.viewmodel.HistorialViewModel
 import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
+import com.duoc.aquaflow.viewmodel.MeteorologiaViewModel
+import com.duoc.aquaflow.data.remote.MeteorologiaApi
+import com.duoc.aquaflow.data.repository.MeteorologiaRepository
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 private const val MODO_DEMO_SIN_PERSISTENCIA = false
@@ -316,8 +319,24 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                     }
                 }
 
+                val fabricaMeteorologia = remember(context) {
+                    viewModelFactory {
+                        initializer {
+                            val red = context.getSystemService(android.net.ConnectivityManager::class.java)
+                            MeteorologiaViewModel(MeteorologiaRepository(MeteorologiaApi.crear(), hayRed = {
+                                red?.getNetworkCapabilities(red.activeNetwork)
+                                    ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                            }))
+                        }
+                    }
+                }
+                val clima: MeteorologiaViewModel = viewModel(factory = fabricaMeteorologia)
+                val meteorologia by clima.ui.collectAsState()
+                LaunchedEffect(ui.apertura.centroId) { clima.seleccionar(ui.apertura.centroId) }
                 AperturaFaenaScreen(
                     ui = ui,
+                    meteorologia = meteorologia,
+                    onActualizarMeteorologia = clima::actualizar,
                     onCambiar = faena::actualizar,
                     onGuardar = {
                         faena.guardarApertura {

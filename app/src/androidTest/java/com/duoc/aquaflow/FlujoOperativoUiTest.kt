@@ -86,18 +86,27 @@ class FlujoOperativoUiTest {
             decision = RegistroDecision(Decision.AUTORIZADA, "", "jefe"),
             inicio = RegistroInicio("supervisor", 1)
         )
+        val motivo = "La encuesta de salud inicial contiene valores críticos."
+        val expediente = com.duoc.aquaflow.data.remote.DetalleRemoto(
+            faena = faena,
+            version = 3,
+            semaforo = com.duoc.aquaflow.data.remote.SemaforoRemoto("ROJO", listOf(motivo), emptyList()),
+            alertas = emptyList(),
+            publicado = true
+        )
         compose.setContent {
             AquaFlowTheme {
                 DetalleFaenaScreen(
                     ResumenFaenaViewModel(), faena, Rol.SUPERVISOR, "supervisor",
                     onDecidir = {}, onVolver = {}, onFinalizar = {},
+                    expedienteRemoto = expediente,
                     onCerrar = { error("El cierre crítico debe permanecer bloqueado.") }
                 )
             }
         }
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Cerrar faena"))
         compose.onNodeWithText("Cerrar faena").assertIsNotEnabled()
-        compose.onNodeWithText("Cierre bloqueado: el expediente registra una condición crítica.").assertExists()
+        compose.onNodeWithTag("alerta-bloqueo-cierre").assertTextEquals(motivo)
         compose.onNodeWithText("Confirmar cierre").assertDoesNotExist()
     }
 }

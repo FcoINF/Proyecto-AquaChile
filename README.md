@@ -117,6 +117,18 @@ Pruebas de la API y de Android:
 .\gradlew.bat :app:testDebugUnitTest
 ```
 
+Genera los informes JaCoCo de ViewModel y Repository y comprueba el umbral superior al 90 % de líneas en cada grupo:
+
+```powershell
+.\gradlew.bat :app:verificarCoberturaDebug
+```
+
+Los informes HTML y XML se generan en `app/build/reports/jacoco/`. Para ejecutar la prueba Compose del cierre bloqueado, inicia un emulador o conecta un dispositivo que aparezca en `adb devices`:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.duoc.aquaflow.FlujoOperativoUiTest#expedienteCriticoMuestraAlertaYDeshabilitaCerrarFaena'
+```
+
 En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080` y compilar con `-PaquaflowApiUrl=http://127.0.0.1:8080/`. Para ejecutar la demo local sin servidor, instala con `-PaquaflowApiUrl=`. HTTP está habilitado en debug para las direcciones locales de la prueba. Usa HTTPS al configurar un servidor para una build release.
 
 ### Límites del alcance actual

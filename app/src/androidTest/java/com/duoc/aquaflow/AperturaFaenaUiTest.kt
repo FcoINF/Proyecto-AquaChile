@@ -14,9 +14,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.runtime.mutableStateOf
 import com.duoc.aquaflow.model.PreChequeo
+import com.duoc.aquaflow.model.CENTROS_MARITIMOS
+import com.duoc.aquaflow.model.CondicionesMaritimas
+import com.duoc.aquaflow.viewmodel.MeteorologiaUi
+import com.duoc.aquaflow.data.repository.ResultadoMeteorologia
 import com.duoc.aquaflow.ui.screens.AperturaFaenaScreen
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.ui.theme.AquaVerde
@@ -30,7 +33,11 @@ class AperturaFaenaUiTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun mostrar(apertura: PreChequeo = aperturaDemo(), onCambiar: (PreChequeo) -> Unit = {}) {
+    private fun mostrar(
+        apertura: PreChequeo = aperturaDemo(),
+        onCambiar: (PreChequeo) -> Unit = {},
+        meteorologia: MeteorologiaUi = MeteorologiaUi()
+    ) {
         val aperturaActual = mutableStateOf(apertura)
         compose.setContent {
             AquaFlowTheme {
@@ -43,44 +50,27 @@ class AperturaFaenaUiTest {
                     onGuardar = {},
                     onRecuperar = {},
                     onContinuar = {},
-                    onSalir = {}
+                    onSalir = {},
+                    meteorologia = meteorologia
                 )
             }
         }
     }
 
     @Test
-    fun condicionesClimaticasMuestranValoresReferencialesYEstadoApta() {
-        mostrar()
+    fun condicionesMaritimasMuestranOleajeUbicacionYHoraSinAutorizarLaFaena() {
+        val centro = CENTROS_MARITIMOS.first()
+        val datos = CondicionesMaritimas(-42.0, -73.0, 1_790_000_000_000, 1_789_999_200_000, 1.5, 7.0, 240.0, null)
+        mostrar(aperturaDemo().copy(centroId = centro.id), meteorologia =
+            MeteorologiaUi(centro, resultado = ResultadoMeteorologia.Disponible(datos)))
 
-        compose.onNodeWithText("Condiciones en Pontón").fetchSemanticsNode()
-        compose.onNodeWithText("12").fetchSemanticsNode()
-        compose.onNodeWithText("NUDOS SO").fetchSemanticsNode()
-        compose.onNodeWithTag("weather-operational-limit").fetchSemanticsNode().config
-            .getOrElse(SemanticsProperties.Text) { emptyList() }
-            .single()
-            .let { text ->
-                assertEquals("LÍMITE OPERATIVO < 20 kts", text.text)
-                val segmentosNegrita = text.spanStyles
-                        .filter { it.item.fontWeight == androidx.compose.ui.text.font.FontWeight.Bold }
-                        .map { text.text.substring(it.start, it.end) }
-                        .toSet()
-                assertEquals(
-                        setOf("LÍMITE OPERATIVO", "< 20 kts"),
-                        segmentosNegrita
-                )
-            }
-        compose.onNodeWithText("Favorable").fetchSemanticsNode()
-        compose.onNodeWithText("Reposo marea alta (09:45)").fetchSemanticsNode()
-        compose.onNodeWithText("APTA").fetchSemanticsNode()
-        compose.onAllNodesWithText("DEMO").assertCountEquals(0)
-        compose.onAllNodesWithText("Datos simulados", substring = true).assertCountEquals(0)
-        compose.onAllNodesWithText("Valores de demostración").assertCountEquals(0)
-
-        val pixelApta = compose.onNodeWithTag("clima-apta")
-            .captureToImage().toPixelMap().let { it[1, it.height / 2] }
-        assertTrue(pixelApta.green > pixelApta.red && pixelApta.green > pixelApta.blue)
-        compose.onAllNodesWithText("SIN DATOS").assertCountEquals(0)
+        compose.onNodeWithText("Meteorología marítima").fetchSemanticsNode()
+        compose.onNodeWithText("Golfo de Ancud", substring = true).fetchSemanticsNode()
+        compose.onNodeWithText("Oleaje: 1,5 m", substring = true).fetchSemanticsNode()
+        compose.onNodeWithText("Hora del modelo:", substring = true).performScrollTo().fetchSemanticsNode()
+        compose.onNodeWithText("Consulta:", substring = true).performScrollTo().fetchSemanticsNode()
+        compose.onAllNodesWithText("APTA").assertCountEquals(0)
+        compose.onNodeWithTag("weather-manual-confirmation").performScrollTo().assertIsOff()
     }
 
     @Test

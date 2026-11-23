@@ -1,6 +1,10 @@
 import java.net.URI
+import java.math.BigDecimal
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
+    jacoco
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -121,6 +125,7 @@ dependencies {
 
     // Pruebas unitarias
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.13.14")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     // Las pruebas de JVM no traen org.json (en el teléfono sí): se agrega para probar el codec de Room
     testImplementation("org.json:json:20240303")
@@ -132,4 +137,56 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+val paquetesCobertura = mapOf(
+    "ViewModel" to "com/duoc/aquaflow/viewmodel/**",
+    "Repository" to "com/duoc/aquaflow/data/repository/**"
+)
+val datosCobertura = layout.buildDirectory.file("jacoco/testDebugUnitTest.exec")
+val clasesDebug = layout.buildDirectory.dir("tmp/kotlin-classes/debug")
+
+val verificacionesCobertura = paquetesCobertura.map { (grupo, paquete) ->
+    val clases = files(clasesDebug.map { it.asFileTree.matching { include(paquete) } })
+    val informe = tasks.register<JacocoReport>("cobertura${grupo}Debug") {
+        dependsOn("testDebugUnitTest")
+        executionData(datosCobertura)
+        classDirectories.setFrom(clases)
+        sourceDirectories.setFrom("src/main/java")
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/${grupo.lowercase()}"))
+            xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/${grupo.lowercase()}.xml"))
+        }
+    }
+    tasks.register<JacocoCoverageVerification>("verificarCobertura${grupo}Debug") {
+        dependsOn(informe)
+        executionData(datosCobertura)
+        classDirectories.setFrom(clases)
+        doFirst {
+            check(datosCobertura.get().asFile.isFile && !clases.isEmpty) {
+                "No se encontraron resultados de cobertura o clases de producción para $grupo."
+            }
+        }
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = BigDecimal("0.900001")
+                }
+            }
+        }
+    }
+}
+
+tasks.register("verificarCoberturaDebug") {
+    group = "verification"
+    description = "Genera los informes y exige más de 90 % de líneas en ViewModel y Repository."
+    dependsOn(verificacionesCobertura)
 }

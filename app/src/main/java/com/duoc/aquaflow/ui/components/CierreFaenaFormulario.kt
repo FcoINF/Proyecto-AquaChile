@@ -1,5 +1,7 @@
 package com.duoc.aquaflow.ui.components
 
+import androidx.compose.ui.platform.testTag
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -53,7 +55,7 @@ fun CierreFaenaFormulario(id: String, ocupado: Boolean = false, bloqueo: String?
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
 
     ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    bloqueo?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    bloqueo?.let { Text(it, modifier = Modifier.testTag("alerta-bloqueo-cierre"), color = MaterialTheme.colorScheme.error) }
     Button(enabled = !ocupado && bloqueo == null, onClick = { confirmar = vm.validar() }, modifier = Modifier.fillMaxWidth()) {
         Text("Cerrar faena")
     }
