@@ -85,11 +85,11 @@ La última orden requiere dispositivo o emulador conectado y autorizado por ADB.
 
 La evidencia de pruebas y el guion de demostración se mantienen en [Validación del MVP](docs/VALIDACION_MVP.md). Las tareas implementadas y pendientes se registran en [Planificación](docs/PLANIFICACION_MVP.md); el [roadmap](docs/ROADMAP_MVP.md) conserva la correspondencia con las rúbricas.
 
-La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y reunir las evidencias están en [Entrega EA4](docs/ENTREGA_EA4.md).
+Las instrucciones para firmar, instalar y reunir las evidencias están en [Entrega EA4](docs/ENTREGA_EA4.md).
 
 ### Acceso desde un teléfono Android
 
-Desde el teléfono, descarga e instala la [APK de AquaFlow Remoto](https://github.com/FcoINF/Proyecto-AquaChile/releases/download/apk-remota-1.0.0-rc.1/AquaFlow-Remoto.apk) y abre **AquaFlow Remoto**. Se instala junto a la app anterior, conserva los datos de esa instalación y usa su propio almacenamiento local. La APK de `app.zip` corresponde a una versión anterior sin acceso a Cloudflare.
+Desde el teléfono, descarga e instala la [APK de AquaFlow Remoto](https://github.com/FcoINF/Proyecto-AquaChile/releases/download/apk-remota-1.0.0-rc.2/AquaFlow-Remoto.apk) y abre **AquaFlow Remoto**. Se instala junto a la app anterior, conserva los datos de esa instalación y usa su propio almacenamiento local. La APK de `app.zip` corresponde a una versión anterior sin acceso a Cloudflare.
 
 - **Supervisor de Buceo** · usuario `supervisor` · contraseña `aquaflow123`
 - **Jefe de Centro / Prevención** · usuario `jefe` · contraseña `aquaflow123`

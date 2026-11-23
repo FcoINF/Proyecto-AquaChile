@@ -1,6 +1,6 @@
 # Entrega EA4 de AquaFlow
 
-La APK candidata se identifica como **1.0.0-rc.1**, código **2**, paquete `com.duoc.aquaflow`. El [repositorio de AquaFlow](https://github.com/FcoINF/Proyecto-AquaChile) es público.
+La APK original de esta entrega se identificó como **1.0.0-rc.1**, código **2**, paquete `com.duoc.aquaflow`. El [repositorio de AquaFlow](https://github.com/FcoINF/Proyecto-AquaChile) es público.
 
 La APK generada en esta sesión se verificó con el esquema de firma v2 y el certificado local `AquaFlow Defensa Local`. Su SHA-256 es `7889d681dcc09ef4a0d4a631074b939fa2e9a1aa2ab10a49f1ec337c8340fbd5`. Se compiló desde `develop` con cambios locales, incluidos los de la migración de Room a la versión 8 y la paleta del calendario.
 

@@ -1,47 +1,51 @@
 package com.duoc.aquaflow.ui.screens
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -50,6 +54,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,16 +64,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.AquaOptionPicker
 import com.duoc.aquaflow.ui.components.CampoFecha
-import com.duoc.aquaflow.ui.components.CircularCheckbox
 import com.duoc.aquaflow.ui.theme.AquaAzulMedio
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.ui.theme.AquaGrisSuave
@@ -95,6 +105,15 @@ fun AperturaFaenaScreen(
     meteorologia: MeteorologiaUi = MeteorologiaUi(),
     onActualizarMeteorologia: () -> Unit = {}
 ) {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val controller = (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
+        val aparienciaAnterior = controller?.isAppearanceLightStatusBars
+        controller?.isAppearanceLightStatusBars = false
+        onDispose {
+            if (aparienciaAnterior != null) controller.isAppearanceLightStatusBars = aparienciaAnterior
+        }
+    }
     var confirmarSalida by rememberSaveable { mutableStateOf(false) }
     var mostrarMenuAcciones by rememberSaveable { mutableStateOf(false) }
     var calendarioActivo by rememberSaveable { mutableStateOf<CalendarioVigencia?>(null) }
@@ -107,6 +126,7 @@ fun AperturaFaenaScreen(
     val apertura = ui.apertura
 
     val centrosIds = CENTROS_MARITIMOS.associate { it.nombre to it.id }
+    val centroSeleccionado = CENTROS_MARITIMOS.firstOrNull { it.id == apertura.centroId }
 
     val buzosAsignados = listOf(
         "Buzo Demo Alfa",
@@ -158,10 +178,13 @@ fun AperturaFaenaScreen(
             TopAppBar(
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        Text("Apertura de Faena", style = MaterialTheme.typography.titleMedium)
+                        Text("Apertura de Faena", style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            apertura.centroCultivo.ifBlank { "Centro sin asignar - Jaula 24" },
-                            style = MaterialTheme.typography.labelSmall
+                            apertura.centroCultivo.ifBlank { "Centro sin asignar" },
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 },
@@ -199,53 +222,54 @@ fun AperturaFaenaScreen(
         },
         bottomBar = {
             Column(
-                modifier = Modifier.fillMaxWidth().background(AquaGrisSuave).imePadding().padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
             ) {
-                ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                ui.mensaje?.let { Text(it, color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall) }
-                if (ui.ocupado) Text("Procesando apertura…", style = MaterialTheme.typography.bodySmall)
-                Button(
-                    onClick = onContinuar,
-                    enabled = !ui.ocupado && apertura.id.isNotBlank() && bloqueoEsfuerzo == null,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(if (ui.checklist == null) "Continuar al Checklist" else "Revisar checklist")
-                }
-                bloqueoEsfuerzo?.let {
-                    TextButton(onClick = onContinuar, enabled = !ui.ocupado) {
-                        Text("Registrar intento bloqueado")
+                    ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    ui.mensaje?.let { Text(it, color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall) }
+                    if (ui.ocupado) Text("Procesando apertura…", style = MaterialTheme.typography.bodySmall)
+                    Button(
+                        onClick = onContinuar,
+                        enabled = !ui.ocupado && apertura.id.isNotBlank() && bloqueoEsfuerzo == null,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(if (ui.checklist == null) "Continuar al Checklist" else "Revisar checklist")
                     }
+                    bloqueoEsfuerzo?.let {
+                        TextButton(onClick = onContinuar, enabled = !ui.ocupado) {
+                            Text("Registrar intento bloqueado")
+                        }
+                    }
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onGuardar,
+                        enabled = !ui.ocupado && apertura.id.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shape = MaterialTheme.shapes.small
+                    ) { Text("Guardar Borrador") }
                 }
-                androidx.compose.material3.OutlinedButton(
-                    onClick = onGuardar,
-                    enabled = !ui.ocupado && apertura.id.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0755B8)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0755B8))
-                ) { Text("Guardar Borrador") }
             }
         }
     ) { padding ->
         Column(
-            modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding).verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             ProgresoApertura()
-            WeatherConditionsCard(
-                meteorologia = meteorologia.takeIf { it.centro?.id == apertura.centroId } ?: MeteorologiaUi(),
-                onActualizar = onActualizarMeteorologia,
-                condicionesListas = apertura.condicionesListas,
-                onCondicionesListasChange = { onCambiar(apertura.copy(condicionesListas = it)) }
-            )
-            AquaSectionCard(title = "Datos Operativos de Faena", subtitle = "Requerido") {
-                DropdownField(
+            AquaSectionCard(title = "Datos Operativos de Faena") {
+                AquaOptionPicker(
                     label = "Centro de Cultivo",
-                    selectedValue = apertura.centroCultivo,
-                    placeholder = "Sin asignar",
+                    title = "Selecciona un centro",
+                    value = apertura.centroCultivo,
+                    placeholder = "Selecciona un centro",
+                    modifier = Modifier.testTag("centro-selector"),
+                    enabled = !ui.ocupado,
                     options = centrosIds.keys.toList(),
                     onSelected = { nombre ->
                         val id = centrosIds.getValue(nombre)
@@ -257,54 +281,68 @@ fun AperturaFaenaScreen(
                     if (maxWidth < 520.dp) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             OperationalValueField(
-                                icon = Icons.Filled.Place,
+                                icon = Icons.Filled.DateRange,
                                 label = "Fecha de Faena",
                                 value = apertura.fecha
                             )
-                            DropdownField(
+                            OperationalValueField(
+                                icon = Icons.Filled.AccessTime,
                                 label = "Turno de Marea",
-                                selectedValue = TURNO_MAREA_PREDEFINIDO,
-                                options = listOf(TURNO_MAREA_PREDEFINIDO),
-                                onSelected = {}
+                                value = TURNO_MAREA_PREDEFINIDO
                             )
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OperationalValueField(
                                 modifier = Modifier.weight(2f),
-                                icon = Icons.Filled.Place,
+                                icon = Icons.Filled.DateRange,
                                 label = "Fecha de Faena",
                                 value = apertura.fecha
                             )
-                            DropdownField(
+                            OperationalValueField(
                                 modifier = Modifier.weight(3f),
+                                icon = Icons.Filled.AccessTime,
                                 label = "Turno de Marea",
-                                selectedValue = TURNO_MAREA_PREDEFINIDO,
-                                options = listOf(TURNO_MAREA_PREDEFINIDO),
-                                onSelected = {}
+                                value = TURNO_MAREA_PREDEFINIDO
                             )
                         }
                     }
                 }
             }
+            WeatherConditionsCard(
+                meteorologia = meteorologia.takeIf { it.centro == centroSeleccionado }
+                    ?: MeteorologiaUi(centro = centroSeleccionado, cargando = centroSeleccionado != null),
+                onActualizar = onActualizarMeteorologia,
+                condicionesListas = apertura.condicionesListas,
+                onCondicionesListasChange = { onCambiar(apertura.copy(condicionesListas = it)) }
+            )
             AquaSectionCard(title = "Buzo Técnico Asignado") {
-                DropdownField(
-                    label = "",
-                    selectedValue = apertura.buzoAsignado,
-                    placeholder = "Selecciona un buzo para la operación",
+                AquaOptionPicker(
+                    title = "Selecciona un buzo",
+                    value = apertura.buzoAsignado,
+                    placeholder = "Selecciona un buzo",
+                    modifier = Modifier.testTag("buzo-selector"),
+                    enabled = !ui.ocupado,
                     options = buzosAsignados,
                     onSelected = { nombre ->
-                        onCambiar(apertura.copy(
-                            buzoAsignado = nombre,
-                            buzoId = buzosIds.getValue(nombre),
-                            edadBuzo = 0,
-                            imcBuzo = 0.0,
-                            examenPreocupacionalVigente = null,
-                            vigenciaExamenPreocupacional = "",
-                            puntajeCalbuco = null,
-                            testEsfuerzoVigente = null,
-                            vigenciaTestEsfuerzo = ""
-                        ))
+                        val id = buzosIds.getValue(nombre)
+                        val mismoBuzo = apertura.buzoAsignado == nombre &&
+                            apertura.buzoId in listOf("", "LEGACY-BUZO", id)
+                        if (mismoBuzo) {
+                            if (apertura.buzoId != id) onCambiar(apertura.copy(buzoId = id))
+                        } else {
+                            onCambiar(apertura.copy(
+                                buzoAsignado = nombre,
+                                buzoId = id,
+                                edadBuzo = 0,
+                                imcBuzo = 0.0,
+                                examenPreocupacionalVigente = null,
+                                vigenciaExamenPreocupacional = "",
+                                puntajeCalbuco = null,
+                                testEsfuerzoVigente = null,
+                                vigenciaTestEsfuerzo = ""
+                            ))
+                        }
                     }
                 )
             }
@@ -434,21 +472,16 @@ private fun ProgresoApertura() {
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(color = Color(0xFF0755B8), shape = CircleShape) {
-                    Text("1", modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = Color.White, style = MaterialTheme.typography.labelMedium)
-                }
-                Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                Text("Paso 1 de 5", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Apertura y buceo", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text("Paso 1 de 5", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
-            LinearProgressIndicator(progress = { 0.2f }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = AquaGrisSuave)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("1. Apertura & Buceo", style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio)
-                Text("Sig: Inspección de Equipos", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
-            }
+            LinearProgressIndicator(progress = { 0.2f }, modifier = Modifier.fillMaxWidth(), trackColor = MaterialTheme.colorScheme.surfaceVariant)
+            Text("Siguiente: Inspección de equipos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WeatherConditionsCard(
     meteorologia: MeteorologiaUi,
@@ -456,48 +489,95 @@ private fun WeatherConditionsCard(
     condicionesListas: Boolean,
     onCondicionesListasChange: (Boolean) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), border = CardDefaults.outlinedCardBorder()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Meteorología marítima", style = MaterialTheme.typography.titleSmall)
-            Text("Open-Meteo · contexto de revisión. Confirma las condiciones en terreno.",
-                style = MaterialTheme.typography.bodySmall)
-            val centro = meteorologia.centro
-            if (centro == null) {
-                Text("Selecciona un centro para consultar las condiciones.")
-            } else {
-                Text("${centro.sector} · punto de referencia del centro demo",
-                    style = MaterialTheme.typography.bodyMedium)
-                if (meteorologia.cargando) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Text("Consultando condiciones marítimas…")
+    val colores = MaterialTheme.colorScheme
+    val centro = meteorologia.centro
+    val resultado = meteorologia.resultado
+    val datos = (resultado as? ResultadoMeteorologia.Disponible)?.condiciones
+    var mostrarDetalles by rememberSaveable(centro?.id) { mutableStateOf(false) }
+
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(containerColor = colores.surface)
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = MaterialTheme.shapes.small, color = colores.primaryContainer, contentColor = colores.onPrimaryContainer) {
+                    Icon(Icons.Default.Waves, contentDescription = null, modifier = Modifier.padding(9.dp).size(20.dp))
                 }
-                when (val resultado = meteorologia.resultado) {
-                    is ResultadoMeteorologia.Disponible -> {
-                        val datos = resultado.condiciones
-                        Text("Oleaje: ${medidaMaritima(datos.alturaOla, "m")} · Período: ${medidaMaritima(datos.periodoOla, "s")}")
-                        Text("Dirección del oleaje: ${medidaMaritima(datos.direccionOla, "°")}")
-                        Text("Temperatura superficial: ${medidaMaritima(datos.temperaturaSuperficial, "°C")}")
-                        Text(java.lang.String.format(java.util.Locale.ROOT, "Punto del modelo: %.2f°, %.2f°",
-                            datos.latitudModelo, datos.longitudModelo), style = MaterialTheme.typography.bodySmall)
-                        Text("Hora del modelo: ${fechaMaritima(datos.horaModelo)}",
-                            style = MaterialTheme.typography.bodySmall)
-                        Text("Consulta: ${fechaMaritima(datos.consultadaEn)}",
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    ResultadoMeteorologia.SinConexion -> Text("Sin conexión. Puedes seguir con la verificación en terreno.")
-                    is ResultadoMeteorologia.Error -> Text(resultado.mensaje, color = MaterialTheme.colorScheme.error)
-                    null -> Unit
-                }
-                TextButton(onClick = onActualizar, enabled = !meteorologia.cargando) {
-                    Text(if (meteorologia.resultado is ResultadoMeteorologia.Disponible) "Actualizar" else "Reintentar consulta")
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Meteorología marítima", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                    Text("Datos de referencia · Open-Meteo", style = MaterialTheme.typography.bodySmall, color = colores.onSurfaceVariant)
                 }
             }
-            CondicionRow(
-                texto = "Confirmo la verificación meteorológica real en terreno",
-                marcada = condicionesListas,
-                onCambiar = onCondicionesListasChange,
-                testTag = "weather-manual-confirmation"
-            )
+
+            if (centro == null) {
+                Text("Selecciona un centro para consultar las condiciones.", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Text(centro.sector, style = MaterialTheme.typography.labelLarge)
+                when {
+                    meteorologia.cargando -> {
+                        Text("Consultando condiciones marítimas…", style = MaterialTheme.typography.bodyMedium)
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                    }
+                    datos != null -> {
+                        Surface(color = colores.background, shape = MaterialTheme.shapes.small) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Oleaje: ${medidaMaritima(datos.alturaOla, "m")}", style = MaterialTheme.typography.titleSmall)
+                                Text("Período: ${medidaMaritima(datos.periodoOla, "s")}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Dirección: ${medidaMaritima(datos.direccionOla, "°")}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Temperatura superficial: ${medidaMaritima(datos.temperaturaSuperficial, "°C")}",
+                                    style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    resultado is ResultadoMeteorologia.SinConexion -> Text(
+                        "Sin conexión. Puedes registrar la verificación en terreno.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    resultado is ResultadoMeteorologia.Error -> Text(
+                        resultado.mensaje, color = colores.error, style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                if (!meteorologia.cargando) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (datos != null) {
+                            TextButton(onClick = { mostrarDetalles = !mostrarDetalles }) {
+                                Text(if (mostrarDetalles) "Ocultar detalles" else "Ver detalles del modelo")
+                            }
+                        }
+                        TextButton(onClick = onActualizar) {
+                            Text(if (datos != null) "Actualizar" else "Reintentar consulta")
+                        }
+                    }
+                    if (datos != null && mostrarDetalles) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(java.lang.String.format(java.util.Locale.ROOT, "Punto del modelo: %.2f°, %.2f°",
+                                datos.latitudModelo, datos.longitudModelo), style = MaterialTheme.typography.bodySmall)
+                            Text("Hora del modelo: ${fechaMaritima(datos.horaModelo)}", style = MaterialTheme.typography.bodySmall)
+                            Text("Consulta: ${fechaMaritima(datos.consultadaEn)}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = colores.outlineVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(if (condicionesListas) colores.tertiaryContainer else colores.background)
+                    .toggleable(value = condicionesListas, role = Role.Checkbox, onValueChange = onCondicionesListasChange)
+                    .testTag("weather-manual-confirmation")
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = condicionesListas,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(checkedColor = AquaVerde, uncheckedColor = colores.onSurfaceVariant)
+                )
+                Text("Verifiqué las condiciones en terreno", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
@@ -522,47 +602,21 @@ private fun OperationalValueField(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp),
-            color = AquaGrisSuave,
-            border = CardDefaults.outlinedCardBorder()
+            shape = MaterialTheme.shapes.small,
+            color = AquaGrisSuave
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 11.dp, vertical = 10.dp),
+                modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(value, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                if (icon == Icons.Filled.AccessTime) {
-                    androidx.compose.material3.Icon(icon, contentDescription = null, tint = AquaAzulMedio, modifier = Modifier.size(16.dp))
-                }
+                Icon(icon, contentDescription = null, tint = AquaAzulMedio, modifier = Modifier.size(18.dp))
+                Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             }
         }
-    }
-}
-
-@Composable
-private fun CondicionRow(
-    texto: String,
-    marcada: Boolean,
-    testTag: String? = null,
-    onCambiar: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCambiar(!marcada) },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CircularCheckbox(
-            checked = marcada,
-            onCheckedChange = onCambiar,
-            contentDescription = texto,
-            checkedColor = AquaVerde,
-            modifier = if (testTag == null) Modifier else Modifier.testTag(testTag)
-        )
-        Text(texto, modifier = Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -646,59 +700,6 @@ private fun CondicionChoice(
                 modifier = Modifier.size(20.dp)
             )
             Text(texto, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DropdownField(
-    label: String,
-    selectedValue: String,
-    options: List<String>,
-    placeholder: String = "Selecciona una opción",
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    onSelected: (String) -> Unit
-) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
-    ) {
-        Column {
-            if (label.isNotBlank()) {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = AquaAzulMedio, modifier = Modifier.padding(bottom = 5.dp))
-            }
-            OutlinedTextField(
-                value = selectedValue,
-                onValueChange = {},
-                readOnly = true,
-                placeholder = { Text(placeholder, style = MaterialTheme.typography.bodySmall) },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = AquaGrisSuave,
-                    focusedContainerColor = AquaGrisSuave
-                ),
-                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth().heightIn(min = 48.dp)
-            )
-        }
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onSelected(option)
-                        expanded = false
-                    }
-                )
-            }
         }
     }
 }

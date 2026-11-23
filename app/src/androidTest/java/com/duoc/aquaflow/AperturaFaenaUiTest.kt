@@ -8,6 +8,9 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -67,6 +70,7 @@ class AperturaFaenaUiTest {
         compose.onNodeWithText("Meteorología marítima").fetchSemanticsNode()
         compose.onNodeWithText("Golfo de Ancud", substring = true).fetchSemanticsNode()
         compose.onNodeWithText("Oleaje: 1,5 m", substring = true).fetchSemanticsNode()
+        compose.onNodeWithText("Ver detalles del modelo").performScrollTo().performClick()
         compose.onNodeWithText("Hora del modelo:", substring = true).performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Consulta:", substring = true).performScrollTo().fetchSemanticsNode()
         compose.onAllNodesWithText("APTA").assertCountEquals(0)
@@ -81,9 +85,7 @@ class AperturaFaenaUiTest {
         compose.onAllNodesWithText("Mar y meteorología aptas", substring = true)
             .assertCountEquals(0)
         compose.onNodeWithTag("weather-manual-confirmation").assertIsOff()
-        compose.onNodeWithText("Confirmo la verificación meteorológica real en terreno")
-            .performScrollTo()
-            .performClick()
+        compose.onNodeWithTag("weather-manual-confirmation").performScrollTo().performClick()
 
         assertEquals(true, actualizada?.condicionesListas)
         val confirmacion = compose.onNodeWithTag("weather-manual-confirmation")
@@ -133,10 +135,44 @@ class AperturaFaenaUiTest {
         compose.onNodeWithText("25/10/2026").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Turno de Marea").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Mañana (08:30 - 14:30)").performScrollTo().fetchSemanticsNode()
+        compose.onAllNodes(hasText("Mañana (08:30 - 14:30)") and hasClickAction()).assertCountEquals(0)
         compose.onNodeWithText("Buzo Técnico Asignado").performScrollTo().fetchSemanticsNode()
         compose.onNodeWithText("Buzo Demo Alfa").performScrollTo().fetchSemanticsNode()
         compose.onAllNodesWithText("Supervisor de la sesión", substring = true)
             .assertCountEquals(0)
+    }
+
+    @Test
+    fun selectoresMarcanLaOpcionActualYConservanLosDatosAlVolverASeleccionarla() {
+        val centro = CENTROS_MARITIMOS[1]
+        val otro = CENTROS_MARITIMOS.first()
+        val apertura = aperturaDemo().copy(condicionesListas = true, edadBuzo = 35)
+        var actualizada = apertura
+        mostrar(apertura, onCambiar = { actualizada = it })
+
+        compose.onNodeWithTag("centro-selector").performScrollTo().performClick()
+        compose.onNode(hasText(centro.nombre) and isSelectable()).assertIsSelected().performClick()
+        compose.runOnIdle { assertEquals(centro.id, actualizada.centroId) }
+        compose.onNodeWithTag("centro-selector").performScrollTo().performClick()
+        compose.onNode(hasText(otro.nombre) and isSelectable()).performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals(otro.id, actualizada.centroId)
+            assertEquals(false, actualizada.condicionesListas)
+        }
+
+        compose.onNodeWithTag("buzo-selector").performScrollTo().performClick()
+        compose.onNode(hasText("Buzo Demo Alfa") and isSelectable()).assertIsSelected().performClick()
+        compose.runOnIdle {
+            assertEquals(35, actualizada.edadBuzo)
+            assertEquals("BUZO-1", actualizada.buzoId)
+        }
+
+        compose.onNodeWithTag("buzo-selector").performScrollTo().performClick()
+        compose.onNode(hasText("Buzo Demo Bravo") and isSelectable()).performScrollTo().performClick()
+        compose.runOnIdle {
+            assertEquals("BUZO-2", actualizada.buzoId)
+            assertEquals(0, actualizada.edadBuzo)
+        }
     }
 
     @Test
