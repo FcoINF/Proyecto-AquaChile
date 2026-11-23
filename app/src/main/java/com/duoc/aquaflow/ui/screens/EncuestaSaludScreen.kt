@@ -63,6 +63,7 @@ import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.NivelSalud
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
+import com.duoc.aquaflow.ui.theme.SemaforoRojo
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 
 private val AzulNoche = Color(0xFF182B3A)
@@ -153,18 +154,21 @@ fun EncuestaSaludScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MedicionSaludCard(
                     titulo = "SISTÓLICA", valor = ui.sistolica, unidad = "mmHg",
-                    rango = Reglas.RANGO_SISTOLICA, modifier = Modifier.weight(1f),
+                    rango = Reglas.RANGO_SISTOLICA, optimo = 90..119, normal = 120..139,
+                    modifier = Modifier.weight(1f),
                     onCambiar = vm::cambiarSistolica
                 )
                 MedicionSaludCard(
                     titulo = "DIASTÓLICA", valor = ui.diastolica, unidad = "mmHg",
-                    rango = Reglas.RANGO_DIASTOLICA, modifier = Modifier.weight(1f),
+                    rango = Reglas.RANGO_DIASTOLICA, optimo = 60..79, normal = 80..89,
+                    modifier = Modifier.weight(1f),
                     onCambiar = vm::cambiarDiastolica
                 )
             }
             MedicionSaludCard(
                 titulo = "SPO2", valor = ui.saturacion, unidad = "%",
-                rango = Reglas.RANGO_SATURACION, saturacion = true,
+                rango = Reglas.RANGO_SATURACION, optimo = 98..100, normal = 95..97,
+                saturacion = true,
                 onCambiar = vm::cambiarSaturacion
             )
 
@@ -246,22 +250,32 @@ private fun EtiquetaDatoBuzo(texto: String, fondo: Color, textoColor: Color, mod
     }
 }
 
+private enum class EstadoMedicion(val etiqueta: String, val fondo: Color, val texto: Color) {
+    PENDIENTE("PENDIENTE", GrisInactivo, GrisTexto),
+    REVISAR("REVISAR", Color(0xFFFFEBEE), SemaforoRojo),
+    NORMAL("NORMAL", Color(0xFFE6F0FF), AzulAccion),
+    OPTIMO("ÓPTIMO", Color(0xFFE4FFF4), Color(0xFF047857))
+}
+
 @Composable
 private fun MedicionSaludCard(
     titulo: String,
     valor: String,
     unidad: String,
     rango: IntRange,
+    optimo: IntRange,
+    normal: IntRange,
     modifier: Modifier = Modifier.fillMaxWidth(),
     saturacion: Boolean = false,
     onCambiar: (String) -> Unit
 ) {
     val numero = valor.toIntOrNull() ?: 0
-    val dentroDeRango = numero != 0 && numero in rango
-    val etiqueta = when {
-        numero == 0 -> "PENDIENTE"
-        dentroDeRango -> if (saturacion) "SATURACIÓN OXÍGENO" else if (titulo == "SISTÓLICA") "ÓPTIMO" else "NORMAL"
-        else -> "REVISAR"
+    // Indicadores visuales de la encuesta académica.
+    val estado = when (numero) {
+        0 -> EstadoMedicion.PENDIENTE
+        in optimo -> EstadoMedicion.OPTIMO
+        in normal -> EstadoMedicion.NORMAL
+        else -> EstadoMedicion.REVISAR
     }
     Card(
         modifier = modifier,
@@ -272,8 +286,8 @@ private fun MedicionSaludCard(
         Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(titulo, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF334155), fontSize = 9.sp)
-                Surface(color = if (dentroDeRango) Color(0xFFE4FFF4) else GrisInactivo, shape = RoundedCornerShape(4.dp)) {
-                    Text(etiqueta, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = if (dentroDeRango) Color(0xFF047857) else GrisTexto, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 7.sp)
+                Surface(color = estado.fondo, shape = RoundedCornerShape(4.dp)) {
+                    Text(estado.etiqueta, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = estado.texto, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 7.sp)
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.Center) {
@@ -357,7 +371,7 @@ private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean?>, onResponde
 
 @Composable
 private fun RespuestaSalud(texto: String, seleccionada: Boolean, afirmativa: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val colorActivo = if (afirmativa) Color(0xFF078B68) else AzulAccion
+    val colorActivo = if (afirmativa) Color(0xFF078B68) else SemaforoRojo
     Surface(
         modifier = modifier.heightIn(min = 48.dp).selectable(
             selected = seleccionada,
