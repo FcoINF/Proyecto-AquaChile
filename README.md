@@ -89,7 +89,12 @@ La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y
 
 ### Acceso desde un teléfono Android
 
-La compilación release usa el Worker de AquaFlow para iniciar sesión con las cuentas de D1. Selecciona **Jefe de Centro / Prevención** para `jefe` o **Supervisor de Buceo** para `supervisor` e ingresa la contraseña asignada. El teléfono necesita internet para autenticar la cuenta. Las faenas, los borradores y las evidencias de este modo se guardan en Room en el teléfono. El flujo que comparte expedientes entre dispositivos usa la API Spring Boot descrita abajo.
+La compilación release usa el Worker de AquaFlow para iniciar sesión con las cuentas de D1. El teléfono necesita internet para autenticar la cuenta.
+
+- **Supervisor de Buceo** · usuario `supervisor` · contraseña `aquaflow123`
+- **Jefe de Centro / Prevención** · usuario `jefe` · contraseña `aquaflow123`
+
+Las faenas, los borradores y las evidencias de este modo se guardan en Room en el teléfono. El flujo que comparte expedientes entre dispositivos usa la API Spring Boot descrita abajo.
 
 Para crear una APK de prueba instalable con acceso remoto desde Windows:
 
