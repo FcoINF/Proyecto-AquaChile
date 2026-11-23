@@ -87,6 +87,18 @@ La evidencia de pruebas y el guion de demostración se mantienen en [Validación
 
 La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y reunir las evidencias están en [Entrega EA4](docs/ENTREGA_EA4.md).
 
+### Acceso desde un teléfono Android
+
+La compilación release usa el Worker de AquaFlow para iniciar sesión con las cuentas de D1. Selecciona **Jefe de Centro / Prevención** para `jefe` o **Supervisor de Buceo** para `supervisor` e ingresa la contraseña asignada. El teléfono necesita internet para autenticar la cuenta. Las faenas, los borradores y las evidencias de este modo se guardan en Room en el teléfono. El flujo que comparte expedientes entre dispositivos usa la API Spring Boot descrita abajo.
+
+Para crear una APK de prueba instalable con acceso remoto desde Windows:
+
+```powershell
+.\gradlew.bat :app:assembleDebug "-PaquaflowAuthUrl=https://aquaflow-acceso.fcomolina278.workers.dev"
+```
+
+El resultado queda en `app/build/outputs/apk/debug/app-debug.apk`. La configuración del Worker y la migración de D1 están en `cloudflare/`.
+
 ### Probar la apertura conectada a Spring Boot
 
 Desde la raíz, inicia el servidor con el wrapper Gradle del proyecto y un JDK 17 o 21. La compilación del backend genera clases compatibles con Java 17 en ambos casos. Usa PIN de demostración en ambos perfiles. Para reutilizar el acceso demo de Android, escribe `1234` en las dos solicitudes.

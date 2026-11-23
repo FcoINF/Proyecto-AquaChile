@@ -24,8 +24,10 @@ data class IngresoUiState(
 
 class SesionViewModel(
     val remoto: FaenasRemotas? = null,
-    private val sincronizacion: SincronizacionFaenas? = null
+    private val sincronizacion: SincronizacionFaenas? = null,
+    private val autenticacionRemota: FaenasRemotas? = null
 ) : ViewModel() {
+    val accesoCloud: Boolean get() = autenticacionRemota != null
     private val usuarios = listOf(
         Usuario("supervisor", "1234", Rol.SUPERVISOR),
         Usuario("jefe", "1234", Rol.JEFE)
@@ -38,6 +40,7 @@ class SesionViewModel(
 
     fun cambiarNombre(valor: String) = _ingreso.update { if (it.ocupado) it else it.copy(nombre = valor, error = null) }
     fun cambiarClave(valor: String) = _ingreso.update { if (it.ocupado) it else it.copy(clave = valor, error = null) }
+    fun limpiarError() = _ingreso.update { it.copy(error = null) }
     fun seleccionarRol(rol: Rol) = _ingreso.update { if (it.ocupado) it else it.copy(rol = rol, error = null) }
 
     private fun validar(datos: IngresoUiState): Boolean {
@@ -47,7 +50,7 @@ class SesionViewModel(
     }
 
     fun ingresar(alIngresar: () -> Unit) {
-        val servidor = remoto
+        val servidor = autenticacionRemota ?: remoto
         if (servidor == null) {
             if (ingresar()) alIngresar()
             return
@@ -76,7 +79,7 @@ class SesionViewModel(
 
     fun ingresar(): Boolean {
         val datos = _ingreso.value
-        if (remoto != null || !validar(datos)) {
+        if (remoto != null || autenticacionRemota != null || !validar(datos)) {
             return false
         }
         val valido = ingresar(datos.nombre, datos.clave, datos.rol)
@@ -87,7 +90,7 @@ class SesionViewModel(
 
     // El perfil seleccionado nunca cambia los permisos de la cuenta.
     fun ingresar(nombre: String, clave: String, rol: Rol? = null): Boolean {
-        if (remoto != null) return false
+        if (remoto != null || autenticacionRemota != null) return false
         _usuario.value = usuarios.find {
             it.nombre.equals(nombre.trim(), ignoreCase = true) &&
                 it.clave == clave &&
@@ -99,6 +102,7 @@ class SesionViewModel(
     fun salir() {
         autenticacion?.cancel()
         sincronizacion?.cerrarSesion()
+        autenticacionRemota?.salir()
         remoto?.salir()
         _usuario.value = null
         _ingreso.value = IngresoUiState()

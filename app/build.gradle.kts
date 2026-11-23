@@ -13,6 +13,12 @@ plugins {
 
 val projectPath = projectDir.toPath().toAbsolutePath().normalize()
 val apiUrl = providers.gradleProperty("aquaflowApiUrl").orNull
+val authUrl = providers.gradleProperty("aquaflowAuthUrl").orNull
+val cloudAuthUrl = "https://aquaflow-acceso.fcomolina278.workers.dev"
+val loginHintPassword = providers.environmentVariable("AQUAFLOW_LOGIN_HINT_PASSWORD").orNull.orEmpty()
+require(loginHintPassword.isEmpty() || loginHintPassword.matches(Regex("[A-Za-z0-9_-]+"))) {
+    "AQUAFLOW_LOGIN_HINT_PASSWORD admite letras, números, guiones y guiones bajos."
+}
 val releaseStore = providers.environmentVariable("AQUAFLOW_RELEASE_KEYSTORE").orNull
 val releaseStorePassword = providers.environmentVariable("AQUAFLOW_RELEASE_STORE_PASSWORD").orNull
 val releaseAlias = providers.environmentVariable("AQUAFLOW_RELEASE_KEY_ALIAS").orNull
@@ -31,6 +37,11 @@ fun apiConfig(url: String): String {
         "aquaflowApiUrl debe ser una URL HTTP(S) sin credenciales, consulta ni fragmento."
     }
     return "\"$normalizada/\""
+}
+
+fun authConfig(url: String): String {
+    require(url.isBlank() || URI(url.trim()).scheme == "https") { "aquaflowAuthUrl debe usar HTTPS." }
+    return apiConfig(url)
 }
 
 if (projectPath.any { it.toString().equals("OneDrive", ignoreCase = true) }) {
@@ -52,6 +63,7 @@ android {
         versionName = "1.0.0-rc.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "LOGIN_HINT_PASSWORD", "\"\"")
     }
 
     signingConfigs {
@@ -68,17 +80,25 @@ android {
     buildTypes {
         debug {
             enableUnitTestCoverage = true
-            buildConfigField("String", "API_URL", apiConfig(apiUrl ?: "http://10.0.2.2:8080"))
+            buildConfigField("String", "API_URL", apiConfig(apiUrl ?: if (authUrl.isNullOrBlank()) "http://10.0.2.2:8080" else ""))
+            buildConfigField("String", "AUTH_URL", authConfig(authUrl.orEmpty()))
+            if (!authUrl.isNullOrBlank()) {
+                buildConfigField("String", "LOGIN_HINT_PASSWORD", "\"$loginHintPassword\"")
+            }
         }
         release {
             signingConfig = signingConfigs.findByName("entrega")
             buildConfigField("String", "API_URL", apiConfig(apiUrl?.takeIf { it.startsWith("https://") }.orEmpty()))
+            buildConfigField("String", "AUTH_URL", authConfig(authUrl ?: if (apiUrl.isNullOrBlank()) cloudAuthUrl else ""))
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+    }
+    require(apiUrl.isNullOrBlank() || authUrl.isNullOrBlank()) {
+        "Configura un solo servidor: aquaflowApiUrl para Spring Boot o aquaflowAuthUrl para el acceso remoto."
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

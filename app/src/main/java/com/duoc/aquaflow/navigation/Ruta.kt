@@ -80,7 +80,7 @@ object Ruta {
 }
 
 @Composable
-fun AquaFlowNavHost(backendUrl: String = "") {
+fun AquaFlowNavHost(backendUrl: String = "", authUrl: String = "") {
     val nav = rememberNavController()
     val context = LocalContext.current.applicationContext
     val repository = remember(context) {
@@ -89,10 +89,14 @@ fun AquaFlowNavHost(backendUrl: String = "") {
     val sincronizacion = remember(context, backendUrl) {
         backendUrl.takeIf { it.isNotBlank() }?.let { SincronizacionFaenas(context, it) }
     }
-    val sesionFactory = remember(backendUrl, sincronizacion) {
+    val sesionFactory = remember(backendUrl, authUrl, sincronizacion) {
         viewModelFactory {
             initializer {
-                SesionViewModel(backendUrl.takeIf { it.isNotBlank() }?.let(::FaenasRemotas), sincronizacion)
+                SesionViewModel(
+                    remoto = backendUrl.takeIf { it.isNotBlank() }?.let(::FaenasRemotas),
+                    sincronizacion = sincronizacion,
+                    autenticacionRemota = authUrl.takeIf { it.isNotBlank() }?.let(::FaenasRemotas)
+                )
             }
         }
     }

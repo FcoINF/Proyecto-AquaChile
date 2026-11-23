@@ -338,12 +338,13 @@ class FaenasRemotas(val url: String) {
             return peticion()
         } catch (e: HttpException) {
             val mensaje = when (e.code()) {
-                401 -> "Usuario o PIN incorrectos. Si ya habías ingresado, vuelve a iniciar sesión."
+                401 -> "Usuario o contraseña incorrectos. Si ya habías ingresado, vuelve a iniciar sesión."
                 403 -> "Tu perfil no tiene permiso para esta operación."
                 404 -> "El servidor no encontró el registro solicitado."
                 400, 409, 422 -> runCatching {
                     e.response()?.errorBody()?.use { JSONObject(it.string()).optString("detail") }
                 }.getOrNull()?.takeIf { it.isNotBlank() } ?: "El servidor bloqueó esta operación."
+                429 -> "Demasiados intentos. Espera un minuto y vuelve a intentar."
                 else -> "No se pudo completar la operación en el servidor."
             }
             throw IllegalStateException(mensaje, e)
