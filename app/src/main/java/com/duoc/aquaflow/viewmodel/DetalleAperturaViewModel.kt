@@ -1,5 +1,7 @@
 package com.duoc.aquaflow.viewmodel
 
+import android.content.Context
+import com.duoc.aquaflow.data.remote.DetalleRemoto
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.aquaflow.data.repository.ConsultaAperturas
@@ -25,7 +27,8 @@ data class DetalleAperturaUiState(
     // Fallo al guardar la decisión de la jefatura (la lectura tiene su propio `error`)
     val errorDecision: String? = null,
     val guardando: Boolean = false,
-    val cierrePublicado: Boolean = false
+    val cierrePublicado: Boolean = false,
+    val expedienteRemoto: DetalleRemoto? = null
 )
 
 // `registro` permite que la jefatura guarde su decisión desde el detalle; con null solo se consulta.
@@ -36,22 +39,35 @@ class DetalleAperturaViewModel(
     private val id: String,
     private val registro: RegistroFaena? = null,
     private val cierres: CierreFaenas? = null,
-    private val remoto: FaenasRemotas? = null
+    private val remoto: FaenasRemotas? = null,
+    private val contexto: Context? = null
 ) : ViewModel() {
     private val intentos = MutableStateFlow(0)
     private val errorDecision = MutableStateFlow<String?>(null)
     private val guardando = MutableStateFlow(false)
-    private val cierrePublicado = MutableStateFlow(false)
 
     private val datos = intentos.flatMapLatest {
         consulta.observarFaena(id, usuario)
-            .map { DetalleAperturaUiState(cargando = false, apertura = it?.resumen?.apertura, faena = it) }
+            .map { local ->
+                val expediente = if (remoto != null) {
+                    try {
+                        remoto.detalle(requireNotNull(contexto), id)
+                    } catch (error: IllegalStateException) {
+                        if ((error.cause as? retrofit2.HttpException)?.code() != 404 || local == null) throw error
+                        null
+                    }
+                } else null
+                val faena = if (expediente?.version == null && local != null && usuario.rol == com.duoc.aquaflow.model.Rol.SUPERVISOR)
+                    local else expediente?.faena ?: local
+                DetalleAperturaUiState(cargando = false, apertura = faena?.resumen?.apertura, faena = faena,
+                    expedienteRemoto = expediente, cierrePublicado = expediente?.faena?.cierre != null)
+            }
             .onStart { emit(DetalleAperturaUiState()) }
-            .catch { emit(DetalleAperturaUiState(cargando = false, error = "No se pudo cargar la apertura.")) }
+            .catch { emit(DetalleAperturaUiState(cargando = false, error = it.message ?: "No se pudo cargar la apertura.")) }
     }
 
-    val state = combine(datos, errorDecision, guardando, cierrePublicado) { d, e, g, publicado ->
-        d.copy(errorDecision = e, guardando = g, cierrePublicado = publicado)
+    val state = combine(datos, errorDecision, guardando) { d, e, g ->
+        d.copy(errorDecision = e, guardando = g)
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetalleAperturaUiState())
 
@@ -59,10 +75,19 @@ class DetalleAperturaViewModel(
 
     // Room vuelve a emitir al guardar, así la pantalla pasa sola a mostrar la decisión tomada.
     fun decidir(decision: RegistroDecision) {
+        if (remoto != null) {
+            val version = state.value.expedienteRemoto?.version ?: return
+            operarRemoto { remoto.decidir(id, version, decision) }
+            return
+        }
         guardarDecision { registro -> registro.decidir(id, decision, usuario) }
     }
 
     fun auditarAutorizacion(motivo: String) {
+        if (remoto != null) {
+            decidir(RegistroDecision(com.duoc.aquaflow.model.Decision.AUTORIZADA, motivo, usuario.nombre))
+            return
+        }
         guardarDecision { registro -> registro.auditarAutorizacion(id, motivo, usuario) }
     }
 
@@ -88,6 +113,10 @@ class DetalleAperturaViewModel(
         }
     }
     fun iniciar() {
+        if (remoto != null) {
+            operarRemoto { remoto.iniciar(id) }
+            return
+        }
         val servicio = cierres ?: return
         if (guardando.value) return
         guardando.value = true
@@ -101,6 +130,11 @@ class DetalleAperturaViewModel(
     }
 
     fun cerrar(cierre: RegistroCierre) {
+        if (remoto != null) {
+            val solicitud = cierre.copy(cerradoEn = System.currentTimeMillis())
+            operarRemoto { remoto.cerrar(id, solicitud) }
+            return
+        }
         val servicio = cierres ?: return
         if (guardando.value) return
         guardando.value = true
@@ -108,12 +142,6 @@ class DetalleAperturaViewModel(
         viewModelScope.launch {
             try {
                 servicio.cerrar(id, cierre, usuario)
-                if (remoto != null) {
-                    // La consulta lee el registro persistido con la fecha asignada por Room.
-                    val guardado = datos.first { !it.cargando }.faena?.cierre
-                    if (guardado != null) enviarCierre(guardado)
-                    else errorDecision.value = "El cierre quedó guardado. Abre el detalle para enviarlo a jefatura."
-                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -124,28 +152,52 @@ class DetalleAperturaViewModel(
         }
     }
 
-    fun publicarCierre() {
-        val cierre = state.value.faena?.cierre?.takeIf { it.mediciones != null } ?: return
-        if (guardando.value || remoto == null) return
+    fun retirar() {
+        val servicio = remoto ?: return
+        val version = state.value.expedienteRemoto?.version ?: return
+        operarRemoto { servicio.retirar(id, version) }
+    }
+
+    fun prepararEdicion(
+        repositorio: com.duoc.aquaflow.data.repository.PreChequeoRepository,
+        abrir: () -> Unit
+    ) {
+        val faena = state.value.faena ?: return
+        if (faena.decision != null || faena.cierre != null) return
+        operarRemoto {
+            if (repositorio.recuperarFaenaPorId(id) == null) {
+                val resumen = faena.resumen
+                repositorio.guardar(resumen.apertura)
+                resumen.checklist?.let { repositorio.guardarChecklist(id, it) }
+                resumen.ast?.let { repositorio.guardarAst(id, it) }
+                resumen.encuesta?.let { repositorio.guardarEncuesta(id, it) }
+                resumen.tareas?.let { repositorio.guardarTareas(id, it) }
+            }
+            abrir()
+        }
+    }
+
+    fun revisarAlerta(tipo: String) {
+        val servicio = remoto ?: return
+        operarRemoto { servicio.revisarAlerta(id, tipo) }
+    }
+
+    private fun operarRemoto(operacion: suspend () -> Unit) {
+        if (guardando.value) return
         guardando.value = true
         errorDecision.value = null
         viewModelScope.launch {
             try {
-                enviarCierre(cierre)
+                operacion()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorDecision.value = e.message ?: "No se pudo completar la operación."
             } finally {
+                reintentar()
                 guardando.value = false
             }
         }
     }
 
-    private suspend fun enviarCierre(cierre: RegistroCierre) {
-        try {
-            remoto?.publicarCierre(id, cierre)
-            cierrePublicado.value = true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            errorDecision.value = "El cierre quedó guardado en el dispositivo. No se pudo enviar a jefatura. ${e.localizedMessage.orEmpty()}"
-        }
-    }
 }

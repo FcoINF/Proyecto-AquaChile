@@ -1,5 +1,11 @@
 package com.duoc.aquaflow.data.remote
 
+import android.content.Context
+import android.net.Uri
+import com.duoc.aquaflow.data.local.EvidenciasFotos
+import com.duoc.aquaflow.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.MedicionesInmersion
 import com.duoc.aquaflow.model.OrigenMedicion
@@ -9,6 +15,10 @@ import com.duoc.aquaflow.model.Usuario
 import java.io.IOException
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import org.json.JSONObject
 import retrofit2.HttpException
 import retrofit2.Retrofit
@@ -18,6 +28,12 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.DELETE
+import retrofit2.http.POST
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 data class AperturaRemota(
     val id: String,
@@ -98,12 +114,49 @@ internal interface AquaFlowApi {
     @GET("api/faenas")
     suspend fun listar(@Header("Authorization") autorizacion: String): List<AperturaRemota>
 
-    @PUT("api/faenas/{id}/cierre-historico")
-    suspend fun publicarCierre(
-        @Header("Authorization") autorizacion: String,
-        @Path("id") id: String,
-        @Body cierre: CierreHistoricoRemoto
-    ): Unit
+    @GET("api/faenas/{id}")
+    suspend fun apertura(@Header("Authorization") auth: String, @Path("id") id: String): AperturaRemota
+
+    @GET("api/faenas/{id}/expediente")
+    suspend fun expediente(@Header("Authorization") auth: String, @Path("id") id: String): ExpedienteRemoto
+
+    @PUT("api/faenas/{id}/expediente")
+    suspend fun prechequeo(@Header("Authorization") auth: String, @Path("id") id: String,
+        @Query("version") version: Long, @Query("publicar") publicar: Boolean, @Body datos: PrechequeoRemoto): ExpedienteRemoto
+
+    @DELETE("api/faenas/{id}/expediente")
+    suspend fun retirar(@Header("Authorization") auth: String, @Path("id") id: String, @Query("version") version: Long)
+
+    @Multipart
+    @PUT("api/faenas/{id}/evidencias/{equipo}/{tipo}")
+    suspend fun foto(@Header("Authorization") auth: String, @Path("id") id: String,
+        @Path("equipo") equipo: EquipoRemoto, @Path("tipo") tipo: TipoFoto,
+        @Query("version") version: Long, @Part archivo: MultipartBody.Part): FotoRemota
+
+    @Streaming
+    @GET("api/faenas/{id}/evidencias/{equipo}/{tipo}")
+    suspend fun imagen(@Header("Authorization") auth: String, @Path("id") id: String,
+        @Path("equipo") equipo: EquipoRemoto, @Path("tipo") tipo: TipoFoto): ResponseBody
+
+    @DELETE("api/faenas/{id}/evidencias/{equipo}/{tipo}")
+    suspend fun quitarFoto(@Header("Authorization") auth: String, @Path("id") id: String,
+        @Path("equipo") equipo: EquipoRemoto, @Path("tipo") tipo: TipoFoto, @Query("version") version: Long)
+
+    @POST("api/faenas/{id}/decision")
+    suspend fun decidir(@Header("Authorization") auth: String, @Path("id") id: String,
+        @Query("version") version: Long, @Body decision: SolicitudDecision): ExpedienteRemoto
+
+    @PUT("api/faenas/{id}/inicio")
+    suspend fun iniciar(@Header("Authorization") auth: String, @Path("id") id: String): ExpedienteRemoto
+
+    @PUT("api/faenas/{id}/bitacora")
+    suspend fun cerrar(@Header("Authorization") auth: String, @Path("id") id: String, @Body cierre: CierreRemoto): BitacoraRemota
+
+    @PUT("api/faenas/{id}/bitacora/alertas/{tipo}/revision")
+    suspend fun revisar(@Header("Authorization") auth: String, @Path("id") id: String, @Path("tipo") tipo: String): BitacoraRemota
+
+    @GET("api/faenas/{id}/bloqueos")
+    suspend fun bloqueos(@Header("Authorization") auth: String, @Path("id") id: String): List<BloqueoRemoto>
 }
 
 class FaenasRemotas(url: String) {
@@ -129,15 +182,131 @@ class FaenasRemotas(url: String) {
     }
 
     suspend fun guardar(apertura: PreChequeo) {
-        consultar { api.guardar(sesionActiva(), apertura.id, AperturaDatos(apertura)) }
+        val datos = AperturaDatos(apertura)
+        val actual = expediente(apertura.id)
+        if (actual != null) {
+            check(actual.decision == null) { "Jefatura ya registró una decisión para esta faena." }
+            check(actual.apertura.datos == datos) {
+                "Retira el expediente enviado antes de cambiar la apertura. Se conservará tu borrador local."
+            }
+            return
+        }
+        consultar { api.guardar(sesionActiva(), apertura.id, datos) }
     }
 
     suspend fun listar(): List<AperturaRemota> =
         consultar { api.listar(sesionActiva()) }
 
-    suspend fun publicarCierre(id: String, cierre: RegistroCierre) {
+    suspend fun cerrar(id: String, cierre: RegistroCierre) {
         val mediciones = requireNotNull(cierre.mediciones)
-        consultar { api.publicarCierre(sesionActiva(), id, CierreHistoricoRemoto(cierre.cerradoEn, mediciones)) }
+        consultar { api.cerrar(sesionActiva(), id, CierreRemoto(cierre.duracionMinutos, cierre.observaciones,
+            cierre.revisionSalida, SaludRemota(requireNotNull(cierre.saludSalida)),
+            CierreHistoricoRemoto(cierre.cerradoEn, mediciones))) }
+    }
+
+    suspend fun decidir(id: String, version: Long, decision: RegistroDecision) =
+        consultar { api.decidir(sesionActiva(), id, version, SolicitudDecision(decision.decision, decision.motivo)); Unit }
+
+    suspend fun iniciar(id: String) { consultar { api.iniciar(sesionActiva(), id) } }
+
+    suspend fun retirar(id: String, version: Long) { consultar { api.retirar(sesionActiva(), id, version) } }
+
+    suspend fun revisarAlerta(id: String, tipo: String) { consultar { api.revisar(sesionActiva(), id, tipo) } }
+
+    private suspend fun expediente(id: String): ExpedienteRemoto? = try {
+        consultar { api.expediente(sesionActiva(), id) }
+    } catch (error: IllegalStateException) {
+        if ((error.cause as? HttpException)?.code() != 404) throw error
+        null
+    }
+
+    suspend fun enviarExpediente(contexto: Context, resumen: ResumenFaena) = withContext(Dispatchers.IO) {
+        val id = resumen.apertura.id
+        val checklist = requireNotNull(resumen.checklist)
+        val asignadas = checklist.fotosAsociadasPorEquipo()
+        val inspecciones = EquipoRemoto.entries.map { equipo ->
+            val item = checklist.items.single { it.id == equipo.local }
+            val captura = requireNotNull(asignadas[equipo.local]) { "Falta la foto de ${equipo.titulo}." }
+            val metadatos = checklist.metadatosPorFoto[captura]
+            InspeccionRemota(equipo, item.estado, item.notas,
+                metadatos?.coincide.takeIf { metadatos?.referencia != null })
+        }
+        val datos = PrechequeoRemoto(inspecciones, SaludRemota(requireNotNull(resumen.encuesta)),
+            AstRemoto(requireNotNull(resumen.ast)), requireNotNull(resumen.tareas).items)
+        val auth = sesionActiva()
+        val previo = expediente(id)
+        check(previo?.decision == null) { "Jefatura ya registró una decisión para este expediente." }
+        val actual = consultar { api.prechequeo(auth, id, previo?.version ?: 0, false,
+            datos.copy(checklist = inspecciones.map { it.copy(coincideConReferencia = null) })) }
+        var version = actual.version
+        for (equipo in EquipoRemoto.entries) {
+            val captura = asignadas.getValue(equipo.local)
+            val referencia = checklist.metadatosPorFoto[captura]?.referencia
+            for (tipo in TipoFoto.entries) {
+                val ruta = if (tipo == TipoFoto.CAPTURA) captura else referencia
+                val existe = actual.fotos.any { it.equipo == equipo && it.tipo == tipo }
+                if (ruta == null) {
+                    if (existe) {
+                        consultar { api.quitarFoto(auth, id, equipo, tipo, version) }
+                        version++
+                    }
+                    continue
+                }
+                val bytes = EvidenciasFotos.leer(contexto, Uri.parse(ruta))
+                if (existe && consultar { api.imagen(auth, id, equipo, tipo).use { it.bytes() } }.contentEquals(bytes)) continue
+                val parte = MultipartBody.Part.createFormData("archivo", "evidencia",
+                    bytes.toRequestBody("application/octet-stream".toMediaType()))
+                consultar { api.foto(auth, id, equipo, tipo, version, parte) }
+                version++
+            }
+        }
+        consultar { api.prechequeo(auth, id, version, true, datos) }
+        Unit
+    }
+
+    suspend fun detalle(contexto: Context, id: String): DetalleRemoto = withContext(Dispatchers.IO) {
+        val auth = sesionActiva()
+        val actual = expediente(id)
+        val apertura = actual?.apertura ?: consultar { api.apertura(auth, id) }
+        val bloqueos = consultar { api.bloqueos(auth, id) }.map {
+            IntentoBloqueado(it.responsable, fechaRemota(it.registradaEn), it.motivo, it.operacion)
+        }
+        if (actual == null) {
+            val cierre = apertura.cierre?.let { RegistroCierre(0, "", true, apertura.supervisorACargo,
+                it.cerradoEn, mediciones = it.mediciones()) }
+            return@withContext DetalleRemoto(FaenaGuardada(ResumenFaena(apertura.local(), null, null, null),
+                cierre = cierre, intentosBloqueados = bloqueos), null, null, emptyList())
+        }
+        val rutas = actual.fotos.associateWith { foto ->
+            EvidenciasFotos.descargar(contexto, "$id-${foto.equipo}-${foto.tipo}-${foto.tomadaEn}") {
+                consultar { api.imagen(auth, id, foto.equipo, foto.tipo).use { it.bytes() } }
+            }
+        }
+        val capturas = rutas.filterKeys { it.tipo == TipoFoto.CAPTURA }.mapKeys { it.key.equipo.local }
+        val metadatos = rutas.filterKeys { it.tipo == TipoFoto.CAPTURA }.entries.associate { (foto, ruta) ->
+            ruta to MetadatosFoto(fechaRemota(foto.tomadaEn), foto.responsable,
+                rutas.entries.firstOrNull { it.key.equipo == foto.equipo && it.key.tipo == TipoFoto.REFERENCIA }?.value,
+                actual.prechequeo.checklist.firstOrNull { it.equipo == foto.equipo }?.coincideConReferencia)
+        }
+        val pre = actual.prechequeo
+        val checklist = ChecklistFaena(id, pre.checklist.map {
+            ItemEquipamiento(it.equipo.local, it.equipo.titulo, "", it.estado, it.notas.orEmpty())
+        }, capturas.values.toList(), fotosPorEquipo = capturas, metadatosPorFoto = metadatos)
+        val resumen = ResumenFaena(apertura.local(), checklist, pre.ast?.local(), pre.saludInicial?.local(),
+            ChecklistTareas(pre.tareas))
+        val decision = actual.decision?.let { RegistroDecision(it.resultado, it.motivo.orEmpty(), it.responsable) }
+        val inicio = actual.inicio?.let { RegistroInicio(it.responsable, fechaRemota(it.registradaEn)) }
+        DetalleRemoto(FaenaGuardada(resumen, decision, actual.bitacora?.local(), inicio, bloqueos),
+            actual.version, actual.semaforo, actual.bitacora?.alertas.orEmpty(), actual.publicado)
+    }
+
+    private fun fechaRemota(valor: String): Long {
+        val formato = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", java.util.Locale.ROOT)
+        val fecha = Regex("""^(.*:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$""").matchEntire(valor)
+            ?: error("Fecha de servidor no reconocida.")
+        val (segundos, fraccion, zona) = fecha.destructured
+        val offset = if (zona == "Z") "+0000" else zona.replace(":", "")
+        return requireNotNull(formato.parse("$segundos.${fraccion.padEnd(3, '0').take(3)}$offset")).time
     }
 
     private fun sesionActiva(): String =

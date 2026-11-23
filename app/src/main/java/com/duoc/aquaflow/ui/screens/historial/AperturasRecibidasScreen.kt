@@ -31,13 +31,15 @@ fun AperturasRecibidasScreen(
     state: AperturasRecibidasUiState,
     onActualizar: () -> Unit,
     soloCierres: Boolean = false,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    onDetalle: (String) -> Unit = {},
+    propias: Boolean = false
 ) {
     val registros = if (soloCierres) state.aperturas.filter { it.cierre != null }
         .sortedByDescending { it.cierre?.cerradoEn } else state.aperturas
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text(if (soloCierres) "Cierres recibidos" else "Aperturas recibidas") },
+            title = { Text(if (soloCierres) "Cierres recibidos" else if (propias) "Mis expedientes en el servidor" else "Aperturas recibidas") },
             navigationIcon = {
                 IconButton(onClick = onVolver) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -68,12 +70,13 @@ fun AperturasRecibidasScreen(
                 val fecha = cierre?.let { DateFormat.getDateTimeInstance().format(Date(it.cerradoEn)) }
                 AquaSectionCard(
                     title = datos.centroCultivo,
-                    subtitle = if (fecha != null) "Cerrada · $fecha" else "Prechequeo pendiente · ${datos.fecha} ${datos.hora}"
+                    subtitle = if (fecha != null) "Cerrada · $fecha" else "${datos.fecha} ${datos.hora}"
                 ) {
                     Text("Buzo · ${datos.buzoAsignado}")
                     Text("Supervisor · ${apertura.supervisorACargo}")
                     Text("ID · ${apertura.id}", style = MaterialTheme.typography.bodySmall)
                     cierre?.let { DatosMediciones(it.mediciones()) }
+                    TextButton(onClick = { onDetalle(apertura.id) }) { Text("Ver expediente") }
                 }
             }
         }

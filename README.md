@@ -105,8 +105,10 @@ adb shell am start -n com.duoc.aquaflow/.MainActivity
 ```
 
 1. Ingresa como `supervisor`, crea una faena con datos ficticios, completa la apertura y pulsa **Continuar**. El formulario avanza al checklist tras el guardado local y la confirmación del servidor. **Guardar Borrador** trabaja en Room. Si la confirmación remota falla, el formulario conserva la copia local y permite reintentar con el mismo ID.
-2. Vuelve al panel, cierra sesión y entra como `jefe`. Pulsa **Aperturas recibidas**. La apertura se muestra con su ID y el estado **Prechequeo pendiente**.
-3. Abre [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html), pulsa **Authorize** e ingresa las credenciales de jefatura. Ejecuta `GET /api/faenas/{id}` con ese ID. **Try it out** también permite probar `POST`, `PUT` y `DELETE` con la cuenta supervisora. Jefatura tiene acceso de lectura y el servidor limita las modificaciones al supervisor propietario.
+2. Completa checklist, fotos, salud, AST y tareas. En el resumen pulsa **Enviar expediente a jefatura**. Si se interrumpe la conexión, repite el envío desde el resumen para terminar de cargar las evidencias.
+3. Entra como `jefe` y pulsa **Aperturas recibidas → Ver expediente**. Revisa las evidencias y el semáforo del servidor y registra la decisión. Una vez autorizada la faena, el supervisor puede iniciarla y cerrarla en **Mis expedientes en el servidor**.
+4. Jefatura puede volver al detalle desde **Cierres recibidos** para consultar la bitácora y revisar las alertas de ascenso y descenso.
+5. En [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html), pulsa **Authorize** e ingresa las credenciales del perfil correspondiente. Consulta `GET /api/faenas/{id}/expediente` con el ID de la faena.
 
 Pruebas de la API y de Android:
 
@@ -121,7 +123,7 @@ En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080
 
 Room conserva el expediente, el cierre y la bitácora de bloqueos. En el checklist, **Elegir referencia** importa una imagen local y **Comparar fotos** permite registrar el resultado de la revisión visual. La aplicación guarda la fecha, el responsable y el equipo de cada captura.
 
-Al guardar un cierre en modo conectado, Android publica las mediciones de la inmersión. Si falla el envío, el supervisor puede reintentarlo desde el detalle de la faena. Jefatura puede consultar las mediciones y las alertas en **Historial → Cierres recibidos y alertas**. La aprobación del expediente, la sincronización automática y el envío de fotos pertenecen al paso 2. Las cuentas, catálogos y reglas de salud son de demostración académica.
+En modo conectado, el servidor valida la aprobación, el inicio y el cierre. La publicación del expediente se inicia desde el resumen y requiere conexión. Las cuentas, catálogos y reglas de salud son de demostración académica.
 
 Los archivos capturados se conservan en almacenamiento privado. Quitar una referencia del checklist no elimina inmediatamente el archivo, para evitar borrar una evidencia ya guardada antes de confirmar la edición. La limpieza de archivos huérfanos queda pendiente.
 

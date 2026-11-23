@@ -46,6 +46,7 @@ import com.duoc.aquaflow.viewmodel.DetalleAperturaViewModel
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import com.duoc.aquaflow.viewmodel.FaenaViewModel
 import com.duoc.aquaflow.viewmodel.HistorialViewModel
+import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 private const val MODO_DEMO_SIN_PERSISTENCIA = false
@@ -161,7 +162,7 @@ fun AquaFlowNavHost(backendUrl: String = "") {
 
         listOf(Ruta.APERTURAS_RECIBIDAS, Ruta.CIERRES_RECIBIDOS).forEach { ruta ->
             composable(ruta) {
-                if (usuario?.rol == Rol.JEFE && servidor != null) {
+                if (usuario != null && servidor != null) {
                     val factory = remember(servidor) {
                         viewModelFactory { initializer { AperturasRecibidasViewModel(servidor) } }
                     }
@@ -170,7 +171,9 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                     AperturasRecibidasScreen(
                         state, vm::actualizar,
                         soloCierres = ruta == Ruta.CIERRES_RECIBIDOS,
-                        onVolver = { nav.popBackStack() }
+                        propias = usuario?.rol == Rol.SUPERVISOR,
+                        onVolver = { nav.popBackStack() },
+                        onDetalle = { nav.navigate("historial/${Uri.encode(it)}") }
                     )
                 }
             }
@@ -231,7 +234,7 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                 val id = requireNotNull(entrada.arguments?.getString("aperturaId"))
                 val factory = remember(repository, actual, id, servidor) {
                     viewModelFactory {
-                        initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository, servidor) }
+                        initializer { DetalleAperturaViewModel(repository, actual, id, repository, repository, servidor, context) }
                     }
                 }
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
@@ -248,11 +251,17 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                         onVolver = { nav.popBackStack() },
                         onFinalizar = { nav.popBackStack() },
                         onCerrar = vm::cerrar,
-                        onPublicarCierre = servidor?.let { vm::publicarCierre },
                         cierrePublicado = state.cierrePublicado,
                         onIniciar = vm::iniciar,
                         ocupado = state.guardando,
-                        errorExterno = state.errorDecision
+                        errorExterno = state.errorDecision,
+                        expedienteRemoto = state.expedienteRemoto,
+                        onActualizar = servidor?.let { vm::reintentar },
+                        onRetirar = if (actual.rol == Rol.SUPERVISOR) servidor?.let { vm::retirar } else null,
+                        onEditarExpediente = if (actual.rol == Rol.SUPERVISOR && servidor != null) {
+                            { vm.prepararEdicion(repository) { nav.navigate("faena?aperturaId=${Uri.encode(id)}") } }
+                        } else null,
+                        onRevisarAlerta = if (actual.rol == Rol.JEFE) servidor?.let { vm::revisarAlerta } else null
                     )
                 } else {
                     DetalleAperturaScreen(state, onVolver = { nav.popBackStack() }, onReintentar = vm::reintentar)
@@ -428,24 +437,26 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                 val actual = usuario
 
                 if (actual != null) {
+                    val resumen = ResumenFaena(ui.apertura, ui.checklist, ui.ast, ui.encuesta, ui.tareas)
+                    val vm: ResumenFaenaViewModel = viewModel()
                     ResumenFaenaScreen(
-                        vm = viewModel(),
-                        resumen = ResumenFaena(
-                            apertura = ui.apertura,
-                            checklist = ui.checklist,
-                            ast = ui.ast,
-                            encuesta = ui.encuesta, tareas = ui.tareas
-                        ),
+                        vm = vm,
+                        resumen = resumen,
                         decision = ui.decision,
                         rol = actual.rol,
                         nombreUsuario = actual.nombre,
                         modoDemo = MODO_DEMO_SIN_PERSISTENCIA,
                         onDecidir = {},
                         onVolver = { nav.popBackStack() },
+                        textoFinalizar = if (servidor == null) "Ir al inicio" else "Enviar expediente a jefatura",
                         onFinalizar = {
-                            nav.navigate(Ruta.DASHBOARD) {
-                                popUpTo(Ruta.DASHBOARD) { inclusive = true }
+                            val irAlInicio = {
+                                nav.navigate(Ruta.DASHBOARD) {
+                                    popUpTo(Ruta.DASHBOARD) { inclusive = true }
+                                }
                             }
+                            if (servidor == null) irAlInicio()
+                            else vm.enviar({ servidor.enviarExpediente(context, resumen) }, irAlInicio)
                         }
                     )
                 }

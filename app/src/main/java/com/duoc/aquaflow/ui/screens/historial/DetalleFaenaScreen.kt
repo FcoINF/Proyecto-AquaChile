@@ -42,6 +42,9 @@ import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.SemaforoAst
 import com.duoc.aquaflow.ui.components.SemaforoFaena
+import com.duoc.aquaflow.ui.components.AquaSectionCard
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.theme.AquaAzul
 import com.duoc.aquaflow.ui.theme.AquaAzulAccion
@@ -75,7 +78,12 @@ fun DetalleFaenaScreen(
     errorExterno: String? = null,
     onPublicarCierre: (() -> Unit)? = null,
     cierrePublicado: Boolean = false,
-    onAuditarAutorizacion: ((String) -> Unit)? = null
+    onAuditarAutorizacion: ((String) -> Unit)? = null,
+    expedienteRemoto: com.duoc.aquaflow.data.remote.DetalleRemoto? = null,
+    onActualizar: (() -> Unit)? = null,
+    onRetirar: (() -> Unit)? = null,
+    onRevisarAlerta: ((String) -> Unit)? = null,
+    onEditarExpediente: (() -> Unit)? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resumen = faena.resumen
@@ -84,6 +92,18 @@ fun DetalleFaenaScreen(
     val resultado = ReglasDecision.resultado(resumen)
     val faltantes = ReglasDecision.faltantes(resumen)
     val estados = ReglasSecciones.estados(resumen)
+    var confirmarRetiro by androidx.compose.runtime.saveable.rememberSaveable(apertura.id) {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    if (confirmarRetiro) {
+        AlertDialog(onDismissRequest = { confirmarRetiro = false }, title = { Text("Retirar expediente") },
+            text = { Text("Se quitarán el prechequeo enviado y sus fotos del servidor.") },
+            confirmButton = { TextButton(onClick = {
+                confirmarRetiro = false
+                onRetirar?.invoke()
+            }) { Text("Retirar") } },
+            dismissButton = { TextButton(onClick = { confirmarRetiro = false }) { Text("Cancelar") } })
+    }
 
     Guardando(ocupado)
 
@@ -109,7 +129,7 @@ fun DetalleFaenaScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { CabeceraFaena(faena) }
+            item { CabeceraFaena(faena, expedienteRemoto) }
 
             if (faltantes.isNotEmpty()) {
                 item {
@@ -135,6 +155,34 @@ fun DetalleFaenaScreen(
 
             item { FilaMetricas(faena) }
 
+            if (onActualizar != null) item {
+                TextButton(onClick = onActualizar, enabled = !ocupado) { Text("Actualizar expediente") }
+            }
+            if (expedienteRemoto != null) item {
+                AquaSectionCard(title = "Estado del expediente en el servidor") {
+                    if (!expedienteRemoto.publicado && faena.cierre == null) Text("Pendiente de envío por el supervisor.")
+                    if (onRetirar != null && expedienteRemoto.version != null && decision == null) {
+                        TextButton(onClick = { confirmarRetiro = true }, enabled = !ocupado) { Text("Retirar expediente enviado") }
+                    }
+                }
+            }
+            if (onEditarExpediente != null && decision == null && faena.cierre == null) item {
+                TextButton(onClick = onEditarExpediente, enabled = !ocupado) { Text("Editar prechequeo") }
+            }
+            if (expedienteRemoto?.alertas?.isNotEmpty() == true) item {
+                AquaSectionCard(title = "Revisión de alertas de velocidad") {
+                    expedienteRemoto.alertas.forEach { alerta ->
+                        val movimiento = if (alerta.tipo == "ASCENSO") "Ascenso" else "Descenso"
+                        Text("$movimiento: ${alerta.velocidad} m/min (límite ${alerta.limite} m/min)")
+                        if (alerta.revisadaPor != null) Text("Revisada por ${alerta.revisadaPor}")
+                        else if (onRevisarAlerta != null) {
+                            TextButton(onClick = { onRevisarAlerta(alerta.tipo) }, enabled = !ocupado) {
+                                Text("Marcar como revisada")
+                            }
+                        }
+                    }
+                }
+            }
             item { SeccionSalud(resumen.encuesta) }
             item { SeccionCondiciones(apertura) }
             item { SeccionChecklist(resumen.checklist, estados.getValue("Checklist")) }
@@ -150,9 +198,10 @@ fun DetalleFaenaScreen(
                     onDecidir = onDecidir,
                     motivo = ui.motivo,
                     uiError = ui.error,
-                    puedeDecidir = resultado != null && !ocupado,
+                    puedeDecidir = !ocupado && if (onActualizar != null) expedienteRemoto?.publicado == true else resultado != null,
                     ocupado = ocupado,
-                    onAuditarAutorizacion = onAuditarAutorizacion
+                    onAuditarAutorizacion = onAuditarAutorizacion,
+                    semaforoRemoto = expedienteRemoto?.semaforo
                 )
             }
             if (faena.intentosBloqueados.isNotEmpty()) item {
@@ -198,7 +247,9 @@ fun DetalleFaenaScreen(
                         subtitulo = "Completa los datos al finalizar la inmersión"
                     ) {
                         Text("Encuesta de salud de salida · Buzo: ${apertura.buzoAsignado}")
-                        CierreFaenaFormulario(apertura.id, ocupado = ocupado, bloqueo = ReglasCierre.bloqueoCritico(resumen), onCerrar = onCerrar)
+                        val bloqueo = if (expedienteRemoto == null) ReglasCierre.bloqueoCritico(resumen)
+                        else expedienteRemoto.semaforo?.bloqueos?.takeIf { it.isNotEmpty() }?.joinToString(" ")
+                        CierreFaenaFormulario(apertura.id, ocupado = ocupado, bloqueo = bloqueo, onCerrar = onCerrar)
                     }
                 }
             }
@@ -221,7 +272,7 @@ fun DetalleFaenaScreen(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun CabeceraFaena(faena: FaenaGuardada) {
+private fun CabeceraFaena(faena: FaenaGuardada, remoto: com.duoc.aquaflow.data.remote.DetalleRemoto?) {
     val apertura = faena.resumen.apertura
     val evaluacion = ReglasDecision.evaluar(faena.resumen)
 
@@ -283,8 +334,16 @@ private fun CabeceraFaena(faena: FaenaGuardada) {
                 )
             }
 
-            SemaforoFaena(evaluacion.resultado)
-            evaluacion.motivos.forEach {
+            val semaforo = remoto?.semaforo
+            val resultado = when (semaforo?.nivel) {
+                "ROJO" -> com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION
+                "AMARILLO" -> com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO
+                "VERDE" -> com.duoc.aquaflow.model.ResultadoFaena.CUMPLE
+                else -> evaluacion.resultado
+            }
+            SemaforoFaena(resultado)
+            val motivos = semaforo?.let { it.bloqueos + it.observaciones } ?: evaluacion.motivos
+            motivos.forEach {
                 Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall)
             }
 
@@ -702,9 +761,11 @@ private fun SeccionDecision(
     uiError: String?,
     puedeDecidir: Boolean,
     ocupado: Boolean,
-    onAuditarAutorizacion: ((String) -> Unit)?
+    onAuditarAutorizacion: ((String) -> Unit)?,
+    semaforoRemoto: com.duoc.aquaflow.data.remote.SemaforoRemoto?
 ) {
-    val rojo = ReglasDecision.evaluar(resumen).resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION
+    val rojo = semaforoRemoto?.let { it.nivel == "ROJO" }
+        ?: (ReglasDecision.evaluar(resumen).resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION)
     SeccionDetalle(
         titulo = "Decisión",
         icono = Icons.AutoMirrored.Filled.Assignment,
@@ -791,7 +852,7 @@ private fun SeccionDecision(
                 OutlinedTextField(
                     value = motivo,
                     onValueChange = vm::cambiarMotivo,
-                    label = { Text("Motivo (obligatorio al rechazar)") },
+                    label = { Text(if (semaforoRemoto?.nivel == "AMARILLO") "Justificación de la revisión" else "Motivo (obligatorio al rechazar)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 uiError?.let {
@@ -804,14 +865,16 @@ private fun SeccionDecision(
                     Button(
                         enabled = puedeDecidir && !rojo,
                         onClick = {
-                            vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
+                            if (semaforoRemoto != null) onDecidir(RegistroDecision(Decision.AUTORIZADA, motivo, nombreUsuario))
+                            else vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("Autorizar") }
                     OutlinedButton(
                         enabled = puedeDecidir,
                         onClick = {
-                            vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
+                            if (semaforoRemoto != null) onDecidir(RegistroDecision(Decision.RECHAZADA, motivo, nombreUsuario))
+                            else vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("Rechazar") }

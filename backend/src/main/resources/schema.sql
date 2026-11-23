@@ -34,6 +34,22 @@ CREATE TABLE IF NOT EXISTS expedientes (
 ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS buzo_id VARCHAR(80) REFERENCES buzos(id);
 ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS iniciada_en TIMESTAMP WITH TIME ZONE;
 ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS iniciada_por VARCHAR(80);
+ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS publicado BOOLEAN DEFAULT TRUE NOT NULL;
+
+-- Identidades ficticias del catálogo incluido en Android. Respeta cambios de jefatura.
+CREATE TABLE IF NOT EXISTS catalogo_demo_inicializado (
+    version INT PRIMARY KEY
+);
+
+INSERT INTO buzos (id, nombre, activo)
+SELECT demo.id, demo.nombre, TRUE FROM (VALUES
+    ('BUZO-1', 'Buzo Demo Alfa'), ('BUZO-2', 'Buzo Demo Bravo'), ('BUZO-3', 'Buzo Demo Charlie'),
+    ('BUZO-4', 'Buzo Demo Delta'), ('BUZO-5', 'Buzo Demo Eco')
+) AS demo(id, nombre)
+WHERE NOT EXISTS (SELECT 1 FROM catalogo_demo_inicializado WHERE version = 1)
+  AND NOT EXISTS (SELECT 1 FROM buzos WHERE buzos.id = demo.id);
+
+MERGE INTO catalogo_demo_inicializado (version) KEY(version) VALUES (1);
 
 CREATE TABLE IF NOT EXISTS evidencias_faena (
     faena UUID NOT NULL REFERENCES expedientes(id) ON DELETE CASCADE,

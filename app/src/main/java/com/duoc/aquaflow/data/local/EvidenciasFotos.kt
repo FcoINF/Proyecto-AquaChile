@@ -7,6 +7,41 @@ import java.io.File
 import java.util.UUID
 
 object EvidenciasFotos {
+    fun leer(context: Context, uri: Uri): ByteArray {
+        require(esPropia(context, uri)) { "La fotografía no pertenece a esta aplicación." }
+        val maximo = 12 * 1024 * 1024
+        return requireNotNull(context.contentResolver.openInputStream(uri)).use { entrada ->
+            val destino = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val cantidad = entrada.read(buffer)
+                if (cantidad == -1) break
+                require(destino.size() + cantidad <= maximo) { "La fotografía supera 12 MB." }
+                destino.write(buffer, 0, cantidad)
+            }
+            require(destino.size() > 0) { "La fotografía está vacía." }
+            destino.toByteArray()
+        }
+    }
+
+    suspend fun descargar(context: Context, clave: String, obtener: suspend () -> ByteArray): String {
+        val carpeta = File(context.filesDir, "evidencias")
+        check(carpeta.isDirectory || carpeta.mkdirs())
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(clave.toByteArray())
+        val archivo = File(carpeta, digest.joinToString("") { "%02x".format(it) } + ".jpg")
+        if (!archivo.isFile) {
+            val bytes = obtener()
+            val temporal = File.createTempFile("foto-", ".tmp", carpeta)
+            try {
+                temporal.writeBytes(bytes)
+                check(temporal.renameTo(archivo) || archivo.isFile) { "No se pudo guardar la fotografía." }
+            } finally {
+                temporal.delete()
+            }
+        }
+        return FileProvider.getUriForFile(context, "${context.packageName}.evidencias", archivo).toString()
+    }
+
     fun importarReferencia(context: Context, origen: Uri): Uri {
         val destino = crear(context)
         try {

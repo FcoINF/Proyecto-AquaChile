@@ -182,9 +182,9 @@ fun DashboardScreen(
                 }
             }
 
-            if (!puedeCrear && onAperturasRecibidas != null) {
+            if (onAperturasRecibidas != null) {
                 OutlinedButton(onClick = onAperturasRecibidas, modifier = Modifier.fillMaxWidth()) {
-                    Text("Aperturas recibidas")
+                    Text(if (puedeCrear) "Mis expedientes en el servidor" else "Aperturas recibidas")
                 }
             }
 

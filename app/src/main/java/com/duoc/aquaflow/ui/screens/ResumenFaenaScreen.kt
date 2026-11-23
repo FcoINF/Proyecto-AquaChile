@@ -69,7 +69,7 @@ fun ResumenFaenaScreen(
     val apertura = resumen.apertura
     val estados = ReglasSecciones.estados(resumen)
 
-    com.duoc.aquaflow.ui.components.Guardando(ocupado)
+    com.duoc.aquaflow.ui.components.Guardando(ocupado || ui.enviando)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -166,13 +166,14 @@ fun ResumenFaenaScreen(
             }
 
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (rol == Rol.SUPERVISOR) ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {
                     // Ya decidida: se muestra el registro y se cierra el formulario
                     decision != null -> {
                         Text("${decision.decision.texto} por ${decision.decididoPor}")
                         if (decision.motivo.isNotEmpty()) Text("Motivo: ${decision.motivo}")
-                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
+                        Button(onClick = onFinalizar, enabled = !ui.enviando, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
                     }
                     // El supervisor no decide: su parte termina aquí, con la faena guardada para la jefatura
                     !ReglasDecision.puedeDecidir(rol) -> {
@@ -183,7 +184,7 @@ fun ResumenFaenaScreen(
                                 "Solo la jefatura autoriza o rechaza la faena. Ya quedó guardada en el dispositivo para su revisión."
                             }
                         )
-                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
+                        Button(onClick = onFinalizar, enabled = !ui.enviando, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
                     }
                     else -> {
                         OutlinedTextField(

@@ -21,7 +21,7 @@ import static com.duoc.aquaflow.backend.ExpedienteDatos.*;
 class Expedientes {
     public record Expediente(Faenas.Apertura apertura, long version, ExpedienteDatos prechequeo,
                              List<Foto> fotos, Decision decision, Inicio inicio, Bitacora bitacora,
-                             SemaforoFaena.Evaluacion semaforo) {}
+                             SemaforoFaena.Evaluacion semaforo, boolean publicado) {}
     public record Foto(UUID faena, Equipo equipo, TipoFoto tipo, String formato,
                        OffsetDateTime tomadaEn, String responsable) {}
     record Imagen(Foto foto, byte[] bytes) {}
@@ -31,7 +31,7 @@ class Expedientes {
     public record Bitacora(UUID faena, String buzoId, int duracionMinutos, String observaciones,
                            String responsable, Salud saludSalida, CierreHistorico mediciones, List<Alerta> alertas) {}
 
-    private record Fila(long version, ExpedienteDatos datos, Decision decision, Inicio inicio) {}
+    private record Fila(long version, ExpedienteDatos datos, Decision decision, Inicio inicio, boolean publicado) {}
 
     private final JdbcClient jdbc;
     private final ObjectMapper json;
@@ -52,7 +52,7 @@ class Expedientes {
     }
 
     @Transactional
-    public Expediente guardar(UUID id, String supervisor, long version, ExpedienteDatos datos) {
+    public Expediente guardar(UUID id, String supervisor, long version, ExpedienteDatos datos, boolean publicar) {
         faenas.bloquear(id, supervisor);
         var apertura = faenas.consultar(id, supervisor);
         exigir(apertura.cierre() == null, "La faena ya tiene un cierre.");
@@ -78,14 +78,16 @@ class Expedientes {
                     .param("id", buzo).query(Boolean.class).optional().orElse(false);
             exigir(activo, "Registra y activa la ficha del buzo asignado.");
             jdbc.sql("""
-                    INSERT INTO expedientes (id, version, operacion, contenido, buzo_id)
-                    VALUES (:id, 1, :operacion, :contenido, :buzo)
+                    INSERT INTO expedientes (id, version, operacion, contenido, buzo_id, publicado)
+                    VALUES (:id, 1, :operacion, :contenido, :buzo, :publicado)
                     """).param("id", id).param("operacion", UUID.randomUUID())
-                    .param("contenido", codificar(datos)).param("buzo", buzo).update();
+                    .param("contenido", codificar(datos)).param("buzo", buzo).param("publicado", publicar).update();
         } else {
             verificarVersion(anterior, version);
             exigirEditable(anterior);
             actualizarDatos(id, datos);
+            jdbc.sql("UPDATE expedientes SET publicado = :publicado WHERE id = :id")
+                    .param("publicado", publicar).param("id", id).update();
         }
         return expediente(id, supervisor);
     }
@@ -107,6 +109,9 @@ class Expedientes {
             throw faenas.registrarBloqueo(id, "APROBACION", jefe, "Falta el expediente de prechequeo.");
         }
         if (fila == null) throw noEncontrado("Expediente no encontrado.");
+        if (!fila.publicado()) {
+            throw faenas.registrarBloqueo(id, "APROBACION", jefe, "El supervisor todavía está enviando el expediente.");
+        }
         verificarVersion(fila, version);
         exigirEditable(fila);
         String motivo = solicitud.motivo() == null ? null : solicitud.motivo().strip();
@@ -257,7 +262,7 @@ class Expedientes {
         var fila = fila(id);
         var fotos = fotos(id);
         return new Expediente(apertura, fila.version(), fila.datos(), fotos, fila.decision(), fila.inicio(),
-                bitacora(apertura), evaluar(apertura, fila.datos(), fotos));
+                bitacora(apertura), evaluar(apertura, fila.datos(), fotos), fila.publicado());
     }
 
     private Bitacora bitacora(Faenas.Apertura apertura) {
@@ -296,7 +301,7 @@ class Expedientes {
             var iniciada = rs.getObject("iniciada_en", OffsetDateTime.class);
             return new Fila(rs.getLong("version"), decodificar(rs.getString("contenido"), ExpedienteDatos.class),
                     decodificar(rs.getString("decision"), Decision.class),
-                    iniciada == null ? null : new Inicio(iniciada, rs.getString("iniciada_por")));
+                    iniciada == null ? null : new Inicio(iniciada, rs.getString("iniciada_por")), rs.getBoolean("publicado"));
         }).optional().orElse(null);
     }
 
