@@ -16,7 +16,8 @@ class DetalleIncompletoUiTest {
     @Test fun historialDeDevelopBloqueaAmbasDecisionesHastaConfirmarBorrador() {
         val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("foto"))
         val r = mutableStateOf(ResumenFaena(
-            PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "Luis", true, true, true),
+            PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "Luis", true, true, true,
+                meteorologia = CondicionesMaritimas(-42.0, -73.0, 1700000000000L, 1699999999000L, 0.8, 2.0, null, null)),
             c.copy(estado = EstadoSeccion.BORRADOR),
             FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
             EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL), tareasCompletas()
@@ -26,6 +27,8 @@ class DetalleIncompletoUiTest {
         compose.setContent { AquaFlowTheme {
             DetalleFaenaScreen(vm, FaenaGuardada(r.value), Rol.JEFE, "jefe", { enviada = it }, {}, {})
         } }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Oleaje: 0,8 m", substring = true))
+        compose.onNodeWithText("Oleaje: 0,8 m", substring = true).assertIsDisplayed()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Estado: Borrador", substring = true))
         compose.onNodeWithText("Estado: Borrador", substring = true).assertIsDisplayed()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Autorizar"))

@@ -14,7 +14,7 @@ class MigracionesRoomTest {
     @Test fun conservaRegistrosDesdeCadaVersionPublicada() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        for (version in 1..6) {
+        for (version in (1..6) + listOf(8, 9)) {
             val nombre = "migracion-${UUID.randomUUID()}.db"
             val archivo = context.getDatabasePath(nombre)
             archivo.parentFile!!.mkdirs()
@@ -28,8 +28,10 @@ class MigracionesRoomTest {
                         val entidad = entidades.getJSONObject(i)
                         db.execSQL(entidad.getString("createSql").replace("\${TABLE_NAME}", entidad.getString("tableName")))
                     }
-                    val extras = if (version >= 3) ", condicionesListas, embarcacionLista, comunicacionesOperativas" else ""
-                    val valores = if (version >= 3) ", 1, 1, 1" else ""
+                    val extras = (if (version >= 3) ", condicionesListas, embarcacionLista, comunicacionesOperativas" else "") +
+                        (if (version >= 8) ", centroId, buzoId, edadBuzo, imcBuzo, vigenciaExamenPreocupacional, vigenciaTestEsfuerzo, intentosBloqueadosJson" else "")
+                    val valores = (if (version >= 3) ", 1, 1, 1" else "") +
+                        (if (version >= 8) ", '', '', 0, 0, '', '', '[]'" else "")
                     db.execSQL("INSERT INTO aperturas (id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo, actualizadoEn$extras) VALUES ('f1', 'Centro', '24/10/2026', '09:00', 'Ana', 'supervisor', 1$valores)")
                     db.version = version
                 }
@@ -42,7 +44,8 @@ class MigracionesRoomTest {
                         AquaFlowDatabase.MIGRACION_5_6,
                         AquaFlowDatabase.MIGRACION_6_7,
                         AquaFlowDatabase.MIGRACION_7_8,
-                        AquaFlowDatabase.MIGRACION_8_9
+                        AquaFlowDatabase.MIGRACION_8_9,
+                        AquaFlowDatabase.MIGRACION_9_10
                     ).build()
                 try {
                     val registro = db.preChequeoDao().buscar("f1")!!
@@ -59,6 +62,7 @@ class MigracionesRoomTest {
                     assertNull(registro.tareasJson)
                     assertNull(registro.cierreJson)
                     assertNull(registro.decisionJson)
+                    assertNull(registro.meteorologiaJson)
                     assertEquals("", registro.centroId)
                     assertEquals("", registro.buzoId)
                     assertEquals(0, registro.edadBuzo)
@@ -105,7 +109,8 @@ class MigracionesRoomTest {
                     db.version = 7
                 }
                 val db = Room.databaseBuilder(context, AquaFlowDatabase::class.java, nombre)
-                    .addMigrations(AquaFlowDatabase.MIGRACION_7_8, AquaFlowDatabase.MIGRACION_8_9).build()
+                    .addMigrations(AquaFlowDatabase.MIGRACION_7_8, AquaFlowDatabase.MIGRACION_8_9, AquaFlowDatabase.MIGRACION_9_10)
+                    .build()
                 try {
                         val registro = db.preChequeoDao().buscar("f1")!!
                         assertEquals("Ana", registro.buzoAsignado)

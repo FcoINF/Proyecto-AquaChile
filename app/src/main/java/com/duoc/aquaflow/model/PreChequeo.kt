@@ -20,5 +20,6 @@ data class PreChequeo(
     val puntajeCalbuco: Int? = 100,
     val testEsfuerzoVigente: Boolean? = true,
     val vigenciaTestEsfuerzo: String = "31/12/2099",
-    val buzoEmergenciaDisponible: Boolean? = true
+    val buzoEmergenciaDisponible: Boolean? = true,
+    val meteorologia: CondicionesMaritimas? = null
 )

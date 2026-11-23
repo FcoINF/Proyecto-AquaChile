@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.ChecklistFaena
+import com.duoc.aquaflow.model.CondicionesMaritimas
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PreChequeo
@@ -35,6 +36,8 @@ data class FaenaUiState(
     val error: String? = null,
     val ocupado: Boolean = false,
     val mensaje: String? = null,
+    val revisionFormularios: Int = 0,
+    val imcTexto: String? = null,
 )
 
 // Borrador compartido por las pantallas del grafo "faena".
@@ -51,7 +54,7 @@ class FaenaViewModel(
     fun iniciar(usuario: Usuario, aperturaId: String? = null) {
         if (usuario.rol != Rol.SUPERVISOR) return
         if (aperturaId != null) {
-            cargarFaena(aperturaId)
+            if (_ui.value.apertura.id != aperturaId) cargarFaena(aperturaId)
             return
         }
         if (_ui.value.apertura.id.isNotEmpty()) return
@@ -101,14 +104,31 @@ class FaenaViewModel(
         }
     }
 
-    fun actualizar(apertura: PreChequeo) = _ui.update { actual ->
-        if (actual.ocupado || actual.decision != null) return@update actual
+    fun actualizar(apertura: PreChequeo) = _ui.update { actualizar(it, apertura) }
+
+    fun editarImc(texto: String) {
+        if (!texto.matches(Regex("[0-9]{0,3}([.,][0-9]{0,2})?"))) return
+        _ui.update { actual ->
+            if (actual.ocupado || actual.decision != null) return@update actual
+            val valor = texto.replace(',', '.').toDoubleOrNull() ?: 0.0
+            actualizar(actual, actual.apertura.copy(imcBuzo = valor)).copy(imcTexto = texto)
+        }
+    }
+
+    fun registrarMeteorologia(id: String, centroId: String, condiciones: CondicionesMaritimas) = _ui.update {
+        if (id.isBlank() || it.apertura.id != id || it.apertura.centroId != centroId || it.decision != null) it
+        else it.copy(apertura = it.apertura.copy(meteorologia = condiciones))
+    }
+
+    private fun actualizar(actual: FaenaUiState, apertura: PreChequeo): FaenaUiState {
+        if (actual.ocupado || actual.decision != null) return actual
         // La identidad pertenece a la sesión; el formulario no puede reasignar el propietario.
         val nueva = apertura.copy(
             id = actual.apertura.id,
-            supervisorACargo = actual.apertura.supervisorACargo
+            supervisorACargo = actual.apertura.supervisorACargo,
+            meteorologia = actual.apertura.meteorologia.takeIf { apertura.centroId == actual.apertura.centroId }
         )
-        if (nueva == actual.apertura) actual else actual.copy(
+        return if (nueva == actual.apertura) actual else actual.copy(
             apertura = nueva,
             aperturaConfirmada = false,
             checklist = null,
@@ -116,7 +136,9 @@ class FaenaViewModel(
             ast = null, tareas = null,
             decision = null,
             error = null,
-            mensaje = null
+            mensaje = null,
+            imcTexto = actual.imcTexto.takeIf { nueva.imcBuzo == actual.apertura.imcBuzo && nueva.buzoId == actual.apertura.buzoId },
+            revisionFormularios = actual.revisionFormularios + if (actual.aperturaConfirmada) 1 else 0
         )
     }
 

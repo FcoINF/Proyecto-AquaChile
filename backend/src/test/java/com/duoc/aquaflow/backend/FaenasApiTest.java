@@ -53,11 +53,15 @@ class FaenasApiTest {
                 .andExpect(jsonPath("$.supervisorACargo").value("supervisor"));
 
         apertura.put("hora", "08:15");
+        apertura.putObject("meteorologia").put("latitudModelo", -42.0).put("longitudModelo", -73.0)
+                .put("consultadaEn", 1700000000000L).put("horaModelo", 1699999900000L).put("alturaOla", 0.8);
         mvc.perform(put(url).headers(supervisor()).contentType(MediaType.APPLICATION_JSON).content(apertura.toString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id.toString()));
 
         mvc.perform(get(url).headers(jefe()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.datos.hora").value("08:15"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.datos.hora").value("08:15"))
+                .andExpect(jsonPath("$.datos.meteorologia.alturaOla").value(0.8))
+                .andExpect(jsonPath("$.datos.meteorologia.consultadaEn").value(1700000000000L));
         mvc.perform(get("/api/faenas").headers(jefe()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[*].id", hasItem(id.toString())));
         mvc.perform(delete(url).headers(supervisor())).andExpect(status().isNoContent());

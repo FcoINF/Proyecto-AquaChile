@@ -5,6 +5,10 @@ import androidx.room.PrimaryKey
 import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.ResumenFaena
+import com.duoc.aquaflow.model.CondicionesMaritimas
+import com.google.gson.Gson
+
+private val gsonMeteorologia = Gson()
 
 // Una fila por faena: la apertura en columnas y cada sección (checklist, AST, salud, decisión)
 // como texto JSON. Una sección en null significa que todavía no se registra.
@@ -37,14 +41,16 @@ data class AperturaEntity(
     val cierreJson: String? = null,
     val tareasJson: String? = null,
     val inicioJson: String? = null,
-    val intentosBloqueadosJson: String = "[]"
+    val intentosBloqueadosJson: String = "[]",
+    val meteorologiaJson: String? = null
 ) {
     fun aModelo() = PreChequeo(
         id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo,
         condicionesListas, embarcacionLista, comunicacionesOperativas,
         centroId, buzoId, edadBuzo, imcBuzo, examenPreocupacionalVigente,
         vigenciaExamenPreocupacional, puntajeCalbuco, testEsfuerzoVigente,
-        vigenciaTestEsfuerzo, buzoEmergenciaDisponible
+        vigenciaTestEsfuerzo, buzoEmergenciaDisponible,
+        meteorologiaJson?.let { gsonMeteorologia.fromJson(it, CondicionesMaritimas::class.java) }
     )
 
     fun aFaena() = FaenaGuardada(
@@ -69,7 +75,8 @@ data class AperturaEntity(
             apertura.centroId, apertura.buzoId, apertura.edadBuzo, apertura.imcBuzo,
             apertura.examenPreocupacionalVigente, apertura.vigenciaExamenPreocupacional,
             apertura.puntajeCalbuco, apertura.testEsfuerzoVigente, apertura.vigenciaTestEsfuerzo,
-            apertura.buzoEmergenciaDisponible, actualizadoEn
+            apertura.buzoEmergenciaDisponible, actualizadoEn,
+            meteorologiaJson = apertura.meteorologia?.let(gsonMeteorologia::toJson)
         )
     }
 }

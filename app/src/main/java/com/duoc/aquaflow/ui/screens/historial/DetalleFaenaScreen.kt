@@ -51,6 +51,8 @@ import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 import com.duoc.aquaflow.ui.theme.AquaVerde
 import com.duoc.aquaflow.ui.theme.SemaforoAmarillo
 import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
+import com.duoc.aquaflow.viewmodel.MeteorologiaUi
+import com.duoc.aquaflow.data.repository.ResultadoMeteorologia
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -84,7 +86,9 @@ fun DetalleFaenaScreen(
     onRetirar: (() -> Unit)? = null,
     onRevisarAlerta: ((String) -> Unit)? = null,
     onEditarExpediente: (() -> Unit)? = null,
-    envio: com.duoc.aquaflow.data.local.EnvioFaena? = null
+    envio: com.duoc.aquaflow.data.local.EnvioFaena? = null,
+    climaActual: MeteorologiaUi = MeteorologiaUi(),
+    onConsultarClima: (() -> Unit)? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resumen = faena.resumen
@@ -155,6 +159,35 @@ fun DetalleFaenaScreen(
             }
 
             item { FilaMetricas(faena) }
+            item {
+                AquaSectionCard(title = "Meteorología marítima", subtitle = "Datos de referencia · Open-Meteo") {
+                    val guardada = apertura.meteorologia
+                    val resultado = climaActual.resultado
+                    val clima = guardada ?: (resultado as? ResultadoMeteorologia.Disponible)?.condiciones
+                    if (guardada == null) {
+                        Text("Esta apertura no tiene una consulta meteorológica guardada.")
+                        if (climaActual.cargando) Text("Consultando condiciones marítimas…")
+                        if (resultado is ResultadoMeteorologia.Error) Text(resultado.mensaje)
+                        if (resultado == ResultadoMeteorologia.SinConexion) Text("Sin conexión para consultar Open-Meteo.")
+                        if (clima != null) Text("Consulta actual del centro", style = MaterialTheme.typography.titleSmall)
+                    }
+                    if (clima != null) {
+                        Text("Consulta: ${formatearFecha(clima.consultadaEn)}")
+                        Text("Hora del modelo: ${formatearFecha(clima.horaModelo)}",
+                            style = MaterialTheme.typography.bodySmall)
+                        Text("Oleaje: ${medidaModelo(clima.alturaOla, "m")} · Período: ${medidaModelo(clima.periodoOla, "s")}")
+                        Text("Dirección: ${medidaModelo(clima.direccionOla, "°")}")
+                        Text("Temperatura superficial: ${medidaModelo(clima.temperaturaSuperficial, "°C")}")
+                    }
+                    Text(if (apertura.condicionesListas) "Verificación en terreno registrada."
+                        else "Verificación en terreno pendiente.", style = MaterialTheme.typography.bodySmall)
+                    if (guardada == null && onConsultarClima != null) {
+                        TextButton(onClick = onConsultarClima, enabled = !climaActual.cargando) {
+                            Text(if (clima == null) "Consultar condiciones actuales" else "Actualizar consulta del centro")
+                        }
+                    }
+                }
+            }
             if (envio != null) item {
                 AquaSectionCard(title = "Sincronización") {
                     com.duoc.aquaflow.ui.components.EstadoSincronizacion(envio)
@@ -1231,6 +1264,10 @@ private fun textoEstado(estado: EstadoEquipo): String = when (estado) {
     EstadoEquipo.OBSERVADO -> "Observado"
     EstadoEquipo.PENDIENTE -> "Pendiente"
 }
+
+private fun medidaModelo(valor: Double?, unidad: String): String =
+    valor?.let { java.text.NumberFormat.getNumberInstance(java.util.Locale("es", "CL")).format(it) + " " + unidad }
+        ?: "Sin datos"
 
 private fun formatearFecha(millis: Long): String =
     SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(millis))

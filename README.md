@@ -89,12 +89,14 @@ Las instrucciones para firmar, instalar y reunir las evidencias están en [Entre
 
 ### Acceso desde un teléfono Android
 
-Desde el teléfono, descarga e instala la [APK de AquaFlow Remoto](https://github.com/FcoINF/Proyecto-AquaChile/releases/download/apk-remota-1.0.0-rc.2/AquaFlow-Remoto.apk) y abre **AquaFlow Remoto**. Se instala junto a la app anterior, conserva los datos de esa instalación y usa su propio almacenamiento local. La APK de `app.zip` corresponde a una versión anterior sin acceso a Cloudflare.
+Desde el teléfono, descarga e instala la [APK de AquaFlow Remoto](https://github.com/FcoINF/Proyecto-AquaChile/releases/download/apk-remota-1.0.0-rc.3/AquaFlow-Remoto.apk) y abre **AquaFlow Remoto**. Se instala junto a la app anterior, conserva los datos de esa instalación y usa su propio almacenamiento local. La APK de `app.zip` corresponde a una versión anterior sin acceso a Cloudflare.
 
 - **Supervisor de Buceo** · usuario `supervisor` · contraseña `aquaflow123`
 - **Jefe de Centro / Prevención** · usuario `jefe` · contraseña `aquaflow123`
 
 Las faenas, los borradores y las evidencias de este modo se guardan en Room en el teléfono. El flujo que comparte expedientes entre dispositivos usa la API Spring Boot descrita abajo.
+
+En **Inicio**, usa **Ver pronóstico de mi ubicación** para consultar Open-Meteo con el permiso de ubicación. En el checklist, **Registrar referencia** guarda una foto patrón por equipo en ese teléfono. Las capturas siguientes se comparan automáticamente con esa referencia. La similitud visual orienta la revisión fotográfica manual.
 
 El teléfono necesita internet para autenticar la cuenta. Si prefieres compilar la misma variante desde Windows:
 

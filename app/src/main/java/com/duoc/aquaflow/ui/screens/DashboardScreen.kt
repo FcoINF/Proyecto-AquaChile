@@ -83,7 +83,8 @@ fun DashboardScreen(
     onVerHistorial: () -> Unit = { onTab(Tab.HISTORIAL) },
     onAperturasRecibidas: (() -> Unit)? = null,
     envios: List<com.duoc.aquaflow.data.local.EnvioFaena> = emptyList(),
-    onReintentarEnvio: (String) -> Unit = {}
+    onReintentarEnvio: (String) -> Unit = {},
+    pronostico: com.duoc.aquaflow.viewmodel.PronosticoUbicacionViewModel? = null
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
     val borradores = faenas.filter { it.decision == null }
@@ -96,7 +97,7 @@ fun DashboardScreen(
         topBar = {
             Column(Modifier.fillMaxWidth().background(AquaAzul).statusBarsPadding()) {
                 CabeceraDashboard(usuario = usuario, onSalir = onSalir)
-                BarraCondicionesTerreno()
+                pronostico?.let { com.duoc.aquaflow.ui.components.BarraPronosticoUbicacion(it) }
             }
         },
         bottomBar = { MainBottomBar(Tab.INICIO, tabsDashboard, onTab) }
@@ -276,32 +277,6 @@ private fun CabeceraDashboard(
                         onSalir()
                     }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BarraCondicionesTerreno() {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(Color(0xFF1D2C38)).padding(horizontal = 14.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text("≋", color = Color(0xFF7AD8F5), style = MaterialTheme.typography.titleSmall)
-        Text("Viento 12 KTS", color = Color(0xFF7AD8F5), style = MaterialTheme.typography.labelSmall)
-        Box(Modifier.size(width = 1.dp, height = 18.dp).background(Color(0xFF566675)))
-        Text("≋", color = Color(0xFF66D9B5), style = MaterialTheme.typography.titleSmall)
-        Text("Marea Favorable", color = Color(0xFF66D9B5), style = MaterialTheme.typography.labelSmall)
-        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-        Surface(color = Color(0xFF354657), shape = RoundedCornerShape(6.dp)) {
-            Row(
-                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text("⌖", color = Color(0xFF9CC7FF), style = MaterialTheme.typography.labelSmall)
-                Text("Seno Reloncaví\nMódulo 104", color = Color.White, style = MaterialTheme.typography.labelSmall, lineHeight = MaterialTheme.typography.labelSmall.lineHeight)
             }
         }
     }

@@ -103,7 +103,8 @@ fun AperturaFaenaScreen(
     onContinuar: () -> Unit,
     onSalir: () -> Unit,
     meteorologia: MeteorologiaUi = MeteorologiaUi(),
-    onActualizarMeteorologia: () -> Unit = {}
+    onActualizarMeteorologia: () -> Unit = {},
+    onEditarImc: ((String) -> Unit)? = null
 ) {
     val view = LocalView.current
     DisposableEffect(view) {
@@ -358,9 +359,10 @@ fun AperturaFaenaScreen(
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
-                        value = apertura.imcBuzo.takeIf { it > 0 }?.toString().orEmpty(),
+                        value = ui.imcTexto ?: apertura.imcBuzo.takeIf { it > 0 }?.toString().orEmpty(),
                         onValueChange = { valor ->
-                            onCambiar(apertura.copy(imcBuzo = valor.replace(',', '.').toDoubleOrNull() ?: 0.0))
+                            if (onEditarImc != null) onEditarImc(valor)
+                            else onCambiar(apertura.copy(imcBuzo = valor.replace(',', '.').toDoubleOrNull() ?: 0.0))
                         },
                         label = { Text("IMC") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

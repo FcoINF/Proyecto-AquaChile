@@ -72,5 +72,5 @@ internal fun AperturaRemota.local() = datos.run {
     PreChequeo(id, centroCultivo, fecha, hora, buzoAsignado, supervisorACargo, condicionesListas,
         embarcacionLista, comunicacionesOperativas, centroId, buzoId, edadBuzo, imcBuzo,
         examenPreocupacionalVigente, vigenciaExamenPreocupacional, puntajeCalbuco, testEsfuerzoVigente,
-        vigenciaTestEsfuerzo.orEmpty(), buzoEmergenciaDisponible)
+        vigenciaTestEsfuerzo.orEmpty(), buzoEmergenciaDisponible, meteorologia)
 }

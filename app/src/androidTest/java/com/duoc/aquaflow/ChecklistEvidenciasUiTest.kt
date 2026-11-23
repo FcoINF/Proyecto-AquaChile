@@ -1,14 +1,20 @@
 package com.duoc.aquaflow
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.test.platform.app.InstrumentationRegistry
+import com.duoc.aquaflow.data.local.EvidenciasFotos
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.screens.ChecklistScreenContent
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -18,6 +24,44 @@ import org.junit.Test
 
 class ChecklistEvidenciasUiTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun comparaSinAccionManualYAmpliaCapturaYReferencia() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val captura = EvidenciasFotos.crear(context)
+        val referencia = EvidenciasFotos.crear(context)
+        val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }
+        try {
+            for (uri in listOf(captura, referencia)) {
+                requireNotNull(context.contentResolver.openOutputStream(uri)).use {
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
+                }
+            }
+            val ruta = captura.toString()
+            compose.setContent {
+                AquaFlowTheme {
+                    EvidenciasGaleria(
+                        fotos = listOf(ruta),
+                        nombresPorFoto = mapOf(ruta to "Maleta"),
+                        metadatos = mapOf(ruta to MetadatosFoto(referencia = referencia.toString()))
+                    )
+                }
+            }
+            compose.waitUntil(timeoutMillis = 5_000) {
+                compose.onAllNodesWithText("Similitud visual orientativa: 100 %").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithContentDescription("Foto de Maleta").performClick()
+            compose.onNodeWithText("Acercar").performClick()
+            compose.onNodeWithContentDescription("Cerrar imagen").performClick()
+            compose.onNodeWithText("Ampliar referencia").performClick()
+            compose.onNodeWithText("Referencia · Maleta").assertExists()
+            compose.onNodeWithContentDescription("Cerrar imagen").performClick()
+        } finally {
+            bitmap.recycle()
+            EvidenciasFotos.descartar(context, captura)
+            EvidenciasFotos.descartar(context, referencia)
+        }
+    }
 
     @Test
     fun permiteElegirReferenciaParaUnaFotoAntiguaSinMetadatos() {

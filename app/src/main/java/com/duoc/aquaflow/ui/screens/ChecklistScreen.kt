@@ -34,6 +34,7 @@ import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.ItemChecklist
 import com.duoc.aquaflow.ui.components.SeccionFotos
+import com.duoc.aquaflow.ui.components.VisorEvidencia
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
 import com.duoc.aquaflow.viewmodel.ChecklistViewModel
 import com.duoc.aquaflow.domain.ReglasSecciones
@@ -53,31 +54,38 @@ fun ChecklistScreen(
     centroCultivo: String = "Centro sin asignar - Jaula 24",
     supervisor: String = "",
     onBloqueo: ((String) -> Unit)? = null,
-    mensaje: String? = null
+    mensaje: String? = null,
+    vm: ChecklistViewModel = viewModel(key = "checklist-$faenaId")
 ) {
     val context = LocalContext.current
-    val vm: ChecklistViewModel = viewModel(key = "checklist-$faenaId")
-    LaunchedEffect(faenaId) { vm.cargar(faenaId, checklistInicial) }
+    var referencias by remember(context) { mutableStateOf(EvidenciasFotos.referencias(context)) }
+    LaunchedEffect(faenaId, vm) {
+        vm.cargar(faenaId, checklistInicial)
+        vm.aplicarReferencias(referencias)
+    }
     val ui by vm.ui.collectAsState()
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { resultado ->
         val uri = vm.ui.value.pendiente?.let(Uri::parse)
         val guardada = resultado && uri != null && EvidenciasFotos.existe(context, uri)
         if (!guardada && uri != null) EvidenciasFotos.descartar(context, uri)
-        vm.terminarFoto(guardada, supervisor)
+        val patron = vm.ui.value.pendienteEquipoId?.let(referencias::get)
+        vm.terminarFoto(guardada, supervisor, patron)
     }
     val scope = rememberCoroutineScope()
-    var fotoAComparar by rememberSaveable(faenaId) { mutableStateOf<String?>(null) }
+    var equipoReferencia by rememberSaveable(faenaId) { mutableStateOf<String?>(null) }
+    var referenciaAmpliada by rememberSaveable(faenaId) { mutableStateOf<String?>(null) }
     var importando by remember { mutableStateOf(false) }
     val importarReferencia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { origen ->
-        val foto = fotoAComparar
-        fotoAComparar = null
-        if (origen != null && foto != null) {
+        val equipo = equipoReferencia
+        equipoReferencia = null
+        if (origen != null && equipo != null) {
             importando = true
             scope.launch {
                 try {
-                    val copia = withContext(Dispatchers.IO) { EvidenciasFotos.importarReferencia(context, origen) }
-                    vm.referencia(foto, copia.toString())
+                    val copia = withContext(Dispatchers.IO) { EvidenciasFotos.registrarReferencia(context, equipo, origen) }
+                    referencias = referencias + (equipo to copia)
+                    vm.ui.value.fotosPorEquipo[equipo]?.let { vm.referencia(it, copia) }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -88,6 +96,11 @@ fun ChecklistScreen(
             }
         }
     }
+    val elegirEquipo: (String) -> Unit = { equipo ->
+        equipoReferencia = equipo
+        importarReferencia.launch("image/*")
+    }
+    referenciaAmpliada?.let { VisorEvidencia("Referencia del equipo", it) { referenciaAmpliada = null } }
 
     Guardando(ocupado)
 
@@ -99,9 +112,11 @@ fun ChecklistScreen(
         fotosPorEquipo = ui.fotosPorEquipo,
         metadatos = ui.metadatosPorFoto,
         onElegirReferencia = { foto ->
-            fotoAComparar = foto
-            importarReferencia.launch("image/*")
+            ui.fotosPorEquipo.entries.firstOrNull { it.value == foto }?.key?.let(elegirEquipo)
         },
+        referenciasPorEquipo = referencias,
+        onElegirReferenciaEquipo = elegirEquipo,
+        onVerReferencia = { referenciaAmpliada = it },
         onComparar = vm::comparar,
         onBloqueo = onBloqueo,
         mensaje = mensaje,
@@ -148,6 +163,9 @@ fun ChecklistScreenContent(
     metadatos: Map<String, MetadatosFoto> = emptyMap(),
     onElegirReferencia: ((String) -> Unit)? = null,
     onComparar: ((String, Boolean) -> Unit)? = null,
+    referenciasPorEquipo: Map<String, String> = emptyMap(),
+    onElegirReferenciaEquipo: ((String) -> Unit)? = null,
+    onVerReferencia: ((String) -> Unit)? = null,
     onBloqueo: ((String) -> Unit)? = null,
     mensaje: String? = null
 ) {
@@ -206,14 +224,26 @@ fun ChecklistScreenContent(
                     }
                 }
                 items(items) { item ->
-                    ItemChecklist(
-                        item = item,
-                        fotoCapturada = !fotosPorEquipo[item.id].isNullOrBlank(),
-                        onEstadoCambiado = { nuevoEstado ->
-                            onEstadoCambiado(item.id, nuevoEstado)
-                        },
-                        onTomarFoto = { onTomarFotoClick(item.id) }
-                    )
+                    val capturada = !fotosPorEquipo[item.id].isNullOrBlank()
+                    Column {
+                        ItemChecklist(
+                            item = item,
+                            fotoCapturada = capturada,
+                            onEstadoCambiado = { nuevoEstado -> onEstadoCambiado(item.id, nuevoEstado) },
+                            onTomarFoto = { onTomarFotoClick(item.id) }
+                        )
+                        if (!capturada && onElegirReferenciaEquipo != null) {
+                            val patron = referenciasPorEquipo[item.id]
+                            Row {
+                                TextButton(onClick = { onElegirReferenciaEquipo(item.id) }, enabled = !ocupado) {
+                                    Text(if (patron == null) "Registrar referencia" else "Cambiar referencia")
+                                }
+                                if (patron != null && onVerReferencia != null) {
+                                    TextButton(onClick = { onVerReferencia(patron) }) { Text("Ampliar referencia") }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 item {

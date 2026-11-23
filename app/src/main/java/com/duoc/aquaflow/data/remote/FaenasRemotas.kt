@@ -75,7 +75,8 @@ data class AperturaDatos(
     val buzoEmergenciaDisponible: Boolean?,
     val condicionesListas: Boolean,
     val embarcacionLista: Boolean?,
-    val comunicacionesOperativas: Boolean?
+    val comunicacionesOperativas: Boolean?,
+    val meteorologia: CondicionesMaritimas? = null
 ) {
     constructor(apertura: PreChequeo) : this(
         centroCultivo = apertura.centroCultivo,
@@ -94,7 +95,8 @@ data class AperturaDatos(
         buzoEmergenciaDisponible = apertura.buzoEmergenciaDisponible,
         condicionesListas = apertura.condicionesListas,
         embarcacionLista = apertura.embarcacionLista,
-        comunicacionesOperativas = apertura.comunicacionesOperativas
+        comunicacionesOperativas = apertura.comunicacionesOperativas,
+        meteorologia = apertura.meteorologia
     )
 }
 
@@ -195,7 +197,7 @@ class FaenasRemotas(val url: String) {
         val actual = expediente(apertura.id)
         if (actual != null) {
             check(actual.decision == null) { "Jefatura ya registró una decisión para esta faena." }
-            check(actual.apertura.datos == datos) {
+            check(actual.apertura.datos.copy(meteorologia = null) == datos.copy(meteorologia = null)) {
                 "Retira el expediente enviado antes de cambiar la apertura. Se conservará tu borrador local."
             }
             return

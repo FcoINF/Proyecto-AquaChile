@@ -34,7 +34,12 @@ public record AperturaDatos(
         @NotNull @AssertTrue(message = "El buzo de emergencia debe estar disponible.") Boolean buzoEmergenciaDisponible,
         @NotNull @AssertTrue(message = "Confirma la verificación meteorológica.") Boolean condicionesListas,
         @NotNull @AssertTrue(message = "Confirma la disponibilidad de la embarcación.") Boolean embarcacionLista,
-        @NotNull @AssertTrue(message = "Confirma que las comunicaciones están operativas.") Boolean comunicacionesOperativas) {
+        @NotNull @AssertTrue(message = "Confirma que las comunicaciones están operativas.") Boolean comunicacionesOperativas,
+        CondicionesMaritimas meteorologia) {
+
+    public record CondicionesMaritimas(double latitudModelo, double longitudModelo, long consultadaEn,
+            long horaModelo, Double alturaOla, Double periodoOla, Double direccionOla,
+            Double temperaturaSuperficial) {}
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/uuuu", Locale.ROOT)
             .withResolverStyle(ResolverStyle.STRICT);

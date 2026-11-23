@@ -43,7 +43,7 @@ object ReglasDecision {
                 fotos[equipo.id]?.let(checklist.metadatosPorFoto::get)?.let { foto ->
                     when (foto.coincide) {
                         false -> observaciones += "La foto de ${equipo.titulo} difiere de su referencia."
-                        null -> observaciones += "Comparación fotográfica pendiente: ${equipo.titulo}."
+                        null -> observaciones += "Revisión fotográfica manual pendiente: ${equipo.titulo}."
                         true -> Unit
                     }
                 }

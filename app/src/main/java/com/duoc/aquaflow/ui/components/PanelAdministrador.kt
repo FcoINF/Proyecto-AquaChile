@@ -302,26 +302,13 @@ private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerF
                 }
 
                 if (grupo == GrupoFaena.ABIERTAS) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = { onVerFaena(apertura.id) },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(7.dp),
-                            border = BorderStroke(0.dp, Color.Transparent),
-                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFE6EEFF), contentColor = TextoJefatura)
-                        ) {
-                            Icon(Icons.Default.Checklist, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.size(4.dp))
-                            Text("Auditar AST", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                        }
-                        Button(
-                            onClick = { onVerFaena(apertura.id) },
-                            modifier = Modifier.weight(1.15f),
-                            shape = RoundedCornerShape(7.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AzulJefatura)
-                        ) {
-                            Text("Revisar y Visar", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                        }
+                    Button(
+                        onClick = { onVerFaena(apertura.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(7.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AzulJefatura)
+                    ) {
+                        Text("Revisar y Visar", fontWeight = FontWeight.Bold)
                     }
                 } else {
                     OutlinedButton(

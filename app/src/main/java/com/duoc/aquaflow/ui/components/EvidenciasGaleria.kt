@@ -1,10 +1,10 @@
 package com.duoc.aquaflow.ui.components
 
-import android.graphics.BitmapFactory
-import android.net.Uri
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -13,17 +13,16 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.duoc.aquaflow.data.local.EvidenciasFotos
 import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 import java.text.DateFormat
@@ -43,10 +42,17 @@ fun EvidenciasGaleria(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         fotos.forEachIndexed { indice, referencia ->
-            val bitmap = cargarFoto(referencia)
+            val bitmap = cargarFotoEvidencia(referencia).bitmap
             val metadata = metadatos[referencia]
             val imagenReferencia = metadata?.referencia
             var comparar by remember(referencia) { mutableStateOf(false) }
+            var ampliada by rememberSaveable(referencia) { mutableStateOf<String?>(null) }
+            val patron = cargarFotoEvidencia(imagenReferencia).bitmap
+            val similitud by produceState<Int?>(null, bitmap, patron) {
+                value = if (bitmap != null && patron != null) withContext(Dispatchers.Default) {
+                    similitudVisual(bitmap, patron)
+                } else null
+            }
             val nombre = nombresPorFoto[referencia]
                 ?.takeIf(String::isNotBlank)
                 ?: "Evidencia ${indice + 1}"
@@ -73,7 +79,8 @@ fun EvidenciasGaleria(
                             .size(92.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color(0xFFF1F5F9))
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
+                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = "Ampliar foto") { ampliada = referencia },
                         contentAlignment = Alignment.Center
                     ) {
                         bitmap?.let {
@@ -139,8 +146,11 @@ fun EvidenciasGaleria(
                             Text(when (metadata?.coincide) {
                                 true -> "Coincide con la referencia"
                                 false -> "Difiere de la referencia"
-                                null -> "Comparación pendiente"
+                                null -> if (imagenReferencia == null) "Sin foto de referencia" else "Revisión manual pendiente"
                             }, style = MaterialTheme.typography.bodySmall)
+                        }
+                        similitud?.let {
+                            Text("Similitud visual orientativa: $it %", style = MaterialTheme.typography.bodySmall)
                         }
                         if (onElegirReferencia != null) {
                             TextButton(onClick = { onElegirReferencia(referencia) }) {
@@ -148,6 +158,7 @@ fun EvidenciasGaleria(
                             }
                         }
                         if (imagenReferencia != null) {
+                            TextButton(onClick = { ampliada = imagenReferencia }) { Text("Ampliar referencia") }
                             TextButton(onClick = { comparar = true }) { Text("Comparar fotos") }
                         }
                         if (onQuitar != null) {
@@ -168,8 +179,12 @@ fun EvidenciasGaleria(
                     }
                 }
             }
+            ampliada?.let { ruta ->
+                val tipo = if (ruta == referencia) "Captura" else "Referencia"
+                VisorEvidencia("$tipo · $nombre", ruta, onCerrar = { ampliada = null })
+            }
             if (comparar && imagenReferencia != null) {
-                val imagen = cargarFoto(imagenReferencia)
+                val imagen = patron
                 AlertDialog(
                     onDismissRequest = { comparar = false },
                     title = { Text(nombre) },
@@ -203,27 +218,21 @@ fun EvidenciasGaleria(
     }
 }
 
-@Composable
-private fun cargarFoto(referencia: String): android.graphics.Bitmap? {
-    val context = LocalContext.current
-    val bitmap by produceState<android.graphics.Bitmap?>(null, referencia) {
-        value = null
-        value = withContext(Dispatchers.IO) {
-            runCatching {
-                val uri = Uri.parse(referencia)
-                if (!EvidenciasFotos.esPropia(context, uri)) return@runCatching null
-                val resolver = context.contentResolver
-                val opciones = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) }
-                var muestra = 1
-                while (maxOf(opciones.outWidth, opciones.outHeight) / muestra > 1024) muestra *= 2
-                opciones.inJustDecodeBounds = false
-                opciones.inSampleSize = muestra
-                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) }
-            }.getOrNull()
+private fun similitudVisual(foto: Bitmap, referencia: Bitmap): Int {
+    val lado = 32
+    val captura = Bitmap.createScaledBitmap(foto, lado, lado, true)
+    val patron = Bitmap.createScaledBitmap(referencia, lado, lado, true)
+    var diferencia = 0
+    for (y in 0 until lado) {
+        for (x in 0 until lado) {
+            val a = captura.getPixel(x, y)
+            val b = patron.getPixel(x, y)
+            diferencia += kotlin.math.abs(android.graphics.Color.red(a) - android.graphics.Color.red(b))
+            diferencia += kotlin.math.abs(android.graphics.Color.green(a) - android.graphics.Color.green(b))
+            diferencia += kotlin.math.abs(android.graphics.Color.blue(a) - android.graphics.Color.blue(b))
         }
     }
-    return bitmap
+    return 100 - (100 * diferencia / (lado * lado * 3 * 255))
 }
 
 @Composable

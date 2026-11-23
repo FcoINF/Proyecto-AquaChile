@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [AperturaEntity::class, EnvioFaena::class, FragmentoFoto::class], version = 9, exportSchema = true)
+@Database(entities = [AperturaEntity::class, EnvioFaena::class, FragmentoFoto::class], version = 10, exportSchema = true)
 abstract class AquaFlowDatabase : RoomDatabase() {
     abstract fun preChequeoDao(): PreChequeoDao
     abstract fun sincronizacionDao(): SincronizacionDao
@@ -150,6 +150,12 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRACION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN meteorologiaJson TEXT")
+            }
+        }
+
         @Volatile private var instancia: AquaFlowDatabase? = null
 
         fun obtener(context: Context): AquaFlowDatabase = instancia ?: synchronized(this) {
@@ -158,7 +164,7 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             )
                 .addMigrations(
                     MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5,
-                    MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9
+                    MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10
                 )
                 .build()
                 .also { instancia = it }

@@ -105,7 +105,7 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         prepararFoto(itemId, uri)
     }
 
-    fun terminarFoto(exito: Boolean, responsable: String = "") {
+    fun terminarFoto(exito: Boolean, responsable: String = "", referenciaEquipo: String? = null) {
         val actual = _ui.value
         val itemId = actual.pendienteEquipoId
         val nuevasAsignaciones = if (exito && actual.pendiente != null && itemId != null) {
@@ -115,7 +115,7 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         val metadatos = if (exito && actual.pendiente != null && itemId != null) {
             val anterior = actual.fotosPorEquipo[itemId]?.let(actual.metadatosPorFoto::get)
             anteriores + (actual.pendiente to MetadatosFoto(
-                System.currentTimeMillis(), responsable, referencia = anterior?.referencia
+                System.currentTimeMillis(), responsable, referencia = referenciaEquipo ?: anterior?.referencia
             ))
         } else anteriores
         _ui.value = actual.copy(
@@ -174,6 +174,15 @@ class ChecklistViewModel(private val saved: SavedStateHandle) : ViewModel() {
         if (uri !in estado.fotos) return
         val foto = estado.metadatosPorFoto[uri] ?: MetadatosFoto()
         actualizarFoto(uri, foto.copy(referencia = referencia, coincide = null))
+    }
+
+    fun aplicarReferencias(referencias: Map<String, String>) {
+        _ui.value.fotosPorEquipo.forEach { (equipo, foto) ->
+            val patron = referencias[equipo]
+            if (patron != null && _ui.value.metadatosPorFoto[foto]?.referencia == null) {
+                referencia(foto, patron)
+            }
+        }
     }
 
     fun comparar(uri: String, coincide: Boolean) {

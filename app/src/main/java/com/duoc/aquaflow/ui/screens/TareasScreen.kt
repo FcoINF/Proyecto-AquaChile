@@ -33,10 +33,10 @@ fun TareasScreen(
     errorExterno: String?,
     onGuardar: (ChecklistTareas) -> Unit,
     onBorrador: (ChecklistTareas) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    vm: TareasViewModel = viewModel(key = "tareas-$id")
 ) {
-    val vm: TareasViewModel = viewModel(key = "tareas-$id")
-    LaunchedEffect(id) { vm.cargar(inicial) }
+    LaunchedEffect(id, vm) { vm.cargar(inicial) }
     val items by vm.items.collectAsState()
     var error by remember { mutableStateOf<String?>(null) }
 
