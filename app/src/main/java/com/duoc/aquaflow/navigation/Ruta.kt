@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -16,6 +17,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -30,6 +32,7 @@ import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.ResumenFaena
 import com.duoc.aquaflow.ui.navigation.Tab
+import com.duoc.aquaflow.ui.components.deseleccionarAlTocarODeslizar
 import com.duoc.aquaflow.ui.navigation.tabsPara
 import com.duoc.aquaflow.ui.screens.AperturaFaenaScreen
 import com.duoc.aquaflow.ui.screens.AstScreen
@@ -117,7 +120,7 @@ fun AquaFlowNavHost(backendUrl: String = "") {
 
     // Si Android restaura las rutas sin una sesión, volvemos al ingreso.
     LaunchedEffect(usuario) {
-        if (usuario == null) {
+        if (usuario == null && nav.currentDestination?.route != Ruta.LOGIN) {
             nav.navigate(Ruta.LOGIN) {
                 popUpTo(nav.graph.id) { inclusive = true }
                 launchSingleTop = true
@@ -132,7 +135,13 @@ fun AquaFlowNavHost(backendUrl: String = "") {
         }
     }
 
-    NavHost(navController = nav, startDestination = Ruta.LOGIN) {
+    val entradaActual by nav.currentBackStackEntryAsState()
+    val modifierNav = if (entradaActual?.destination?.route?.let { it != Ruta.LOGIN } == true) {
+        Modifier.deseleccionarAlTocarODeslizar()
+    } else {
+        Modifier
+    }
+    NavHost(navController = nav, startDestination = Ruta.LOGIN, modifier = modifierNav) {
         composable(Ruta.LOGIN) {
             LoginScreen(
                 sesion = sesion,

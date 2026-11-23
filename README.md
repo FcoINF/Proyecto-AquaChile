@@ -89,7 +89,7 @@ La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y
 
 ### Probar la apertura conectada a Spring Boot
 
-Desde la raíz, inicia el servidor con JDK 17 y el wrapper Gradle del proyecto. Usa PIN de demostración en ambos perfiles. Para reutilizar el acceso demo de Android, escribe `1234` en las dos solicitudes.
+Desde la raíz, inicia el servidor con el wrapper Gradle del proyecto y un JDK 17 o 21. La compilación del backend genera clases compatibles con Java 17 en ambos casos. Usa PIN de demostración en ambos perfiles. Para reutilizar el acceso demo de Android, escribe `1234` en las dos solicitudes.
 
 ```powershell
 $env:AQUAFLOW_SUPERVISOR_PIN = Read-Host 'PIN de demostración de supervisor'

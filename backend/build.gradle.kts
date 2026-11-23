@@ -7,10 +7,6 @@ repositories {
     mavenCentral()
 }
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
-}
-
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.16"))
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -25,6 +21,7 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    options.release.set(17)
     options.compilerArgs.add("-parameters")
 }
 
