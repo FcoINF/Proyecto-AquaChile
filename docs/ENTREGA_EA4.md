@@ -16,7 +16,7 @@ git rev-parse HEAD
 git status --short
 ```
 
-La release se puede usar en modo demo local. Para demostrar la conexión desde la misma APK, compílala con `-PaquaflowApiUrl=https://<servidor>/` y usa un servidor accesible desde el teléfono. La URL local del emulador `10.0.2.2` corresponde a debug.
+La release usa Cloudflare para iniciar sesión por defecto. Para probar el intercambio de expedientes con Spring Boot, compila con `-PaquaflowApiUrl=https://<servidor>/` y usa un servidor accesible desde el teléfono. Para la demo local, compila con `-PaquaflowApiUrl=`. Si usas Spring Boot en el emulador, compila en debug con `-PaquaflowApiUrl=http://10.0.2.2:8080/`.
 
 En el teléfono de la defensa, autoriza la depuración USB, identifica el número de serie con `adb devices -l` e instala con `adb -s <serie> install -r app/build/outputs/apk/release/app-release.apk`. Si Android detecta una firma distinta de la instalada, conserva la instalación y sus datos hasta decidir qué dispositivo usar para la defensa.
 

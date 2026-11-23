@@ -73,7 +73,7 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 1. Abrir el proyecto con Android Studio y configurar Android SDK 35.
 2. Seleccionar un JDK compatible con Gradle; esta entrega fue verificada con **JDK 17**. `local.properties` debe apuntar al SDK de cada equipo y no se versiona.
 3. Sincronizar Gradle y ejecutar `app` en Android 7.0/API 24 o superior. Las pruebas de esta entrega usan Pixel 7 Pro con Android 13/API 33.
-4. Credenciales **de demostración**: perfil Supervisor, usuario `supervisor`, contraseña `1234`; perfil Administrador, usuario `jefe`, contraseña `1234`.
+4. Para iniciar sesión en la compilación predeterminada, usa las [credenciales de acceso remoto](#acceso-desde-un-teléfono-android).
 
 ```powershell
 .\gradlew.bat assembleDebug
@@ -89,7 +89,7 @@ La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y
 
 ### Acceso desde un teléfono Android
 
-La compilación release usa el Worker de AquaFlow para iniciar sesión con las cuentas de D1. El teléfono necesita internet para autenticar la cuenta.
+Las compilaciones debug y release usan por defecto el Worker de AquaFlow para iniciar sesión con las cuentas de D1. El teléfono necesita internet para autenticar la cuenta.
 
 - **Supervisor de Buceo** · usuario `supervisor` · contraseña `aquaflow123`
 - **Jefe de Centro / Prevención** · usuario `jefe` · contraseña `aquaflow123`
@@ -99,7 +99,7 @@ Las faenas, los borradores y las evidencias de este modo se guardan en Room en e
 Para crear una APK de prueba instalable con acceso remoto desde Windows:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug "-PaquaflowAuthUrl=https://aquaflow-acceso.fcomolina278.workers.dev"
+.\gradlew.bat :app:assembleDebug
 ```
 
 El resultado queda en `app/build/outputs/apk/debug/app-debug.apk`. La configuración del Worker y la migración de D1 están en `cloudflare/`.
@@ -114,10 +114,10 @@ $env:AQUAFLOW_JEFE_PIN = Read-Host 'PIN de demostración de jefatura'
 .\gradlew.bat -p backend bootRun
 ```
 
-El backend escucha en `127.0.0.1:8080` y H2 guarda las aperturas en `backend/data/`. Mantén esa consola abierta. En otra consola, instala la APK debug en el emulador y abre AquaFlow. La URL debug predeterminada es `http://10.0.2.2:8080/`.
+El backend escucha en `127.0.0.1:8080` y H2 guarda las aperturas en `backend/data/`. Mantén esa consola abierta. En otra consola, instala la APK debug en el emulador con la URL de Spring Boot y abre AquaFlow.
 
 ```powershell
-.\gradlew.bat :app:installDebug
+.\gradlew.bat :app:installDebug "-PaquaflowApiUrl=http://10.0.2.2:8080/"
 adb shell am start -n com.duoc.aquaflow/.MainActivity
 ```
 
@@ -146,7 +146,7 @@ Los informes HTML y XML se generan en `app/build/reports/jacoco/`. Para ejecutar
 .\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.duoc.aquaflow.FlujoOperativoUiTest#expedienteCriticoMuestraAlertaYDeshabilitaCerrarFaena'
 ```
 
-En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080` y compilar con `-PaquaflowApiUrl=http://127.0.0.1:8080/`. Para ejecutar la demo local sin servidor, instala con `-PaquaflowApiUrl=`. HTTP está habilitado en debug para las direcciones locales de la prueba. Usa HTTPS al configurar un servidor para una build release.
+En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080` y compilar con `-PaquaflowApiUrl=http://127.0.0.1:8080/`. Para ejecutar la demo local sin servidor, instala con `-PaquaflowApiUrl=` y usa el PIN `1234`. HTTP está habilitado en debug para las direcciones locales de la prueba. Usa HTTPS al configurar un servidor para una build release.
 
 ### Límites del alcance actual
 
