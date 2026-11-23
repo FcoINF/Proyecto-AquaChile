@@ -96,6 +96,15 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("equipo") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".remoto"
+            enableUnitTestCoverage = false
+            matchingFallbacks += "debug"
+            buildConfigField("String", "API_URL", apiConfig(""))
+            buildConfigField("String", "AUTH_URL", authConfig(cloudAuthUrl))
+            buildConfigField("String", "LOGIN_HINT_PASSWORD", "\"\"")
+        }
     }
     require(apiUrl.isNullOrBlank() || authUrl.isNullOrBlank()) {
         "Configura un solo servidor: aquaflowApiUrl para Spring Boot o aquaflowAuthUrl para el acceso remoto."

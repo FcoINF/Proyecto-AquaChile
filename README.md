@@ -89,20 +89,20 @@ La versión candidata **1.0.0-rc.1** y las instrucciones para firmar, instalar y
 
 ### Acceso desde un teléfono Android
 
-Las compilaciones debug y release usan por defecto el Worker de AquaFlow para iniciar sesión con las cuentas de D1. El teléfono necesita internet para autenticar la cuenta.
+Desde el teléfono, descarga e instala la [APK de AquaFlow Remoto](https://github.com/FcoINF/Proyecto-AquaChile/releases/download/apk-remota-1.0.0-rc.1/AquaFlow-Remoto.apk) y abre **AquaFlow Remoto**. Se instala junto a la app anterior, conserva los datos de esa instalación y usa su propio almacenamiento local. La APK de `app.zip` corresponde a una versión anterior sin acceso a Cloudflare.
 
 - **Supervisor de Buceo** · usuario `supervisor` · contraseña `aquaflow123`
 - **Jefe de Centro / Prevención** · usuario `jefe` · contraseña `aquaflow123`
 
 Las faenas, los borradores y las evidencias de este modo se guardan en Room en el teléfono. El flujo que comparte expedientes entre dispositivos usa la API Spring Boot descrita abajo.
 
-Para crear una APK de prueba instalable con acceso remoto desde Windows:
+El teléfono necesita internet para autenticar la cuenta. Si prefieres compilar la misma variante desde Windows:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleEquipo
 ```
 
-El resultado queda en `app/build/outputs/apk/debug/app-debug.apk`. La configuración del Worker y la migración de D1 están en `cloudflare/`.
+El resultado queda en `app/build/outputs/apk/equipo/app-equipo.apk`. Las compilaciones debug y release también usan Cloudflare por defecto. La configuración del Worker y la migración de D1 están en `cloudflare/`.
 
 ### Probar la apertura conectada a Spring Boot
 
