@@ -21,7 +21,7 @@ import static com.duoc.aquaflow.backend.ExpedienteDatos.*;
 class Expedientes {
     public record Expediente(Faenas.Apertura apertura, long version, ExpedienteDatos prechequeo,
                              List<Foto> fotos, Decision decision, Inicio inicio, Bitacora bitacora,
-                             SemaforoFaena.Evaluacion semaforo, boolean publicado) {}
+                             SemaforoFaena.Evaluacion semaforo, boolean publicado, UUID operacion) {}
     public record Foto(UUID faena, Equipo equipo, TipoFoto tipo, String formato,
                        OffsetDateTime tomadaEn, String responsable) {}
     record Imagen(Foto foto, byte[] bytes) {}
@@ -31,7 +31,7 @@ class Expedientes {
     public record Bitacora(UUID faena, String buzoId, int duracionMinutos, String observaciones,
                            String responsable, Salud saludSalida, CierreHistorico mediciones, List<Alerta> alertas) {}
 
-    private record Fila(long version, ExpedienteDatos datos, Decision decision, Inicio inicio, boolean publicado) {}
+    private record Fila(long version, ExpedienteDatos datos, Decision decision, Inicio inicio, boolean publicado, UUID operacion) {}
 
     private final JdbcClient jdbc;
     private final ObjectMapper json;
@@ -52,7 +52,7 @@ class Expedientes {
     }
 
     @Transactional
-    public Expediente guardar(UUID id, String supervisor, long version, ExpedienteDatos datos, boolean publicar) {
+    public Expediente guardar(UUID id, String supervisor, long version, ExpedienteDatos datos, boolean publicar, UUID operacion) {
         faenas.bloquear(id, supervisor);
         var apertura = faenas.consultar(id, supervisor);
         exigir(apertura.cierre() == null, "La faena ya tiene un cierre.");
@@ -80,14 +80,18 @@ class Expedientes {
             jdbc.sql("""
                     INSERT INTO expedientes (id, version, operacion, contenido, buzo_id, publicado)
                     VALUES (:id, 1, :operacion, :contenido, :buzo, :publicado)
-                    """).param("id", id).param("operacion", UUID.randomUUID())
+                    """).param("id", id).param("operacion", operacion == null ? UUID.randomUUID() : operacion)
                     .param("contenido", codificar(datos)).param("buzo", buzo).param("publicado", publicar).update();
         } else {
             verificarVersion(anterior, version);
             exigirEditable(anterior);
+            if (publicar && operacion != null) {
+                exigir(operacion.equals(anterior.operacion()), "La publicación pertenece a otro envío.");
+            }
             actualizarDatos(id, datos);
-            jdbc.sql("UPDATE expedientes SET publicado = :publicado WHERE id = :id")
-                    .param("publicado", publicar).param("id", id).update();
+            jdbc.sql("UPDATE expedientes SET publicado = :publicado, operacion = :operacion WHERE id = :id")
+                    .param("publicado", publicar).param("operacion", operacion == null ? anterior.operacion() : operacion)
+                    .param("id", id).update();
         }
         return expediente(id, supervisor);
     }
@@ -262,7 +266,7 @@ class Expedientes {
         var fila = fila(id);
         var fotos = fotos(id);
         return new Expediente(apertura, fila.version(), fila.datos(), fotos, fila.decision(), fila.inicio(),
-                bitacora(apertura), evaluar(apertura, fila.datos(), fotos), fila.publicado());
+                bitacora(apertura), evaluar(apertura, fila.datos(), fotos), fila.publicado(), fila.operacion());
     }
 
     private Bitacora bitacora(Faenas.Apertura apertura) {
@@ -301,7 +305,8 @@ class Expedientes {
             var iniciada = rs.getObject("iniciada_en", OffsetDateTime.class);
             return new Fila(rs.getLong("version"), decodificar(rs.getString("contenido"), ExpedienteDatos.class),
                     decodificar(rs.getString("decision"), Decision.class),
-                    iniciada == null ? null : new Inicio(iniciada, rs.getString("iniciada_por")), rs.getBoolean("publicado"));
+                    iniciada == null ? null : new Inicio(iniciada, rs.getString("iniciada_por")), rs.getBoolean("publicado"),
+                    rs.getObject("operacion", UUID.class));
         }).optional().orElse(null);
     }
 

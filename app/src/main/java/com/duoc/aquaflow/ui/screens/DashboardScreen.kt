@@ -81,7 +81,9 @@ fun DashboardScreen(
     onVerFaena: (String) -> Unit = {},
     onAbrirBorradores: () -> Unit = {},
     onVerHistorial: () -> Unit = { onTab(Tab.HISTORIAL) },
-    onAperturasRecibidas: (() -> Unit)? = null
+    onAperturasRecibidas: (() -> Unit)? = null,
+    envios: List<com.duoc.aquaflow.data.local.EnvioFaena> = emptyList(),
+    onReintentarEnvio: (String) -> Unit = {}
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
     val borradores = faenas.filter { it.decision == null }
@@ -185,6 +187,19 @@ fun DashboardScreen(
             if (onAperturasRecibidas != null) {
                 OutlinedButton(onClick = onAperturasRecibidas, modifier = Modifier.fillMaxWidth()) {
                     Text(if (puedeCrear) "Mis expedientes en el servidor" else "Aperturas recibidas")
+                }
+            }
+            if (envios.isNotEmpty()) {
+                Text("Sincronización de expedientes", style = MaterialTheme.typography.titleMedium)
+                envios.sortedBy { it.estado == "SINCRONIZADO" }.forEach { envio ->
+                    val nombreFaena = faenas.firstOrNull { it.resumen.apertura.id == envio.faena }
+                        ?.resumen?.apertura?.centroCultivo ?: envio.faena
+                    com.duoc.aquaflow.ui.components.AquaSectionCard(title = nombreFaena) {
+                        com.duoc.aquaflow.ui.components.EstadoSincronizacion(envio)
+                        if (envio.estado == "ERROR") {
+                            OutlinedButton(onClick = { onReintentarEnvio(envio.faena) }) { Text("Reintentar envío") }
+                        }
+                    }
                 }
             }
 

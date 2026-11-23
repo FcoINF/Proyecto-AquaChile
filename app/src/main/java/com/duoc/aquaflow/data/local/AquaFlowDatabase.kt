@@ -7,9 +7,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [AperturaEntity::class], version = 8, exportSchema = true)
+@Database(entities = [AperturaEntity::class, EnvioFaena::class, FragmentoFoto::class], version = 9, exportSchema = true)
 abstract class AquaFlowDatabase : RoomDatabase() {
     abstract fun preChequeoDao(): PreChequeoDao
+    abstract fun sincronizacionDao(): SincronizacionDao
 
     companion object {
         // v1 -> v2: agrega las secciones de la faena.
@@ -131,6 +132,24 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRACION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS envios_faena (
+                        faena TEXT NOT NULL, cuenta TEXT NOT NULL, servidor TEXT NOT NULL, operacion TEXT NOT NULL,
+                        formulario TEXT NOT NULL, estado TEXT NOT NULL, error TEXT, PRIMARY KEY(faena)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS fragmentos_foto (
+                        faena TEXT NOT NULL, ruta TEXT NOT NULL, orden INTEGER NOT NULL, bytes BLOB NOT NULL,
+                        PRIMARY KEY(faena, ruta, orden),
+                        FOREIGN KEY(faena) REFERENCES envios_faena(faena) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+            }
+        }
+
         @Volatile private var instancia: AquaFlowDatabase? = null
 
         fun obtener(context: Context): AquaFlowDatabase = instancia ?: synchronized(this) {
@@ -139,7 +158,7 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             )
                 .addMigrations(
                     MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5,
-                    MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8
+                    MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9
                 )
                 .build()
                 .also { instancia = it }

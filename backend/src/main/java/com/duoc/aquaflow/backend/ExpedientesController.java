@@ -52,8 +52,9 @@ class ExpedientesController {
             description = "Usa version=0 para crearlo. Para editar, envía la versión de GET /expediente.")
     ResponseEntity<Expedientes.Expediente> guardar(@PathVariable UUID id, @RequestParam @Min(0) long version,
                                                   @RequestParam(defaultValue = "true") boolean publicar,
+                                                  @RequestParam(required = false) UUID operacion,
                                                   @Valid @RequestBody ExpedienteDatos datos, Authentication cuenta) {
-        var guardado = expedientes.guardar(id, cuenta.getName(), version, datos, publicar);
+        var guardado = expedientes.guardar(id, cuenta.getName(), version, datos, publicar, operacion);
         return ResponseEntity.status(version == 0 ? HttpStatus.CREATED : HttpStatus.OK).body(guardado);
     }
 

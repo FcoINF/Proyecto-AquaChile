@@ -49,18 +49,20 @@ class DetalleAperturaViewModel(
     private val datos = intentos.flatMapLatest {
         consulta.observarFaena(id, usuario)
             .map { local ->
+                var errorDeLectura: String? = null
                 val expediente = if (remoto != null) {
                     try {
                         remoto.detalle(requireNotNull(contexto), id)
                     } catch (error: IllegalStateException) {
-                        if ((error.cause as? retrofit2.HttpException)?.code() != 404 || local == null) throw error
+                        if (local == null || usuario.rol != com.duoc.aquaflow.model.Rol.SUPERVISOR) throw error
+                        if ((error.cause as? retrofit2.HttpException)?.code() != 404) errorDeLectura = error.message
                         null
                     }
                 } else null
                 val faena = if (expediente?.version == null && local != null && usuario.rol == com.duoc.aquaflow.model.Rol.SUPERVISOR)
                     local else expediente?.faena ?: local
                 DetalleAperturaUiState(cargando = false, apertura = faena?.resumen?.apertura, faena = faena,
-                    expedienteRemoto = expediente, cierrePublicado = expediente?.faena?.cierre != null)
+                    expedienteRemoto = expediente, cierrePublicado = expediente?.faena?.cierre != null, error = errorDeLectura)
             }
             .onStart { emit(DetalleAperturaUiState()) }
             .catch { emit(DetalleAperturaUiState(cargando = false, error = it.message ?: "No se pudo cargar la apertura.")) }
@@ -160,11 +162,17 @@ class DetalleAperturaViewModel(
 
     fun prepararEdicion(
         repositorio: com.duoc.aquaflow.data.repository.PreChequeoRepository,
+        sincronizado: Boolean = false,
         abrir: () -> Unit
     ) {
         val faena = state.value.faena ?: return
         if (faena.decision != null || faena.cierre != null) return
         operarRemoto {
+            val version = state.value.expedienteRemoto?.version
+            if (version != null) remoto?.reservarEdicion(id, version)
+            else check(!sincronizado || state.value.error == null) {
+                "Conéctate para abrir una revisión del expediente sincronizado."
+            }
             if (repositorio.recuperarFaenaPorId(id) == null) {
                 val resumen = faena.resumen
                 repositorio.guardar(resumen.apertura)

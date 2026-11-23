@@ -30,6 +30,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,8 +75,12 @@ import com.duoc.aquaflow.viewmodel.IngresoUiState
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 private const val PREFS_LOGIN = "aquaflow_login"
-private const val PREF_RECORDAR = "recordar"
-private const val PREF_USUARIO = "usuario"
+private val PREF_RECORDAR = booleanPreferencesKey("recordar")
+private val PREF_USUARIO = stringPreferencesKey("usuario")
+private val Context.preferenciasIngreso by preferencesDataStore(
+    name = PREFS_LOGIN,
+    produceMigrations = { listOf(SharedPreferencesMigration(it, PREFS_LOGIN, setOf("recordar", "usuario"))) }
+)
 
 private val FondoLogin = Color(0xFFF8F9FF)
 private val AzulMarino = Color(0xFF192838)
@@ -125,17 +137,16 @@ fun LoginScreen(sesion: SesionViewModel, onIngresoExitoso: () -> Unit) {
     }
 
     val context = LocalContext.current
-    val prefs = remember(context) {
-        context.getSharedPreferences(PREFS_LOGIN, Context.MODE_PRIVATE)
-    }
-    var recordar by rememberSaveable {
-        mutableStateOf(prefs.getBoolean(PREF_RECORDAR, false))
-    }
+    val prefs = context.preferenciasIngreso
+    val alcance = rememberCoroutineScope()
+    var recordar by rememberSaveable { mutableStateOf(false) }
     val ui by sesion.ingreso.collectAsState()
 
-    LaunchedEffect(Unit) {
-        if (recordar && ui.nombre.isBlank()) {
-            prefs.getString(PREF_USUARIO, null)?.let(sesion::cambiarNombre)
+    LaunchedEffect(prefs) {
+        val guardadas = try { prefs.data.first() } catch (_: java.io.IOException) { return@LaunchedEffect }
+        recordar = guardadas[PREF_RECORDAR] ?: false
+        if (recordar && sesion.ingreso.value.nombre.isBlank()) {
+            guardadas[PREF_USUARIO]?.let(sesion::cambiarNombre)
         }
     }
 
@@ -147,17 +158,25 @@ fun LoginScreen(sesion: SesionViewModel, onIngresoExitoso: () -> Unit) {
         onRol = sesion::seleccionarRol,
         onRecordar = { activo ->
             recordar = activo
-            prefs.edit().putBoolean(PREF_RECORDAR, activo).apply()
-            // Solo se recuerda el usuario; el PIN nunca se guarda en el dispositivo.
-            if (!activo) prefs.edit().remove(PREF_USUARIO).apply()
+            alcance.launch {
+                try {
+                    prefs.edit {
+                        it[PREF_RECORDAR] = activo
+                        if (!activo) it.remove(PREF_USUARIO)
+                    }
+                } catch (_: java.io.IOException) { }
+            }
         },
         onIngresar = {
-            if (recordar) {
-                prefs.edit().putString(PREF_USUARIO, ui.nombre.trim()).apply()
-            } else {
-                prefs.edit().remove(PREF_USUARIO).apply()
+            alcance.launch {
+                try {
+                    prefs.edit {
+                        it[PREF_RECORDAR] = recordar
+                        if (recordar) it[PREF_USUARIO] = ui.nombre.trim() else it.remove(PREF_USUARIO)
+                    }
+                } catch (_: java.io.IOException) { }
+                sesion.ingresar(onIngresoExitoso)
             }
-            sesion.ingresar(onIngresoExitoso)
         }
     )
 }

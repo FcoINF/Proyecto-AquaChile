@@ -122,7 +122,8 @@ internal interface AquaFlowApi {
 
     @PUT("api/faenas/{id}/expediente")
     suspend fun prechequeo(@Header("Authorization") auth: String, @Path("id") id: String,
-        @Query("version") version: Long, @Query("publicar") publicar: Boolean, @Body datos: PrechequeoRemoto): ExpedienteRemoto
+        @Query("version") version: Long, @Query("publicar") publicar: Boolean,
+        @Query("operacion") operacion: String?, @Body datos: PrechequeoRemoto): ExpedienteRemoto
 
     @DELETE("api/faenas/{id}/expediente")
     suspend fun retirar(@Header("Authorization") auth: String, @Path("id") id: String, @Query("version") version: Long)
@@ -159,7 +160,7 @@ internal interface AquaFlowApi {
     suspend fun bloqueos(@Header("Authorization") auth: String, @Path("id") id: String): List<BloqueoRemoto>
 }
 
-class FaenasRemotas(url: String) {
+class FaenasRemotas(val url: String) {
     private val api = Retrofit.Builder()
         .baseUrl(url)
         .client(OkHttpClient.Builder().followRedirects(false).build())
@@ -167,7 +168,15 @@ class FaenasRemotas(url: String) {
         .build()
         .create(AquaFlowApi::class.java)
 
-    private var autorizacion: String? = null
+    @Volatile private var autorizacion: String? = null
+
+    internal fun credencialesParaEnvio(cuenta: String) =
+        CredencialesSincronizacion.Sesion(cuenta, url, sesionActiva())
+
+    companion object {
+        internal fun desdeSesion(sesion: CredencialesSincronizacion.Sesion) =
+            FaenasRemotas(sesion.servidor).also { it.autorizacion = sesion.autorizacion }
+    }
 
     suspend fun ingresar(nombre: String, clave: String, perfil: Rol): Usuario {
         val encabezado = Credentials.basic(nombre, clave)
@@ -213,6 +222,14 @@ class FaenasRemotas(url: String) {
 
     suspend fun revisarAlerta(id: String, tipo: String) { consultar { api.revisar(sesionActiva(), id, tipo) } }
 
+    suspend fun reservarEdicion(id: String, version: Long) {
+        val actual = requireNotNull(expediente(id)) { "El expediente ya no está en el servidor." }
+        check(actual.version == version && actual.decision == null) { "El expediente cambió. Actualiza el detalle." }
+        if (actual.publicado) {
+            consultar { api.prechequeo(sesionActiva(), id, version, false, null, actual.prechequeo) }
+        }
+    }
+
     private suspend fun expediente(id: String): ExpedienteRemoto? = try {
         consultar { api.expediente(sesionActiva(), id) }
     } catch (error: IllegalStateException) {
@@ -220,8 +237,13 @@ class FaenasRemotas(url: String) {
         null
     }
 
-    suspend fun enviarExpediente(contexto: Context, resumen: ResumenFaena) = withContext(Dispatchers.IO) {
+    suspend fun enviarExpediente(
+        resumen: ResumenFaena, operacion: String, leerFoto: suspend (String) -> ByteArray
+    ) = withContext(Dispatchers.IO) {
         val id = resumen.apertura.id
+        val previo = expediente(id)
+        if (previo?.publicado == true && previo.operacion == operacion) return@withContext
+        guardar(resumen.apertura)
         val checklist = requireNotNull(resumen.checklist)
         val asignadas = checklist.fotosAsociadasPorEquipo()
         val inspecciones = EquipoRemoto.entries.map { equipo ->
@@ -234,9 +256,8 @@ class FaenasRemotas(url: String) {
         val datos = PrechequeoRemoto(inspecciones, SaludRemota(requireNotNull(resumen.encuesta)),
             AstRemoto(requireNotNull(resumen.ast)), requireNotNull(resumen.tareas).items)
         val auth = sesionActiva()
-        val previo = expediente(id)
         check(previo?.decision == null) { "Jefatura ya registró una decisión para este expediente." }
-        val actual = consultar { api.prechequeo(auth, id, previo?.version ?: 0, false,
+        val actual = consultar { api.prechequeo(auth, id, previo?.version ?: 0, false, operacion,
             datos.copy(checklist = inspecciones.map { it.copy(coincideConReferencia = null) })) }
         var version = actual.version
         for (equipo in EquipoRemoto.entries) {
@@ -252,7 +273,7 @@ class FaenasRemotas(url: String) {
                     }
                     continue
                 }
-                val bytes = EvidenciasFotos.leer(contexto, Uri.parse(ruta))
+                val bytes = leerFoto(ruta)
                 if (existe && consultar { api.imagen(auth, id, equipo, tipo).use { it.bytes() } }.contentEquals(bytes)) continue
                 val parte = MultipartBody.Part.createFormData("archivo", "evidencia",
                     bytes.toRequestBody("application/octet-stream".toMediaType()))
@@ -260,7 +281,7 @@ class FaenasRemotas(url: String) {
                 version++
             }
         }
-        consultar { api.prechequeo(auth, id, version, true, datos) }
+        consultar { api.prechequeo(auth, id, version, true, operacion, datos) }
         Unit
     }
 

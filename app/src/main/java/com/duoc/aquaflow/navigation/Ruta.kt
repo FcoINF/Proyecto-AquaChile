@@ -21,6 +21,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.duoc.aquaflow.data.local.AquaFlowDatabase
 import com.duoc.aquaflow.data.remote.FaenasRemotas
+import com.duoc.aquaflow.data.remote.SincronizacionFaenas
+import com.duoc.aquaflow.data.local.EstadoEnvio
+import kotlinx.coroutines.flow.flowOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.ResumenFaena
@@ -75,10 +80,13 @@ fun AquaFlowNavHost(backendUrl: String = "") {
     val repository = remember(context) {
         PreChequeoRepository(AquaFlowDatabase.obtener(context).preChequeoDao())
     }
-    val sesionFactory = remember(backendUrl) {
+    val sincronizacion = remember(context, backendUrl) {
+        backendUrl.takeIf { it.isNotBlank() }?.let { SincronizacionFaenas(context, it) }
+    }
+    val sesionFactory = remember(backendUrl, sincronizacion) {
         viewModelFactory {
             initializer {
-                SesionViewModel(backendUrl.takeIf { it.isNotBlank() }?.let(::FaenasRemotas))
+                SesionViewModel(backendUrl.takeIf { it.isNotBlank() }?.let(::FaenasRemotas), sincronizacion)
             }
         }
     }
@@ -90,13 +98,18 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                 FaenaViewModel(
                     borradores = repository,
                     registro = repository,
-                    persistenciaHabilitada = !MODO_DEMO_SIN_PERSISTENCIA,
-                    confirmarEnServidor = servidor?.let { remoto -> remoto::guardar }
+                    persistenciaHabilitada = !MODO_DEMO_SIN_PERSISTENCIA
                 )
             }
         }
     }
     val usuario by sesion.usuario.collectAsState()
+    val supervisor = usuario?.takeIf { it.rol == Rol.SUPERVISOR }?.nombre
+    val envios by remember(sincronizacion, supervisor) {
+        if (supervisor == null || sincronizacion == null) flowOf(emptyList())
+        else sincronizacion.observar(supervisor)
+    }.collectAsState(initial = emptyList())
+    val alcance = rememberCoroutineScope()
     var ultimaEncuesta by remember { mutableStateOf<EncuestaSalud?>(null) }
 
     // Si Android restaura las rutas sin una sesión, volvemos al ingreso.
@@ -148,6 +161,8 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                     onNuevaFaena = { if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena") },
                     onAbrirBorradores = { if (actual.rol == Rol.SUPERVISOR) nav.navigate(Ruta.BORRADORES) },
                     onAperturasRecibidas = servidor?.let { { nav.navigate(Ruta.APERTURAS_RECIBIDAS) } },
+                    envios = envios,
+                    onReintentarEnvio = { id -> alcance.launch { sincronizacion?.reintentar(actual.nombre, id) } },
                     onTab = ::irATab,
                     onSalir = {
                         sesion.salir()
@@ -193,7 +208,10 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                     error = state.error,
                     onReintentar = vm::reintentar,
                     onEditarBorrador = { id ->
-                        if (actual.rol == Rol.SUPERVISOR) nav.navigate("faena?aperturaId=${Uri.encode(id)}")
+                        if (actual.rol == Rol.SUPERVISOR) {
+                            if (servidor == null) nav.navigate("faena?aperturaId=${Uri.encode(id)}")
+                            else nav.navigate("historial/${Uri.encode(id)}")
+                        }
                     },
                     onVolver = { nav.popBackStack() }
                 )
@@ -240,6 +258,10 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                 val vm: DetalleAperturaViewModel = viewModel(factory = factory)
                 val state by vm.state.collectAsState()
                 val faenaGuardada = state.faena
+                val envio = envios.firstOrNull { it.faena == id }
+                LaunchedEffect(envio?.estado) {
+                    if (envio?.estado == EstadoEnvio.SINCRONIZADO.name) vm.reintentar()
+                }
                 if (faenaGuardada != null) {
                     DetalleFaenaScreen(
                         vm = viewModel(),
@@ -254,12 +276,16 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                         cierrePublicado = state.cierrePublicado,
                         onIniciar = vm::iniciar,
                         ocupado = state.guardando,
-                        errorExterno = state.errorDecision,
+                        errorExterno = state.errorDecision ?: state.error,
+                        envio = envio,
                         expedienteRemoto = state.expedienteRemoto,
                         onActualizar = servidor?.let { vm::reintentar },
                         onRetirar = if (actual.rol == Rol.SUPERVISOR) servidor?.let { vm::retirar } else null,
                         onEditarExpediente = if (actual.rol == Rol.SUPERVISOR && servidor != null) {
-                            { vm.prepararEdicion(repository) { nav.navigate("faena?aperturaId=${Uri.encode(id)}") } }
+                            if (envio?.estado == EstadoEnvio.PENDIENTE.name) null
+                            else { { vm.prepararEdicion(repository, envio?.estado == EstadoEnvio.SINCRONIZADO.name) {
+                                nav.navigate("faena?aperturaId=${Uri.encode(id)}")
+                            } } }
                         } else null,
                         onRevisarAlerta = if (actual.rol == Rol.JEFE) servidor?.let { vm::revisarAlerta } else null
                     )
@@ -448,15 +474,15 @@ fun AquaFlowNavHost(backendUrl: String = "") {
                         modoDemo = MODO_DEMO_SIN_PERSISTENCIA,
                         onDecidir = {},
                         onVolver = { nav.popBackStack() },
-                        textoFinalizar = if (servidor == null) "Ir al inicio" else "Enviar expediente a jefatura",
+                        textoFinalizar = if (sincronizacion == null) "Ir al inicio" else "Guardar para sincronizar",
                         onFinalizar = {
                             val irAlInicio = {
                                 nav.navigate(Ruta.DASHBOARD) {
                                     popUpTo(Ruta.DASHBOARD) { inclusive = true }
                                 }
                             }
-                            if (servidor == null) irAlInicio()
-                            else vm.enviar({ servidor.enviarExpediente(context, resumen) }, irAlInicio)
+                            if (sincronizacion == null) irAlInicio()
+                            else vm.enviar({ sincronizacion.encolar(actual.nombre, resumen) }, irAlInicio)
                         }
                     )
                 }

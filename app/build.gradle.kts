@@ -101,6 +101,8 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Compose (fijado por el BOM)
     implementation(platform(libs.androidx.compose.bom))

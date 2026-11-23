@@ -41,7 +41,8 @@ class MigracionesRoomTest {
                         AquaFlowDatabase.MIGRACION_4_5,
                         AquaFlowDatabase.MIGRACION_5_6,
                         AquaFlowDatabase.MIGRACION_6_7,
-                        AquaFlowDatabase.MIGRACION_7_8
+                        AquaFlowDatabase.MIGRACION_7_8,
+                        AquaFlowDatabase.MIGRACION_8_9
                     ).build()
                 try {
                     val registro = db.preChequeoDao().buscar("f1")!!
@@ -104,7 +105,7 @@ class MigracionesRoomTest {
                     db.version = 7
                 }
                 val db = Room.databaseBuilder(context, AquaFlowDatabase::class.java, nombre)
-                    .addMigrations(AquaFlowDatabase.MIGRACION_7_8).build()
+                    .addMigrations(AquaFlowDatabase.MIGRACION_7_8, AquaFlowDatabase.MIGRACION_8_9).build()
                 try {
                         val registro = db.preChequeoDao().buscar("f1")!!
                         assertEquals("Ana", registro.buzoAsignado)

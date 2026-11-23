@@ -3,6 +3,7 @@ package com.duoc.aquaflow.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.aquaflow.data.remote.FaenasRemotas
+import com.duoc.aquaflow.data.remote.SincronizacionFaenas
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import kotlinx.coroutines.CancellationException
@@ -21,7 +22,10 @@ data class IngresoUiState(
     val ocupado: Boolean = false
 )
 
-class SesionViewModel(val remoto: FaenasRemotas? = null) : ViewModel() {
+class SesionViewModel(
+    val remoto: FaenasRemotas? = null,
+    private val sincronizacion: SincronizacionFaenas? = null
+) : ViewModel() {
     private val usuarios = listOf(
         Usuario("supervisor", "1234", Rol.SUPERVISOR),
         Usuario("jefe", "1234", Rol.JEFE)
@@ -53,7 +57,9 @@ class SesionViewModel(val remoto: FaenasRemotas? = null) : ViewModel() {
         _ingreso.update { it.copy(ocupado = true, error = null) }
         autenticacion = viewModelScope.launch {
             val cuenta = try {
-                servidor.ingresar(datos.nombre.trim(), datos.clave, datos.rol)
+                servidor.ingresar(datos.nombre.trim(), datos.clave, datos.rol).also {
+                    if (it.rol == Rol.SUPERVISOR) sincronizacion?.iniciarSesion(it.nombre, servidor)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -92,6 +98,7 @@ class SesionViewModel(val remoto: FaenasRemotas? = null) : ViewModel() {
 
     fun salir() {
         autenticacion?.cancel()
+        sincronizacion?.cerrarSesion()
         remoto?.salir()
         _usuario.value = null
         _ingreso.value = IngresoUiState()

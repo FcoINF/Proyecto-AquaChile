@@ -60,7 +60,7 @@ internal data class BloqueoRemoto(val operacion: String, val motivo: String, val
 internal data class ExpedienteRemoto(
     val apertura: AperturaRemota, val version: Long, val prechequeo: PrechequeoRemoto, val fotos: List<FotoRemota>,
     val decision: DecisionRemota?, val inicio: InicioRemoto?, val bitacora: BitacoraRemota?, val semaforo: SemaforoRemoto,
-    val publicado: Boolean
+    val publicado: Boolean, val operacion: String?
 )
 data class SemaforoRemoto(val nivel: String, val bloqueos: List<String>, val observaciones: List<String>)
 data class DetalleRemoto(

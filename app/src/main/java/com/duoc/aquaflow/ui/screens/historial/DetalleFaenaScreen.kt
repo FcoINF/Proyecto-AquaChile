@@ -83,7 +83,8 @@ fun DetalleFaenaScreen(
     onActualizar: (() -> Unit)? = null,
     onRetirar: (() -> Unit)? = null,
     onRevisarAlerta: ((String) -> Unit)? = null,
-    onEditarExpediente: (() -> Unit)? = null
+    onEditarExpediente: (() -> Unit)? = null,
+    envio: com.duoc.aquaflow.data.local.EnvioFaena? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resumen = faena.resumen
@@ -154,6 +155,11 @@ fun DetalleFaenaScreen(
             }
 
             item { FilaMetricas(faena) }
+            if (envio != null) item {
+                AquaSectionCard(title = "Sincronización") {
+                    com.duoc.aquaflow.ui.components.EstadoSincronizacion(envio)
+                }
+            }
 
             if (onActualizar != null) item {
                 TextButton(onClick = onActualizar, enabled = !ocupado) { Text("Actualizar expediente") }
