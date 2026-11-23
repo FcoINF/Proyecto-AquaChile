@@ -67,6 +67,7 @@ android {
 
     buildTypes {
         debug {
+            enableUnitTestCoverage = true
             buildConfigField("String", "API_URL", apiConfig(apiUrl ?: "http://10.0.2.2:8080"))
         }
         release {
@@ -147,7 +148,7 @@ val paquetesCobertura = mapOf(
     "ViewModel" to "com/duoc/aquaflow/viewmodel/**",
     "Repository" to "com/duoc/aquaflow/data/repository/**"
 )
-val datosCobertura = layout.buildDirectory.file("jacoco/testDebugUnitTest.exec")
+val datosCobertura = layout.buildDirectory.file("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
 val clasesDebug = layout.buildDirectory.dir("tmp/kotlin-classes/debug")
 
 val verificacionesCobertura = paquetesCobertura.map { (grupo, paquete) ->
@@ -189,4 +190,12 @@ tasks.register("verificarCoberturaDebug") {
     group = "verification"
     description = "Genera los informes y exige más de 90 % de líneas en ViewModel y Repository."
     dependsOn(verificacionesCobertura)
+    val informes = paquetesCobertura.keys.map { grupo ->
+        layout.buildDirectory.file("reports/jacoco/${grupo.lowercase()}.xml")
+    }
+    doLast {
+        check(datosCobertura.get().asFile.isFile && informes.all { it.get().asFile.isFile }) {
+            "JaCoCo no generó los datos de ejecución y ambos informes XML. La cobertura sigue sin verificarse."
+        }
+    }
 }

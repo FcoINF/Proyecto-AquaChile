@@ -19,10 +19,11 @@ class PreChequeoRepositoryTest {
     private val jefe = Usuario("jefe", "", Rol.JEFE)
     private val apertura = PreChequeo(id = "f-1", centroCultivo = "Centro", supervisorACargo = supervisor.nombre)
     private val fila = AperturaEntity.desde(apertura, 1)
-    private val dao = mockk<PreChequeoDao>(relaxUnitFun = true)
+    private val dao = mockk<PreChequeoDao>()
     private val repo = PreChequeoRepository(dao)
 
     @Test fun persisteBorradorYRecuperaPorSupervisorOId() = runTest {
+        coEvery { dao.guardarBorrador(any()) } coAnswers { Unit }
         coEvery { dao.ultimaApertura(supervisor.nombre) } returns fila
         coEvery { dao.buscar(apertura.id) } returns fila
         repo.guardar(apertura)
@@ -87,6 +88,9 @@ class PreChequeoRepositoryTest {
     @Test fun registraBloqueosYDelegaInicioYCierreEnLasOperacionesValidadas() = runTest {
         val intento = IntentoBloqueado(supervisor.nombre, 10, "Test vencido", "APERTURA")
         val cierre = RegistroCierre(20, "", true)
+        coEvery { dao.registrarBloqueo(any(), intento) } coAnswers { Unit }
+        coEvery { dao.iniciarValidada(apertura.id, supervisor) } coAnswers { Unit }
+        coEvery { dao.cerrarValidada(apertura.id, cierre, supervisor) } coAnswers { Unit }
         repo.registrarBloqueo(apertura, intento)
         assertTrue(runCatching { repo.registrarBloqueo(apertura, intento.copy(responsable = jefe.nombre)) }.isFailure)
         assertTrue(runCatching { repo.guardar(apertura.copy(id = "")) }.isFailure)
