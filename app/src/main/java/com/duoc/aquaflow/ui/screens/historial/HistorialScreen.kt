@@ -193,7 +193,7 @@ fun HistorialScreen(
                         onValueChange = onTexto,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Buscar por ID faena, buzo, jaula…", fontSize = 12.sp) },
+                        placeholder = { Text("Buscar por buzo o jaula…", fontSize = 12.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF42658C)) },
                         trailingIcon = {
                             IconButton(onClick = { mostrarCalendario = true }) {
