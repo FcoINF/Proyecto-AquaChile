@@ -56,6 +56,7 @@ import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.BarraPronosticoUbicacion
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.theme.AquaAzul
@@ -97,7 +98,6 @@ fun DashboardScreen(
         topBar = {
             Column(Modifier.fillMaxWidth().background(AquaAzul).statusBarsPadding()) {
                 CabeceraDashboard(usuario = usuario, onSalir = onSalir)
-                pronostico?.let { com.duoc.aquaflow.ui.components.BarraPronosticoUbicacion(it) }
             }
         },
         bottomBar = { MainBottomBar(Tab.INICIO, tabsDashboard, onTab) }
@@ -107,9 +107,11 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 30.dp, vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(horizontal = 30.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            pronostico?.let { BarraPronosticoUbicacion(it) }
+
             Card(
                 modifier = Modifier.fillMaxWidth().then(if (!puedeCrear) Modifier.heightIn(min = 198.dp) else Modifier),
                 shape = RoundedCornerShape(20.dp),
@@ -195,7 +197,7 @@ fun DashboardScreen(
                 envios.sortedBy { it.estado == "SINCRONIZADO" }.forEach { envio ->
                     val nombreFaena = faenas.firstOrNull { it.resumen.apertura.id == envio.faena }
                         ?.resumen?.apertura?.centroCultivo ?: envio.faena
-                    com.duoc.aquaflow.ui.components.AquaSectionCard(title = nombreFaena) {
+                    AquaSectionCard(title = nombreFaena) {
                         com.duoc.aquaflow.ui.components.EstadoSincronizacion(envio)
                         if (envio.estado == "ERROR") {
                             OutlinedButton(onClick = { onReintentarEnvio(envio.faena) }) { Text("Reintentar envío") }
@@ -398,22 +400,6 @@ private fun ModuloTerreno(
                 }
             } else {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun DatoSalud(titulo: String, valor: String, unidad: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = AquaGrisSuave, shape = RoundedCornerShape(12.dp)) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(titulo, style = MaterialTheme.typography.labelSmall, color = TextoSecundario)
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(valor, style = MaterialTheme.typography.titleLarge, color = AquaAzul)
-                Text(unidad, style = MaterialTheme.typography.labelSmall, color = TextoSecundario, modifier = Modifier.padding(bottom = 3.dp))
             }
         }
     }
