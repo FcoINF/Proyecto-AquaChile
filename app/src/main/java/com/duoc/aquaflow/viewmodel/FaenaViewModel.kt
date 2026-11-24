@@ -213,7 +213,7 @@ class FaenaViewModel(
                 val remota = confirmarEnServidor?.takeIf { continuar }
                 remota?.invoke(confirmacion)
                 val mensaje = if (remota == null) "Apertura guardada en el dispositivo."
-                    else "Apertura confirmada en el servidor."
+                else "Apertura confirmada en el servidor."
                 _ui.update { it.copy(mensaje = mensaje) }
                 alGuardar()
             } catch (e: CancellationException) {
@@ -242,12 +242,30 @@ class FaenaViewModel(
                 _ui.value = if (guardada == null) {
                     actual.copy(mensaje = "No tienes aperturas guardadas.")
                 } else {
+                    val nuevoId = if (actual.decision != null) UUID.randomUUID().toString() else actual.apertura.id
+                    val ahora = Date()
+                    val fechaActual = actual.apertura.fecha.ifBlank {
+                        SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(ahora)
+                    }
+                    val horaActual = actual.apertura.hora.ifBlank {
+                        SimpleDateFormat("HH:mm", Locale.ROOT).format(ahora)
+                    }
+                    val aperturaReutilizada = guardada.resumen.apertura.copy(
+                        id = nuevoId,
+                        fecha = fechaActual,
+                        hora = horaActual,
+                        supervisorACargo = actual.apertura.supervisorACargo
+                    )
                     FaenaUiState(
-                        apertura = guardada.resumen.apertura,
-                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast, tareas = guardada.resumen.tareas,
-                        encuesta = guardada.resumen.encuesta, decision = guardada.decision,
-                        mensaje = if (guardada.decision == null) "Faena recuperada. Revisa los datos antes de continuar."
-                            else "Esta faena ya fue decidida. Consúltala en Historial o inicia otra."
+                        apertura = aperturaReutilizada,
+                        checklist = guardada.resumen.checklist,
+                        ast = guardada.resumen.ast,
+                        tareas = guardada.resumen.tareas,
+                        encuesta = guardada.resumen.encuesta,
+                        decision = null,
+                        imcTexto = aperturaReutilizada.imcBuzo.takeIf { it > 0 }?.toString(),
+                        revisionFormularios = actual.revisionFormularios + 1,
+                        mensaje = "Datos de la última apertura cargados. Puedes editarlos y continuar."
                     )
                 }
             } catch (e: CancellationException) {

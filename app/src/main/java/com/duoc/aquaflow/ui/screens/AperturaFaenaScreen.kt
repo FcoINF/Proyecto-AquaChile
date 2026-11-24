@@ -17,34 +17,37 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Waves
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -62,22 +65,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.duoc.aquaflow.data.repository.ResultadoMeteorologia
+import com.duoc.aquaflow.domain.Reglas
+import com.duoc.aquaflow.model.CENTROS_MARITIMOS
 import com.duoc.aquaflow.model.PreChequeo
-import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.AquaOptionPicker
+import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.CampoFecha
 import com.duoc.aquaflow.ui.theme.AquaAzulMedio
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -85,9 +93,6 @@ import com.duoc.aquaflow.ui.theme.AquaGrisSuave
 import com.duoc.aquaflow.ui.theme.AquaVerde
 import com.duoc.aquaflow.viewmodel.FaenaUiState
 import com.duoc.aquaflow.viewmodel.MeteorologiaUi
-import com.duoc.aquaflow.model.CENTROS_MARITIMOS
-import com.duoc.aquaflow.data.repository.ResultadoMeteorologia
-import com.duoc.aquaflow.domain.Reglas
 
 private const val TURNO_MAREA_PREDEFINIDO = "Mañana (08:30 - 14:30)"
 
@@ -107,6 +112,7 @@ fun AperturaFaenaScreen(
     onEditarImc: ((String) -> Unit)? = null
 ) {
     val view = LocalView.current
+    val focusManager = LocalFocusManager.current
     DisposableEffect(view) {
         val controller = (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
         val aparienciaAnterior = controller?.isAppearanceLightStatusBars
@@ -120,6 +126,7 @@ fun AperturaFaenaScreen(
     var calendarioActivo by rememberSaveable { mutableStateOf<CalendarioVigencia?>(null) }
     BackHandler {
         if (!ui.ocupado) {
+            focusManager.clearFocus()
             if (calendarioActivo != null) calendarioActivo = null else confirmarSalida = true
         }
     }
@@ -179,8 +186,12 @@ fun AperturaFaenaScreen(
             TopAppBar(
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        Text("Apertura de Faena", style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "Apertura de Faena",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Text(
                             apertura.centroCultivo.ifBlank { "Centro sin asignar" },
                             style = MaterialTheme.typography.labelSmall,
@@ -190,16 +201,28 @@ fun AperturaFaenaScreen(
                     }
                 },
                 navigationIcon = {
-                    androidx.compose.material3.IconButton(enabled = !ui.ocupado, onClick = { confirmarSalida = true }) {
-                        androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    IconButton(
+                        enabled = !ui.ocupado,
+                        onClick = {
+                            focusManager.clearFocus()
+                            confirmarSalida = true
+                        }
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 actions = {
                     Box {
-                        androidx.compose.material3.IconButton(onClick = { mostrarMenuAcciones = true }, enabled = !ui.ocupado) {
-                            androidx.compose.material3.Icon(Icons.Filled.MoreVert, contentDescription = "Más opciones")
+                        IconButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                mostrarMenuAcciones = true
+                            },
+                            enabled = !ui.ocupado
+                        ) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Más opciones")
                         }
-                        androidx.compose.material3.DropdownMenu(
+                        DropdownMenu(
                             expanded = mostrarMenuAcciones,
                             onDismissRequest = { mostrarMenuAcciones = false }
                         ) {
@@ -227,7 +250,9 @@ fun AperturaFaenaScreen(
             ) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Column(
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -235,7 +260,10 @@ fun AperturaFaenaScreen(
                     ui.mensaje?.let { Text(it, color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall) }
                     if (ui.ocupado) Text("Procesando apertura…", style = MaterialTheme.typography.bodySmall)
                     Button(
-                        onClick = onContinuar,
+                        onClick = {
+                            focusManager.clearFocus()
+                            onContinuar()
+                        },
                         enabled = !ui.ocupado && apertura.id.isNotBlank() && bloqueoEsfuerzo == null,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shape = MaterialTheme.shapes.small
@@ -243,12 +271,21 @@ fun AperturaFaenaScreen(
                         Text(if (ui.checklist == null) "Continuar al Checklist" else "Revisar checklist")
                     }
                     bloqueoEsfuerzo?.let {
-                        TextButton(onClick = onContinuar, enabled = !ui.ocupado) {
+                        TextButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                onContinuar()
+                            },
+                            enabled = !ui.ocupado
+                        ) {
                             Text("Registrar intento bloqueado")
                         }
                     }
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = onGuardar,
+                    OutlinedButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            onGuardar()
+                        },
                         enabled = !ui.ocupado && apertura.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shape = MaterialTheme.shapes.small
@@ -258,7 +295,11 @@ fun AperturaFaenaScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding).verticalScroll(rememberScrollState())
+            modifier = Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -273,9 +314,15 @@ fun AperturaFaenaScreen(
                     enabled = !ui.ocupado,
                     options = centrosIds.keys.toList(),
                     onSelected = { nombre ->
+                        focusManager.clearFocus()
                         val id = centrosIds.getValue(nombre)
-                        onCambiar(apertura.copy(centroCultivo = nombre, centroId = id,
-                            condicionesListas = apertura.condicionesListas && apertura.centroId == id))
+                        onCambiar(
+                            apertura.copy(
+                                centroCultivo = nombre,
+                                centroId = id,
+                                condicionesListas = apertura.condicionesListas && apertura.centroId == id
+                            )
+                        )
                     }
                 )
                 BoxWithConstraints {
@@ -315,7 +362,10 @@ fun AperturaFaenaScreen(
                     ?: MeteorologiaUi(centro = centroSeleccionado, cargando = centroSeleccionado != null),
                 onActualizar = onActualizarMeteorologia,
                 condicionesListas = apertura.condicionesListas,
-                onCondicionesListasChange = { onCambiar(apertura.copy(condicionesListas = it)) }
+                onCondicionesListasChange = {
+                    focusManager.clearFocus()
+                    onCambiar(apertura.copy(condicionesListas = it))
+                }
             )
             AquaSectionCard(title = "Buzo Técnico Asignado") {
                 AquaOptionPicker(
@@ -326,23 +376,26 @@ fun AperturaFaenaScreen(
                     enabled = !ui.ocupado,
                     options = buzosAsignados,
                     onSelected = { nombre ->
+                        focusManager.clearFocus()
                         val id = buzosIds.getValue(nombre)
                         val mismoBuzo = apertura.buzoAsignado == nombre &&
-                            apertura.buzoId in listOf("", "LEGACY-BUZO", id)
+                                apertura.buzoId in listOf("", "LEGACY-BUZO", id)
                         if (mismoBuzo) {
                             if (apertura.buzoId != id) onCambiar(apertura.copy(buzoId = id))
                         } else {
-                            onCambiar(apertura.copy(
-                                buzoAsignado = nombre,
-                                buzoId = id,
-                                edadBuzo = 0,
-                                imcBuzo = 0.0,
-                                examenPreocupacionalVigente = null,
-                                vigenciaExamenPreocupacional = "",
-                                puntajeCalbuco = null,
-                                testEsfuerzoVigente = null,
-                                vigenciaTestEsfuerzo = ""
-                            ))
+                            onCambiar(
+                                apertura.copy(
+                                    buzoAsignado = nombre,
+                                    buzoId = id,
+                                    edadBuzo = 0,
+                                    imcBuzo = 0.0,
+                                    examenPreocupacionalVigente = null,
+                                    vigenciaExamenPreocupacional = "",
+                                    puntajeCalbuco = null,
+                                    testEsfuerzoVigente = null,
+                                    vigenciaTestEsfuerzo = ""
+                                )
+                            )
                         }
                     }
                 )
@@ -355,7 +408,11 @@ fun AperturaFaenaScreen(
                             onCambiar(apertura.copy(edadBuzo = valor.filter(Char::isDigit).take(2).toIntOrNull() ?: 0))
                         },
                         label = { Text("Edad") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next
+                        ),
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
@@ -365,7 +422,12 @@ fun AperturaFaenaScreen(
                             else onCambiar(apertura.copy(imcBuzo = valor.replace(',', '.').toDoubleOrNull() ?: 0.0))
                         },
                         label = { Text("IMC") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -374,6 +436,7 @@ fun AperturaFaenaScreen(
                     respuesta = apertura.examenPreocupacionalVigente,
                     testTag = "examen-preocupacional",
                     onCambiar = { vigente ->
+                        focusManager.clearFocus()
                         if (!vigente && calendarioActivo == CalendarioVigencia.EXAMEN) calendarioActivo = null
                         onCambiar(apertura.copy(examenPreocupacionalVigente = vigente))
                     }
@@ -386,6 +449,7 @@ fun AperturaFaenaScreen(
                         habilitado = !ui.ocupado,
                         soloDesdeHoy = true,
                         onAlternar = {
+                            focusManager.clearFocus()
                             calendarioActivo = CalendarioVigencia.EXAMEN.takeUnless { it == calendarioActivo }
                         },
                         onFechaSeleccionada = {
@@ -400,7 +464,12 @@ fun AperturaFaenaScreen(
                         onCambiar(apertura.copy(puntajeCalbuco = valor.filter(Char::isDigit).take(3).toIntOrNull()))
                     },
                     label = { Text("Puntaje Calbuco") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth()
                 )
                 CondicionSiNoRow(
@@ -408,6 +477,7 @@ fun AperturaFaenaScreen(
                     respuesta = apertura.testEsfuerzoVigente,
                     testTag = "test-esfuerzo",
                     onCambiar = { vigente ->
+                        focusManager.clearFocus()
                         if (!vigente && calendarioActivo == CalendarioVigencia.TEST_ESFUERZO) calendarioActivo = null
                         onCambiar(apertura.copy(testEsfuerzoVigente = vigente))
                     }
@@ -420,6 +490,7 @@ fun AperturaFaenaScreen(
                         habilitado = !ui.ocupado,
                         soloDesdeHoy = true,
                         onAlternar = {
+                            focusManager.clearFocus()
                             calendarioActivo = CalendarioVigencia.TEST_ESFUERZO.takeUnless { it == calendarioActivo }
                         },
                         onFechaSeleccionada = {
@@ -445,19 +516,28 @@ fun AperturaFaenaScreen(
                     texto = "Embarcación o plataforma de apoyo lista",
                     respuesta = apertura.embarcacionLista,
                     testTag = "embarcacion",
-                    onCambiar = { onCambiar(apertura.copy(embarcacionLista = it)) }
+                    onCambiar = {
+                        focusManager.clearFocus()
+                        onCambiar(apertura.copy(embarcacionLista = it))
+                    }
                 )
                 CondicionSiNoRow(
                     texto = "Buzo de emergencia disponible y apto",
                     respuesta = apertura.buzoEmergenciaDisponible,
                     testTag = "buzo-emergencia",
-                    onCambiar = { onCambiar(apertura.copy(buzoEmergenciaDisponible = it)) }
+                    onCambiar = {
+                        focusManager.clearFocus()
+                        onCambiar(apertura.copy(buzoEmergenciaDisponible = it))
+                    }
                 )
                 CondicionSiNoRow(
                     texto = "Comunicaciones y respuesta de emergencia operativas",
                     respuesta = apertura.comunicacionesOperativas,
                     testTag = "comunicaciones",
-                    onCambiar = { onCambiar(apertura.copy(comunicacionesOperativas = it)) }
+                    onCambiar = {
+                        focusManager.clearFocus()
+                        onCambiar(apertura.copy(comunicacionesOperativas = it))
+                    }
                 )
             }
         }
@@ -527,8 +607,10 @@ private fun WeatherConditionsCard(
                                 Text("Oleaje: ${medidaMaritima(datos.alturaOla, "m")}", style = MaterialTheme.typography.titleSmall)
                                 Text("Período: ${medidaMaritima(datos.periodoOla, "s")}", style = MaterialTheme.typography.bodyMedium)
                                 Text("Dirección: ${medidaMaritima(datos.direccionOla, "°")}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Temperatura superficial: ${medidaMaritima(datos.temperaturaSuperficial, "°C")}",
-                                    style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "Temperatura superficial: ${medidaMaritima(datos.temperaturaSuperficial, "°C")}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
                         }
                     }
@@ -553,8 +635,15 @@ private fun WeatherConditionsCard(
                     }
                     if (datos != null && mostrarDetalles) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(java.lang.String.format(java.util.Locale.ROOT, "Punto del modelo: %.2f°, %.2f°",
-                                datos.latitudModelo, datos.longitudModelo), style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                java.lang.String.format(
+                                    java.util.Locale.ROOT,
+                                    "Punto del modelo: %.2f°, %.2f°",
+                                    datos.latitudModelo,
+                                    datos.longitudModelo
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
                             Text("Hora del modelo: ${fechaMaritima(datos.horaModelo)}", style = MaterialTheme.typography.bodySmall)
                             Text("Consulta: ${fechaMaritima(datos.consultadaEn)}", style = MaterialTheme.typography.bodySmall)
                         }
@@ -564,7 +653,9 @@ private fun WeatherConditionsCard(
 
             HorizontalDivider(color = colores.outlineVariant)
             Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
                     .clip(MaterialTheme.shapes.small)
                     .background(if (condicionesListas) colores.tertiaryContainer else colores.background)
                     .toggleable(value = condicionesListas, role = Role.Checkbox, onValueChange = onCondicionesListasChange)
@@ -696,7 +787,7 @@ private fun CondicionChoice(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            androidx.compose.material3.Icon(
+            Icon(
                 imageVector = if (positiva) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
