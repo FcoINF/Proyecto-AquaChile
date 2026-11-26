@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.ChecklistFaena
+import com.duoc.aquaflow.model.CondicionesMaritimas
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.PreChequeo
@@ -35,13 +36,17 @@ data class FaenaUiState(
     val error: String? = null,
     val ocupado: Boolean = false,
     val mensaje: String? = null,
+    val revisionFormularios: Int = 0,
+    val imcTexto: String? = null,
 )
 
 // Borrador compartido por las pantallas del grafo "faena".
 // `registro` guarda cada sección en Room apenas se completa; con null (pruebas) solo vive en memoria.
 class FaenaViewModel(
     private val borradores: BorradoresApertura,
-    private val registro: RegistroFaena? = null
+    private val registro: RegistroFaena? = null,
+    private val persistenciaHabilitada: Boolean = true,
+    private val confirmarEnServidor: (suspend (PreChequeo) -> Unit)? = null
 ) : ViewModel() {
     private val _ui = MutableStateFlow(FaenaUiState())
     val ui: StateFlow<FaenaUiState> = _ui.asStateFlow()
@@ -49,7 +54,7 @@ class FaenaViewModel(
     fun iniciar(usuario: Usuario, aperturaId: String? = null) {
         if (usuario.rol != Rol.SUPERVISOR) return
         if (aperturaId != null) {
-            cargarFaena(aperturaId)
+            if (_ui.value.apertura.id != aperturaId) cargarFaena(aperturaId)
             return
         }
         if (_ui.value.apertura.id.isNotEmpty()) return
@@ -59,7 +64,15 @@ class FaenaViewModel(
                 id = UUID.randomUUID().toString(),
                 fecha = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(ahora),
                 hora = SimpleDateFormat("HH:mm", Locale.ROOT).format(ahora),
-                supervisorACargo = usuario.nombre.ifBlank { "supervisor" }
+                supervisorACargo = usuario.nombre.ifBlank { "supervisor" },
+                edadBuzo = 0,
+                imcBuzo = 0.0,
+                examenPreocupacionalVigente = null,
+                vigenciaExamenPreocupacional = "",
+                puntajeCalbuco = null,
+                testEsfuerzoVigente = null,
+                vigenciaTestEsfuerzo = "",
+                buzoEmergenciaDisponible = null
             )
         )
     }
@@ -91,14 +104,31 @@ class FaenaViewModel(
         }
     }
 
-    fun actualizar(apertura: PreChequeo) = _ui.update { actual ->
-        if (actual.ocupado || actual.decision != null) return@update actual
+    fun actualizar(apertura: PreChequeo) = _ui.update { actualizar(it, apertura) }
+
+    fun editarImc(texto: String) {
+        if (!texto.matches(Regex("[0-9]{0,3}([.,][0-9]{0,2})?"))) return
+        _ui.update { actual ->
+            if (actual.ocupado || actual.decision != null) return@update actual
+            val valor = texto.replace(',', '.').toDoubleOrNull() ?: 0.0
+            actualizar(actual, actual.apertura.copy(imcBuzo = valor)).copy(imcTexto = texto)
+        }
+    }
+
+    fun registrarMeteorologia(id: String, centroId: String, condiciones: CondicionesMaritimas) = _ui.update {
+        if (id.isBlank() || it.apertura.id != id || it.apertura.centroId != centroId || it.decision != null) it
+        else it.copy(apertura = it.apertura.copy(meteorologia = condiciones))
+    }
+
+    private fun actualizar(actual: FaenaUiState, apertura: PreChequeo): FaenaUiState {
+        if (actual.ocupado || actual.decision != null) return actual
         // La identidad pertenece a la sesión; el formulario no puede reasignar el propietario.
         val nueva = apertura.copy(
             id = actual.apertura.id,
-            supervisorACargo = actual.apertura.supervisorACargo
+            supervisorACargo = actual.apertura.supervisorACargo,
+            meteorologia = actual.apertura.meteorologia.takeIf { apertura.centroId == actual.apertura.centroId }
         )
-        if (nueva == actual.apertura) actual else actual.copy(
+        return if (nueva == actual.apertura) actual else actual.copy(
             apertura = nueva,
             aperturaConfirmada = false,
             checklist = null,
@@ -106,7 +136,9 @@ class FaenaViewModel(
             ast = null, tareas = null,
             decision = null,
             error = null,
-            mensaje = null
+            mensaje = null,
+            imcTexto = actual.imcTexto.takeIf { nueva.imcBuzo == actual.apertura.imcBuzo && nueva.buzoId == actual.apertura.buzoId },
+            revisionFormularios = actual.revisionFormularios + if (actual.aperturaConfirmada) 1 else 0
         )
     }
 
@@ -126,6 +158,27 @@ class FaenaViewModel(
         return error == null
     }
 
+    fun registrarBloqueo(accion: String, motivo: String) {
+        val estado = _ui.value
+        if (!persistenciaHabilitada || estado.ocupado || estado.apertura.id.isBlank()) return
+        _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
+        viewModelScope.launch {
+            try {
+                val apertura = estado.apertura
+                borradores.registrarBloqueo(apertura, com.duoc.aquaflow.model.IntentoBloqueado(
+                    apertura.supervisorACargo, System.currentTimeMillis(), motivo, accion
+                ))
+                _ui.update { it.copy(mensaje = "Intento registrado en la bitácora.") }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ui.update { it.copy(error = "No se pudo registrar el bloqueo. ${e.localizedMessage.orEmpty()}") }
+            } finally {
+                _ui.update { it.copy(ocupado = false) }
+            }
+        }
+    }
+
     // Un borrador puede estar incompleto. Para avanzar sí se valida todo.
     fun guardarApertura(continuar: Boolean = false, alGuardar: () -> Unit = {}) {
         if (_ui.value.ocupado || _ui.value.apertura.id.isBlank()) return
@@ -135,18 +188,44 @@ class FaenaViewModel(
         }
         val apertura = completarFechaHora(_ui.value.apertura)
         _ui.update { it.copy(apertura = apertura) }
-        if (continuar && !confirmarApertura()) return
+        if (continuar && !confirmarApertura()) {
+            Reglas.bloqueoTestEsfuerzo(_ui.value.apertura)?.let { registrarBloqueo("Confirmar apertura", it) }
+            return
+        }
+        if (!persistenciaHabilitada) {
+            _ui.update {
+                it.copy(
+                    ocupado = false,
+                    error = null,
+                    mensaje = "Modo demo: los datos se mantienen durante esta sesión."
+                )
+            }
+            alGuardar()
+            return
+        }
         _ui.update { it.copy(ocupado = true, error = null, mensaje = null) }
         viewModelScope.launch {
+            var guardadaLocalmente = false
             try {
-                borradores.guardar(_ui.value.apertura)
-                _ui.update { it.copy(mensaje = "Apertura guardada en el dispositivo.") }
+                val confirmacion = _ui.value.apertura
+                borradores.guardar(confirmacion)
+                guardadaLocalmente = true
+                val remota = confirmarEnServidor?.takeIf { continuar }
+                remota?.invoke(confirmacion)
+                val mensaje = if (remota == null) "Apertura guardada en el dispositivo."
+                else "Apertura confirmada en el servidor."
+                _ui.update { it.copy(mensaje = mensaje) }
                 alGuardar()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val detalle = e.localizedMessage?.ifBlank { null } ?: e.javaClass.simpleName
-                _ui.update { it.copy(error = "No se pudo guardar la apertura: $detalle") }
+                val error = if (guardadaLocalmente && continuar && confirmarEnServidor != null) {
+                    "Copia guardada en el dispositivo. No se confirmó en el servidor: $detalle"
+                } else {
+                    "No se pudo guardar la apertura: $detalle"
+                }
+                _ui.update { it.copy(error = error) }
             } finally {
                 _ui.update { it.copy(ocupado = false) }
             }
@@ -163,12 +242,30 @@ class FaenaViewModel(
                 _ui.value = if (guardada == null) {
                     actual.copy(mensaje = "No tienes aperturas guardadas.")
                 } else {
+                    val nuevoId = if (actual.decision != null) UUID.randomUUID().toString() else actual.apertura.id
+                    val ahora = Date()
+                    val fechaActual = actual.apertura.fecha.ifBlank {
+                        SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(ahora)
+                    }
+                    val horaActual = actual.apertura.hora.ifBlank {
+                        SimpleDateFormat("HH:mm", Locale.ROOT).format(ahora)
+                    }
+                    val aperturaReutilizada = guardada.resumen.apertura.copy(
+                        id = nuevoId,
+                        fecha = fechaActual,
+                        hora = horaActual,
+                        supervisorACargo = actual.apertura.supervisorACargo
+                    )
                     FaenaUiState(
-                        apertura = guardada.resumen.apertura,
-                        checklist = guardada.resumen.checklist, ast = guardada.resumen.ast, tareas = guardada.resumen.tareas,
-                        encuesta = guardada.resumen.encuesta, decision = guardada.decision,
-                        mensaje = if (guardada.decision == null) "Faena recuperada. Revisa los datos antes de continuar."
-                            else "Esta faena ya fue decidida. Consúltala en Historial o inicia otra."
+                        apertura = aperturaReutilizada,
+                        checklist = guardada.resumen.checklist,
+                        ast = guardada.resumen.ast,
+                        tareas = guardada.resumen.tareas,
+                        encuesta = guardada.resumen.encuesta,
+                        decision = null,
+                        imcTexto = aperturaReutilizada.imcBuzo.takeIf { it > 0 }?.toString(),
+                        revisionFormularios = actual.revisionFormularios + 1,
+                        mensaje = "Datos de la última apertura cargados. Puedes editarlos y continuar."
                     )
                 }
             } catch (e: CancellationException) {
@@ -184,6 +281,11 @@ class FaenaViewModel(
 
     fun registrarChecklist(checklist: ChecklistFaena, alGuardar: () -> Unit = {}): Boolean {
         if (!puedeRegistrar()) return false
+        val criticos = checklist.items.filter { it.estado == com.duoc.aquaflow.model.EstadoEquipo.NO_CUMPLE }
+        if (criticos.isNotEmpty()) {
+            registrarBloqueo("Continuar desde checklist", "Equipo crítico sin conformidad: ${criticos.joinToString { it.titulo }}.")
+            return false
+        }
         _ui.update { it.copy(checklist = checklist) }
         return persistir("el checklist", alGuardar) { r, id -> r.guardarChecklist(id, checklist) }
     }
@@ -241,12 +343,27 @@ class FaenaViewModel(
     private fun puedeRegistrar() = _ui.value.aperturaConfirmada && !_ui.value.ocupado && _ui.value.decision == null
 
     private fun persistir(que: String, alGuardar: () -> Unit, accion: suspend (RegistroFaena, String) -> Unit): Boolean {
+        if (!persistenciaHabilitada) {
+            _ui.update {
+                it.copy(
+                    ocupado = false,
+                    error = null,
+                    mensaje = "Modo demo: los datos se mantienen durante esta sesión."
+                )
+            }
+            alGuardar()
+            return true
+        }
         val r = registro
         if (r == null) { alGuardar(); return true }
         val id = _ui.value.apertura.id
         _ui.update { it.copy(ocupado = true, error = null) }
         viewModelScope.launch {
             try {
+                val aperturaActual = _ui.value.apertura
+                if (aperturaActual.id.isNotBlank() && aperturaActual.supervisorACargo.isNotBlank()) {
+                    borradores.guardar(aperturaActual)
+                }
                 accion(r, id)
                 _ui.update { it.copy(ocupado = false, mensaje = "Guardado en el dispositivo.") }
                 alGuardar()

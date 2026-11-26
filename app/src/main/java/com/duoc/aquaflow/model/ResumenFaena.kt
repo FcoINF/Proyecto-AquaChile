@@ -3,7 +3,7 @@ package com.duoc.aquaflow.model
 // Resultado global de la faena. El orden importa: de menor a mayor gravedad.
 enum class ResultadoFaena(val texto: String) {
     CUMPLE("Cumple"),
-    OBSERVADO("Observado"),
+    OBSERVADO("Revisión pendiente"),
     REQUIERE_REVISION("Requiere revisión")
 }
 
@@ -29,13 +29,21 @@ data class RegistroDecision(
     val decididoPor: String
 )
 
+data class IntentoBloqueado(
+    val responsable: String,
+    val fecha: Long,
+    val motivo: String,
+    val accion: String
+)
+
 // Una faena tal como queda guardada en el dispositivo: sus partes y, si ya existe, la decisión.
 // El estado se obtiene de los registros persistidos de decisión, inicio y cierre.
 data class FaenaGuardada(
     val resumen: ResumenFaena,
     val decision: RegistroDecision? = null,
     val cierre: RegistroCierre? = null,
-    val inicio: RegistroInicio? = null
+    val inicio: RegistroInicio? = null,
+    val intentosBloqueados: List<IntentoBloqueado> = emptyList()
 ) {
     val estado: EstadoFaena
         get() = if (cierre != null) EstadoFaena.CERRADA else if (inicio != null) EstadoFaena.EN_EJECUCION else when (decision?.decision) {

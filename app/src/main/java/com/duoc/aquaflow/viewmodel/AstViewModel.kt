@@ -22,8 +22,8 @@ data class AstUiState(
 ) {
     // Semáforo en vivo: aparece cuando ya se respondió todo el chequeo inicial
     val resultado: ResultadoAst?
-        get() = if (ReglasAst.respuestasCompletas(respuestas))
-            ReglasAst.resultado(respuestas, pasos, requiereNuevoAst) else null
+        get() = ReglasAst.resultado(respuestas, pasos, requiereNuevoAst)
+            .takeIf { it == ResultadoAst.REQUIERE_REVISION || ReglasAst.respuestasCompletas(respuestas) }
 }
 
 class AstViewModel : ViewModel() {
@@ -79,7 +79,7 @@ class AstViewModel : ViewModel() {
         return FormularioAst(
             tipologia = s.tipologia,
             requiereNuevoAst = s.requiereNuevoAst,
-            respuestas = s.respuestas.map { it == true },
+            respuestas = s.respuestas,
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
             resultado = ReglasAst.resultado(s.respuestas, s.pasos, s.requiereNuevoAst)
         )
@@ -90,7 +90,7 @@ class AstViewModel : ViewModel() {
         return FormularioAst(
             tipologia = s.tipologia,
             requiereNuevoAst = s.requiereNuevoAst,
-            respuestas = s.respuestas.map { it == true },
+            respuestas = s.respuestas,
             pasos = s.pasos.map { it.copy(tarea = it.tarea.trim(), peligro = it.peligro.trim(), control = it.control.trim()) },
             resultado = s.resultado ?: ResultadoAst.OBSERVADO,
             estado = EstadoSeccion.BORRADOR

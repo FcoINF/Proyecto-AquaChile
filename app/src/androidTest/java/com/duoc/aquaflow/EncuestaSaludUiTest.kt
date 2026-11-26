@@ -15,7 +15,6 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import com.duoc.aquaflow.ui.screens.EncuestaSaludScreen
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
-import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,11 +31,9 @@ class EncuestaSaludUiTest {
                 EncuestaSaludScreen(
                     vm = vm,
                     buzo = "Buzo de prueba",
-                    tabs = listOf(Tab.INICIO, Tab.ENCUESTA, Tab.HISTORIAL),
                     onGuardar = {},
                     onGuardarBorrador = {},
-                    onVolver = {},
-                    onTab = {}
+                    onVolver = {}
                 )
             }
         }
@@ -51,26 +48,26 @@ class EncuestaSaludUiTest {
         }
         mostrar(vm)
 
-        compose.onNodeWithContentDescription("Aumentar Sistólica").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Disminuir Saturación O₂").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Aumentar SISTÓLICA").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Disminuir SPO2").performScrollTo().performClick()
 
         assertEquals("121", vm.ui.value.sistolica)
         assertEquals("97", vm.ui.value.saturacion)
     }
 
     @Test
-    fun respuestasSiYNoActualizanLaAlertaSeleccionada() {
+    fun soloLaRespuestaNoGeneraAlertaEnPreguntasPositivas() {
         val vm = EncuestaSaludViewModel()
         mostrar(vm)
 
         assertEquals(false, compose.onNodeWithTag("pregunta-0-no").performScrollTo().fetchSemanticsNode().config[SemanticsProperties.Selected])
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().performClick()
-        assertEquals(setOf(PREGUNTAS_SALUD[0]), vm.ui.value.alertas)
+        assertEquals(emptySet<String>(), vm.ui.value.alertas)
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().assertIsSelected()
 
         compose.onNodeWithTag("pregunta-0-no").performScrollTo().performClick()
         compose.onNodeWithTag("pregunta-0-no").performScrollTo().assertIsSelected()
-        assertEquals(emptySet<String>(), vm.ui.value.alertas)
+        assertEquals(setOf(PREGUNTAS_SALUD[0]), vm.ui.value.alertas)
     }
 
     @Test
@@ -91,7 +88,7 @@ class EncuestaSaludUiTest {
 
         assertEquals(false, compose.onNodeWithTag("pregunta-0-no").performScrollTo().fetchSemanticsNode().config[SemanticsProperties.Selected])
         assertEquals(false, compose.onNodeWithTag("pregunta-0-si").performScrollTo().fetchSemanticsNode().config[SemanticsProperties.Selected])
-        assertEquals(3, compose.onAllNodesWithContentDescription("Check positivo de Si").fetchSemanticsNodes().size)
+        assertEquals(3, compose.onAllNodesWithContentDescription("Check positivo de Sí").fetchSemanticsNodes().size)
         assertEquals(3, compose.onAllNodesWithContentDescription("X de No").fetchSemanticsNodes().size)
 
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().performClick()
@@ -101,34 +98,34 @@ class EncuestaSaludUiTest {
     }
 
     @Test
-    fun siSeleccionadoEsRojoYNoSeleccionadoEsVerde() {
+    fun respuestasSeleccionadasUsanColoresDiferenciados() {
         val vm = EncuestaSaludViewModel()
         mostrar(vm)
 
         compose.onNodeWithTag("pregunta-0-si").performScrollTo().performClick()
         val colorSi = compose.onNodeWithTag("pregunta-0-si")
             .captureToImage().toPixelMap().let { it[it.width / 4, it.height / 2] }
-        assertTrue("Sí debe mostrar un color rojo", colorSi.red > colorSi.green && colorSi.red > colorSi.blue)
+        assertTrue("Sí debe mostrar un color verde", colorSi.green > colorSi.red && colorSi.green > colorSi.blue)
 
         compose.onNodeWithTag("pregunta-0-no").performScrollTo().performClick()
         val colorNo = compose.onNodeWithTag("pregunta-0-no")
             .captureToImage().toPixelMap().let { it[it.width / 4, it.height / 2] }
-        assertTrue("No debe mostrar un color verde", colorNo.green > colorNo.red && colorNo.green > colorNo.blue)
+        assertTrue("No debe mostrar un color azul", colorNo.blue > colorNo.red)
     }
 
     @Test
-    fun steppersRespetanLimitesYNoAjustanValoresVacios() {
+    fun steppersRespetanLimitesEInicializanValoresPendientes() {
         val vm = EncuestaSaludViewModel().apply {
             cambiarSistolica("250")
             cambiarDiastolica("80")
         }
         mostrar(vm)
 
-        compose.onNodeWithContentDescription("Aumentar Sistólica").performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithContentDescription("Disminuir Sistólica").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Aumentar Saturación O₂").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Aumentar SISTÓLICA").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Disminuir SISTÓLICA").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Aumentar SPO2").performScrollTo().performClick()
 
         assertEquals("249", vm.ui.value.sistolica)
-        assertEquals("", vm.ui.value.saturacion)
+        assertEquals("50", vm.ui.value.saturacion)
     }
 }

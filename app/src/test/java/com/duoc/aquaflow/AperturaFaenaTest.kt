@@ -2,6 +2,7 @@ package com.duoc.aquaflow
 
 import com.duoc.aquaflow.domain.Reglas
 import com.duoc.aquaflow.model.EncuestaSalud
+import com.duoc.aquaflow.model.CondicionesMaritimas
 import com.duoc.aquaflow.model.NivelSalud
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.Rol
@@ -16,6 +17,24 @@ class AperturaFaenaTest {
     private val encuesta = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
     private fun apertura(fecha: String = "20/10/2026", hora: String = "09:30") =
         PreChequeo("1", "Centro demo", fecha, hora, "Buzo demo", "supervisor", true, true, true)
+
+    @Test fun imcConservaSeparadorMientrasSeEditaYClimaSoloPerteneceAlCentroActivo() {
+        val vm = FaenaViewModel(BorradoresMemoria())
+        vm.iniciar(supervisor)
+        vm.actualizar(apertura().copy(centroId = "CENTRO-1"))
+        vm.editarImc("24,")
+        assertEquals("24,", vm.ui.value.imcTexto)
+        vm.editarImc("24,5")
+        assertEquals(24.5, vm.ui.value.apertura.imcBuzo, 0.0)
+        val clima = CondicionesMaritimas(-42.0, -73.0, 1000L, 990L, 0.8, 2.0, null, null)
+        val id = vm.ui.value.apertura.id
+        vm.registrarMeteorologia(id, "CENTRO-2", clima)
+        assertNull(vm.ui.value.apertura.meteorologia)
+        vm.registrarMeteorologia(id, "CENTRO-1", clima)
+        assertEquals(clima, vm.ui.value.apertura.meteorologia)
+        vm.actualizar(vm.ui.value.apertura.copy(centroId = "CENTRO-2"))
+        assertNull(vm.ui.value.apertura.meteorologia)
+    }
 
     @Test fun exigeTodosLosCampos() {
         val valida = apertura()
@@ -37,6 +56,27 @@ class AperturaFaenaTest {
             valida.copy(embarcacionLista = false),
             valida.copy(comunicacionesOperativas = false)
         ).forEach { assertNotNull(Reglas.errorApertura(it)) }
+    }
+
+    @Test fun mayorDe45SinTestDeEsfuerzoVigente_bloqueaApertura() {
+        val bloqueada = apertura().copy(
+            edadBuzo = 46,
+            testEsfuerzoVigente = false,
+            vigenciaTestEsfuerzo = ""
+        )
+        assertNotNull(Reglas.bloqueoTestEsfuerzo(bloqueada))
+        assertTrue(Reglas.errorApertura(bloqueada)!!.contains("mayores de 45"))
+        assertNull(Reglas.errorApertura(bloqueada.copy(
+            testEsfuerzoVigente = true,
+            vigenciaTestEsfuerzo = "31/12/2099"
+        )))
+    }
+
+    @Test fun aperturaMantieneIdentificadoresDeCentroYBuzo() {
+        val vinculada = apertura().copy(centroId = "centro-42", buzoId = "buzo-17")
+        assertNull(Reglas.errorApertura(vinculada))
+        assertEquals("centro-42", vinculada.centroId)
+        assertEquals("buzo-17", vinculada.buzoId)
     }
 
     @Test fun validaCalendarioYHora() {

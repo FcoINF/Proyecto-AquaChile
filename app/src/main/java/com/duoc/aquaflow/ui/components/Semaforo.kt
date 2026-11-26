@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.duoc.aquaflow.model.NivelSalud
-import com.duoc.aquaflow.ui.theme.SemaforoAzul
+import com.duoc.aquaflow.ui.theme.SemaforoAmarillo
 import com.duoc.aquaflow.ui.theme.SemaforoRojo
 import com.duoc.aquaflow.ui.theme.SemaforoVerde
 
@@ -17,7 +17,8 @@ import com.duoc.aquaflow.ui.theme.SemaforoVerde
 @Composable
 fun Etiqueta(texto: String, color: Color) {
     Surface(color = color, shape = RoundedCornerShape(50)) {
-        Text(texto, color = Color.White, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+        Text(texto, color = if (color == SemaforoAmarillo) Color(0xFF422006) else Color.White,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
     }
 }
 
@@ -26,7 +27,7 @@ fun SemaforoSalud(n: NivelSalud) = Etiqueta(
     "Salud: ${n.texto}",
     when (n) {
         NivelSalud.NORMAL -> SemaforoVerde
-        NivelSalud.ATENCION -> SemaforoAzul
+        NivelSalud.ATENCION -> SemaforoAmarillo
         NivelSalud.CRITICO -> SemaforoRojo
     }
 )

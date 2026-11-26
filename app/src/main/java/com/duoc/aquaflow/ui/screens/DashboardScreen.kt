@@ -14,21 +14,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role as SemanticsRole
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,6 +56,7 @@ import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.ui.components.AquaSectionCard
+import com.duoc.aquaflow.ui.components.BarraPronosticoUbicacion
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.theme.AquaAzul
@@ -77,31 +81,23 @@ fun DashboardScreen(
     onReintentar: () -> Unit = {},
     onVerFaena: (String) -> Unit = {},
     onAbrirBorradores: () -> Unit = {},
-    onVerHistorial: () -> Unit = { onTab(Tab.HISTORIAL) }
+    onVerHistorial: () -> Unit = { onTab(Tab.HISTORIAL) },
+    onAperturasRecibidas: (() -> Unit)? = null,
+    envios: List<com.duoc.aquaflow.data.local.EnvioFaena> = emptyList(),
+    onReintentarEnvio: (String) -> Unit = {},
+    pronostico: com.duoc.aquaflow.viewmodel.PronosticoUbicacionViewModel? = null
 ) {
     val puedeCrear = usuario.rol == Rol.SUPERVISOR
     val borradores = faenas.filter { it.decision == null }
     val nombre = usuario.nombre.substringBefore(" ")
     val tabsDashboard = tabs.filter { it != Tab.ENCUESTA }
-    var mostrarMenuPerfil by remember { mutableStateOf(false) }
-    var mostrarGuiaRapida by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = AquaGrisSuave,
         topBar = {
-            Column(Modifier.fillMaxWidth().background(AquaAzul)) {
-                CabeceraSupervisor(
-                    usuario = usuario,
-                    mostrarMenuPerfil = mostrarMenuPerfil,
-                    onAbrirPerfil = { mostrarMenuPerfil = true },
-                    onCerrarMenu = { mostrarMenuPerfil = false },
-                    onSalir = {
-                        mostrarMenuPerfil = false
-                        onSalir()
-                    }
-                )
-                BarraCondicionesTerreno()
+            Column(Modifier.fillMaxWidth().background(AquaAzul).statusBarsPadding()) {
+                CabeceraDashboard(usuario = usuario, onSalir = onSalir)
             }
         },
         bottomBar = { MainBottomBar(Tab.INICIO, tabsDashboard, onTab) }
@@ -111,9 +107,11 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 30.dp, vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(horizontal = 30.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            pronostico?.let { BarraPronosticoUbicacion(it) }
+
             Card(
                 modifier = Modifier.fillMaxWidth().then(if (!puedeCrear) Modifier.heightIn(min = 198.dp) else Modifier),
                 shape = RoundedCornerShape(20.dp),
@@ -143,7 +141,7 @@ fun DashboardScreen(
                             Text("Gestiona la preparación y seguridad de cada faena.", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE0E7EF))
                         }
                     } else {
-                        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth()) {
+                        Box(Modifier.fillMaxWidth()) {
                             Surface(
                                 modifier = Modifier.align(Alignment.BottomEnd).size(width = 150.dp, height = 150.dp),
                                 color = Color.White.copy(alpha = 0.06f),
@@ -189,6 +187,25 @@ fun DashboardScreen(
                 }
             }
 
+            if (onAperturasRecibidas != null) {
+                OutlinedButton(onClick = onAperturasRecibidas, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (puedeCrear) "Mis expedientes en el servidor" else "Aperturas recibidas")
+                }
+            }
+            if (envios.isNotEmpty()) {
+                Text("Sincronización de expedientes", style = MaterialTheme.typography.titleMedium)
+                envios.sortedBy { it.estado == "SINCRONIZADO" }.forEach { envio ->
+                    val nombreFaena = faenas.firstOrNull { it.resumen.apertura.id == envio.faena }
+                        ?.resumen?.apertura?.centroCultivo ?: envio.faena
+                    AquaSectionCard(title = nombreFaena) {
+                        com.duoc.aquaflow.ui.components.EstadoSincronizacion(envio)
+                        if (envio.estado == "ERROR") {
+                            OutlinedButton(onClick = { onReintentarEnvio(envio.faena) }) { Text("Reintentar envío") }
+                        }
+                    }
+                }
+            }
+
             when {
                 cargando -> Text("Cargando faenas…")
                 error != null -> AquaSectionCard(title = "No se pudo actualizar el inicio") {
@@ -209,116 +226,59 @@ fun DashboardScreen(
                         detalle = if (cargando || error != null) null else "${borradores.size} pendiente${if (borradores.size == 1) "" else "s"}",
                         onClick = onAbrirBorradores
                     )
-                    ModuloTerreno(
-                        titulo = "Guía rápida DPR - 24 & AST",
-                        descripcion = "Tablas de descompresión y medidas preventivas.",
-                        onClick = { mostrarGuiaRapida = true }
-                    )
                 }
-            }
-
-            if (mostrarGuiaRapida) {
-                AlertDialog(
-                    onDismissRequest = { mostrarGuiaRapida = false },
-                    title = { Text("Guía rápida DPR - 24 & AST") },
-                    text = {
-                        Text("Completa la apertura de faena, el checklist, el control de salud y el AST antes de iniciar la operación.")
-                    },
-                    confirmButton = {
-                        Button(onClick = { mostrarGuiaRapida = false }) { Text("Entendido") }
-                    }
-                )
             }
         }
     }
 }
 
 @Composable
-private fun CabeceraSupervisor(
+private fun CabeceraDashboard(
     usuario: Usuario,
-    mostrarMenuPerfil: Boolean,
-    onAbrirPerfil: () -> Unit,
-    onCerrarMenu: () -> Unit,
     onSalir: () -> Unit
 ) {
+    var mostrarMenuPerfil by remember { mutableStateOf(false) }
+    val rol = if (usuario.rol == Rol.JEFE) "Jefe" else usuario.rol.texto
+
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text("AquaChile", style = MaterialTheme.typography.titleLarge, color = Color.White)
             Text("Puerto Montt - Operaciones", style = MaterialTheme.typography.bodySmall, color = Color(0xFFD6E0E6))
         }
         Box {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (usuario.rol == Rol.JEFE) "Jefe" else usuario.rol.texto, style = MaterialTheme.typography.labelMedium, color = Color.White)
-                if (usuario.rol == Rol.JEFE) {
-                    IconButton(onClick = onSalir, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesión", tint = Color.White)
-                    }
-                }
-                IconButton(
-                    onClick = onAbrirPerfil,
-                    modifier = Modifier.size(48.dp).semantics {
-                        contentDescription = "Perfil de ${usuario.nombre}, ${usuario.rol.texto}"
-                    }
+            Surface(
+                onClick = { mostrarMenuPerfil = true },
+                modifier = Modifier.semantics {
+                    contentDescription = "Perfil de ${usuario.nombre}, $rol"
+                    role = SemanticsRole.Button
+                },
+                shape = CircleShape,
+                color = AquaAzulMedio,
+                contentColor = Color.White,
+                border = BorderStroke(1.dp, Color(0xFF92A8B7))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        modifier = Modifier.size(36.dp),
-                        shape = CircleShape,
-                        color = Color.White,
-                        border = BorderStroke(1.dp, AquaAzulMedio)
-                    ) {}
+                    Text(rol, style = MaterialTheme.typography.labelMedium)
+                    Icon(Icons.Default.ExpandMore, contentDescription = null, modifier = Modifier.size(14.dp))
                 }
             }
-            if (mostrarMenuPerfil) {
-                AlertDialog(
-                    onDismissRequest = onCerrarMenu,
-                    title = { Text("Perfil") },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(usuario.nombre, style = MaterialTheme.typography.titleSmall)
-                            Text(usuario.rol.texto, style = MaterialTheme.typography.bodySmall, color = TextoSecundario)
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = onSalir) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                            androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
-                            Text("Cerrar sesión")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = onCerrarMenu) { Text("Cancelar") }
+            DropdownMenu(expanded = mostrarMenuPerfil, onDismissRequest = { mostrarMenuPerfil = false }) {
+                DropdownMenuItem(
+                    text = { Text("Cerrar sesión") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+                    onClick = {
+                        mostrarMenuPerfil = false
+                        onSalir()
                     }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BarraCondicionesTerreno() {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(Color(0xFF1D2C38)).padding(horizontal = 14.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text("≋", color = Color(0xFF7AD8F5), style = MaterialTheme.typography.titleSmall)
-        Text("Viento 12 KTS", color = Color(0xFF7AD8F5), style = MaterialTheme.typography.labelSmall)
-        Box(Modifier.size(width = 1.dp, height = 18.dp).background(Color(0xFF566675)))
-        Text("≋", color = Color(0xFF66D9B5), style = MaterialTheme.typography.titleSmall)
-        Text("Marea Favorable", color = Color(0xFF66D9B5), style = MaterialTheme.typography.labelSmall)
-        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-        Surface(color = Color(0xFF354657), shape = RoundedCornerShape(6.dp)) {
-            Row(
-                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text("⌖", color = Color(0xFF9CC7FF), style = MaterialTheme.typography.labelSmall)
-                Text("Seno Reloncaví\nMódulo 104", color = Color.White, style = MaterialTheme.typography.labelSmall, lineHeight = MaterialTheme.typography.labelSmall.lineHeight)
             }
         }
     }
@@ -341,7 +301,7 @@ private fun UltimaFaenaCard(faena: FaenaGuardada?, onVerHistorial: () -> Unit) {
     val estadoFondo = if (estado == "Aprobado" || estado == "Finalizada") Color(0xFFE7FBF3) else Color(0xFFE6F0FF)
     val detalle = if (faena == null) "Finalizada hoy 10:42 hrs - Jaula 12"
     else "${apertura?.fecha.orEmpty()} · ${apertura?.hora.orEmpty()} - ${apertura?.centroCultivo?.ifBlank { "Faena" }}"
-    val minutos = faena?.cierre?.duracionMinutos ?: 38
+    val mediciones = faena?.cierre?.mediciones
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -377,9 +337,8 @@ private fun UltimaFaenaCard(faena: FaenaGuardada?, onVerHistorial: () -> Unit) {
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE1E5E9)))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricaFaena("◷ TIEMPO", "$minutos", "MIN", Modifier.weight(1f))
-                MetricaFaena("↧ PROF. MÁX", "24.6", "M", Modifier.weight(1f))
-                MetricaFaena("◉ CONSUMO", "145", "BAR", Modifier.weight(1f), resaltar = true)
+                MetricaFaena("TIEMPO FONDO", mediciones?.tiempoFondoMinutos?.toString() ?: "—", "MIN", Modifier.weight(1f))
+                MetricaFaena("PROF. MÁX", mediciones?.profundidadMaximaMetros?.toString() ?: "—", "M", Modifier.weight(1f))
             }
             TextButton(onClick = onVerHistorial, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                 Text("Ver Bitácora de Inmersión Completa →", color = AzulAccion, style = MaterialTheme.typography.labelLarge)
@@ -389,7 +348,7 @@ private fun UltimaFaenaCard(faena: FaenaGuardada?, onVerHistorial: () -> Unit) {
 }
 
 @Composable
-private fun MetricaFaena(label: String, value: String, unit: String, modifier: Modifier = Modifier, resaltar: Boolean = false) {
+private fun MetricaFaena(label: String, value: String, unit: String, modifier: Modifier = Modifier) {
     Surface(modifier = modifier, color = AquaGrisSuave, shape = RoundedCornerShape(12.dp)) {
         Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
@@ -398,7 +357,7 @@ private fun MetricaFaena(label: String, value: String, unit: String, modifier: M
         ) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3), maxLines = 1)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(value, style = MaterialTheme.typography.titleLarge, color = if (resaltar) VerdeEstado else AquaAzul)
+                Text(value, style = MaterialTheme.typography.titleLarge, color = AquaAzul)
                 Text(unit, style = MaterialTheme.typography.labelSmall, color = Color(0xFF6F7D90), modifier = Modifier.padding(bottom = 3.dp))
             }
         }
@@ -441,22 +400,6 @@ private fun ModuloTerreno(
                 }
             } else {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun DatoSalud(titulo: String, valor: String, unidad: String, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = AquaGrisSuave, shape = RoundedCornerShape(12.dp)) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(titulo, style = MaterialTheme.typography.labelSmall, color = TextoSecundario)
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(valor, style = MaterialTheme.typography.titleLarge, color = AquaAzul)
-                Text(unidad, style = MaterialTheme.typography.labelSmall, color = TextoSecundario, modifier = Modifier.padding(bottom = 3.dp))
             }
         }
     }

@@ -6,14 +6,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -48,11 +52,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +66,7 @@ import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.NivelSalud
 import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
+import com.duoc.aquaflow.ui.theme.SemaforoRojo
 import com.duoc.aquaflow.viewmodel.EncuestaSaludViewModel
 
 private val AzulNoche = Color(0xFF182B3A)
@@ -108,16 +114,26 @@ fun EncuestaSaludScreen(
         containerColor = GrisFondo,
         bottomBar = {
             Column(
-                Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 8.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 28.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Button(
-                    enabled = !ocupado,
+                    enabled = !ocupado && PREGUNTAS_SALUD.none { ui.respuestas[it] == null },
                     onClick = { vm.guardar()?.let(onGuardar) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                     shape = RoundedCornerShape(9.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AzulAccion)
-                ) { Text("Continuar al Checklist", fontWeight = FontWeight.Bold) }
+                ) { Text("Continuar a AST", fontWeight = FontWeight.Bold) }
+                if (PREGUNTAS_SALUD.any { ui.respuestas[it] == null }) {
+                    Text(
+                        "Responde las ${PREGUNTAS_SALUD.size} preguntas para continuar.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 OutlinedButton(
                     enabled = !ocupado,
                     onClick = { onGuardarBorrador(vm.borrador()) },
@@ -130,7 +146,12 @@ fun EncuestaSaludScreen(
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -144,18 +165,21 @@ fun EncuestaSaludScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MedicionSaludCard(
                     titulo = "SISTÓLICA", valor = ui.sistolica, unidad = "mmHg",
-                    rango = Reglas.RANGO_SISTOLICA, modifier = Modifier.weight(1f),
+                    rango = Reglas.RANGO_SISTOLICA, optimo = 90..119, normal = 120..139,
+                    modifier = Modifier.weight(1f),
                     onCambiar = vm::cambiarSistolica
                 )
                 MedicionSaludCard(
                     titulo = "DIASTÓLICA", valor = ui.diastolica, unidad = "mmHg",
-                    rango = Reglas.RANGO_DIASTOLICA, modifier = Modifier.weight(1f),
+                    rango = Reglas.RANGO_DIASTOLICA, optimo = 60..79, normal = 80..89,
+                    modifier = Modifier.weight(1f),
                     onCambiar = vm::cambiarDiastolica
                 )
             }
             MedicionSaludCard(
                 titulo = "SPO2", valor = ui.saturacion, unidad = "%",
-                rango = Reglas.RANGO_SATURACION, saturacion = true,
+                rango = Reglas.RANGO_SATURACION, optimo = 98..100, normal = 95..97,
+                saturacion = true,
                 onCambiar = vm::cambiarSaturacion
             )
 
@@ -186,10 +210,10 @@ private fun ProgresoSalud() {
                     Text("3", color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                Text("Paso 3 de 4", style = MaterialTheme.typography.labelSmall, color = GrisTexto)
+                Text("Paso 3 de 5", style = MaterialTheme.typography.labelSmall, color = GrisTexto)
             }
             androidx.compose.material3.LinearProgressIndicator(
-                progress = { 0.75f }, modifier = Modifier.fillMaxWidth(), color = AzulAccion,
+                progress = { 0.6f }, modifier = Modifier.fillMaxWidth(), color = AzulAccion,
                 trackColor = Color(0xFFE5EAF0)
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -237,22 +261,32 @@ private fun EtiquetaDatoBuzo(texto: String, fondo: Color, textoColor: Color, mod
     }
 }
 
+private enum class EstadoMedicion(val etiqueta: String, val fondo: Color, val texto: Color) {
+    PENDIENTE("PENDIENTE", GrisInactivo, GrisTexto),
+    REVISAR("REVISAR", Color(0xFFFFEBEE), SemaforoRojo),
+    NORMAL("NORMAL", Color(0xFFE6F0FF), AzulAccion),
+    OPTIMO("ÓPTIMO", Color(0xFFE4FFF4), Color(0xFF047857))
+}
+
 @Composable
 private fun MedicionSaludCard(
     titulo: String,
     valor: String,
     unidad: String,
     rango: IntRange,
+    optimo: IntRange,
+    normal: IntRange,
     modifier: Modifier = Modifier.fillMaxWidth(),
     saturacion: Boolean = false,
     onCambiar: (String) -> Unit
 ) {
     val numero = valor.toIntOrNull() ?: 0
-    val dentroDeRango = numero != 0 && numero in rango
-    val etiqueta = when {
-        numero == 0 -> "PENDIENTE"
-        dentroDeRango -> if (saturacion) "SATURACIÓN OXÍGENO" else if (titulo == "SISTÓLICA") "ÓPTIMO" else "NORMAL"
-        else -> "REVISAR"
+    // Indicadores visuales de la encuesta académica.
+    val estado = when (numero) {
+        0 -> EstadoMedicion.PENDIENTE
+        in optimo -> EstadoMedicion.OPTIMO
+        in normal -> EstadoMedicion.NORMAL
+        else -> EstadoMedicion.REVISAR
     }
     Card(
         modifier = modifier,
@@ -263,8 +297,8 @@ private fun MedicionSaludCard(
         Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(titulo, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF334155), fontSize = 9.sp)
-                Surface(color = if (dentroDeRango) Color(0xFFE4FFF4) else GrisInactivo, shape = RoundedCornerShape(4.dp)) {
-                    Text(etiqueta, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = if (dentroDeRango) Color(0xFF047857) else GrisTexto, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 7.sp)
+                Surface(color = estado.fondo, shape = RoundedCornerShape(4.dp)) {
+                    Text(estado.etiqueta, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = estado.texto, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 7.sp)
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.Center) {
@@ -300,7 +334,7 @@ private fun MedicionSaludCard(
 @Composable
 private fun BotonMedicion(icon: androidx.compose.ui.graphics.vector.ImageVector, descripcion: String, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = modifier.height(34.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        modifier = modifier.heightIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         color = if (enabled) Color(0xFFF1F5F9) else Color(0xFFF7F8FA),
         shape = RoundedCornerShape(7.dp),
         border = BorderStroke(1.dp, Color(0xFFE0E7EF))
@@ -312,7 +346,7 @@ private fun BotonMedicion(icon: androidx.compose.ui.graphics.vector.ImageVector,
 }
 
 @Composable
-private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean>, onResponder: (String, Boolean) -> Unit) {
+private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean?>, onResponder: (String, Boolean) -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(1.dp),
@@ -331,12 +365,12 @@ private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean>, onResponder
             PREGUNTAS_SALUD.forEachIndexed { index, pregunta ->
                 if (index > 0) HorizontalDivider(color = Color(0xFFE9EDF2))
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("${index + 1}. $pregunta", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF172033), fontSize = 9.sp, lineHeight = 12.sp)
+                    Text("${index + 1}. $pregunta", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF172033), lineHeight = 20.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        RespuestaSalud("Sí", seleccionada = respuestas[pregunta] == true, afirmativa = true, Modifier.weight(1f)) {
+                        RespuestaSalud("Sí", seleccionada = respuestas[pregunta] == true, afirmativa = true, Modifier.weight(1f).testTag("pregunta-$index-si")) {
                             onResponder(pregunta, true)
                         }
-                        RespuestaSalud("No", seleccionada = respuestas[pregunta] == false, afirmativa = false, Modifier.weight(1f)) {
+                        RespuestaSalud("No", seleccionada = respuestas[pregunta] == false, afirmativa = false, Modifier.weight(1f).testTag("pregunta-$index-no")) {
                             onResponder(pregunta, false)
                         }
                     }
@@ -348,17 +382,25 @@ private fun EncuestaPreventivaCard(respuestas: Map<String, Boolean>, onResponder
 
 @Composable
 private fun RespuestaSalud(texto: String, seleccionada: Boolean, afirmativa: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val colorActivo = if (afirmativa) Color(0xFF078B68) else AzulAccion
+    val colorActivo = if (afirmativa) Color(0xFF078B68) else SemaforoRojo
     Surface(
-        modifier = modifier.height(32.dp).clickable(role = Role.RadioButton, onClick = onClick),
+        modifier = modifier.heightIn(min = 48.dp).selectable(
+            selected = seleccionada,
+            onClick = onClick,
+            role = Role.RadioButton
+        ),
         color = if (seleccionada) colorActivo else GrisInactivo,
         contentColor = if (seleccionada) Color.White else Color(0xFF475569),
         shape = RoundedCornerShape(7.dp)
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (afirmativa) Icons.Default.CheckCircle else Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(12.dp))
+            Icon(
+                if (afirmativa) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                contentDescription = if (afirmativa) "Check positivo de Sí" else "X de No",
+                modifier = Modifier.size(18.dp)
+            )
             Spacer(Modifier.width(4.dp))
-            Text(texto, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+            Text(texto, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -367,9 +409,9 @@ private fun RespuestaSalud(texto: String, seleccionada: Boolean, afirmativa: Boo
 private fun ResultadoSaludCard(nivel: NivelSalud?) {
     val fondo = when (nivel) {
         NivelSalud.NORMAL -> Color(0xFF07966D)
-        NivelSalud.ATENCION -> AzulAccion
+        NivelSalud.ATENCION -> com.duoc.aquaflow.ui.theme.SemaforoAmarillo
         NivelSalud.CRITICO -> Color(0xFFDC2626)
-        null -> Color(0xFF94A3B8)
+        null -> com.duoc.aquaflow.ui.theme.SemaforoAmarillo
     }
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp), shape = RoundedCornerShape(12.dp)) {
         Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -378,7 +420,7 @@ private fun ResultadoSaludCard(nivel: NivelSalud?) {
                 Text(
                     "SALUD: ${nivel?.texto?.uppercase() ?: "PENDIENTE"}",
                     modifier = Modifier.padding(horizontal = 15.dp, vertical = 6.dp),
-                    color = Color.White,
+                    color = if (nivel == null || nivel == NivelSalud.ATENCION) Color(0xFF422006) else Color.White,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     fontSize = 9.sp
@@ -394,11 +436,11 @@ fun EncuestaSaludScreenPreview() {
     AquaFlowTheme {
         EncuestaSaludScreen(
             vm = EncuestaSaludViewModel(),
-            buzo = "Juan Pérez",
+            buzo = "Buzo Demo Alfa",
             onGuardar = {},
             onGuardarBorrador = {},
             onVolver = {},
-            centroCultivo = "Centro Huito - Balsa Jaula 04"
+            centroCultivo = "Centro Demo Aurora - Jaula 04"
         )
     }
 }

@@ -1,21 +1,33 @@
 package com.duoc.aquaflow.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.duoc.aquaflow.data.remote.FaenasRemotas
+import com.duoc.aquaflow.data.remote.SincronizacionFaenas
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class IngresoUiState(
     val nombre: String = "",
     val clave: String = "",
     val rol: Rol = Rol.SUPERVISOR,
-    val error: String? = null
+    val error: String? = null,
+    val ocupado: Boolean = false
 )
 
-class SesionViewModel : ViewModel() {
+class SesionViewModel(
+    val remoto: FaenasRemotas? = null,
+    private val sincronizacion: SincronizacionFaenas? = null,
+    private val autenticacionRemota: FaenasRemotas? = null
+) : ViewModel() {
+    val accesoCloud: Boolean get() = autenticacionRemota != null
     private val usuarios = listOf(
         Usuario("supervisor", "1234", Rol.SUPERVISOR),
         Usuario("jefe", "1234", Rol.JEFE)
@@ -24,15 +36,50 @@ class SesionViewModel : ViewModel() {
     val usuario: StateFlow<Usuario?> = _usuario.asStateFlow()
     private val _ingreso = MutableStateFlow(IngresoUiState())
     val ingreso = _ingreso.asStateFlow()
+    private var autenticacion: Job? = null
 
-    fun cambiarNombre(valor: String) = _ingreso.update { it.copy(nombre = valor, error = null) }
-    fun cambiarClave(valor: String) = _ingreso.update { it.copy(clave = valor, error = null) }
-    fun seleccionarRol(rol: Rol) = _ingreso.update { it.copy(rol = rol, error = null) }
+    fun cambiarNombre(valor: String) = _ingreso.update { if (it.ocupado) it else it.copy(nombre = valor, error = null) }
+    fun cambiarClave(valor: String) = _ingreso.update { if (it.ocupado) it else it.copy(clave = valor, error = null) }
+    fun limpiarError() = _ingreso.update { it.copy(error = null) }
+    fun seleccionarRol(rol: Rol) = _ingreso.update { if (it.ocupado) it else it.copy(rol = rol, error = null) }
+
+    private fun validar(datos: IngresoUiState): Boolean {
+        if (datos.nombre.isNotBlank() && datos.clave.isNotBlank()) return true
+        _ingreso.update { it.copy(error = "Completa el usuario y la contraseña.") }
+        return false
+    }
+
+    fun ingresar(alIngresar: () -> Unit) {
+        val servidor = autenticacionRemota ?: remoto
+        if (servidor == null) {
+            if (ingresar()) alIngresar()
+            return
+        }
+        val datos = _ingreso.value
+        if (datos.ocupado || !validar(datos)) return
+        _ingreso.update { it.copy(ocupado = true, error = null) }
+        autenticacion = viewModelScope.launch {
+            val cuenta = try {
+                servidor.ingresar(datos.nombre.trim(), datos.clave, datos.rol).also {
+                    if (it.rol == Rol.SUPERVISOR) sincronizacion?.iniciarSesion(it.nombre, servidor)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _ingreso.update {
+                    it.copy(ocupado = false, error = e.message ?: "No se pudo iniciar sesión.")
+                }
+                return@launch
+            }
+            _usuario.value = cuenta
+            _ingreso.value = IngresoUiState()
+            alIngresar()
+        }
+    }
 
     fun ingresar(): Boolean {
         val datos = _ingreso.value
-        if (datos.nombre.isBlank() || datos.clave.isBlank()) {
-            _ingreso.update { it.copy(error = "Completa el usuario y la contraseña.") }
+        if (remoto != null || autenticacionRemota != null || !validar(datos)) {
             return false
         }
         val valido = ingresar(datos.nombre, datos.clave, datos.rol)
@@ -43,6 +90,7 @@ class SesionViewModel : ViewModel() {
 
     // El perfil seleccionado nunca cambia los permisos de la cuenta.
     fun ingresar(nombre: String, clave: String, rol: Rol? = null): Boolean {
+        if (remoto != null || autenticacionRemota != null) return false
         _usuario.value = usuarios.find {
             it.nombre.equals(nombre.trim(), ignoreCase = true) &&
                 it.clave == clave &&
@@ -52,6 +100,10 @@ class SesionViewModel : ViewModel() {
     }
 
     fun salir() {
+        autenticacion?.cancel()
+        sincronizacion?.cerrarSesion()
+        autenticacionRemota?.salir()
+        remoto?.salir()
         _usuario.value = null
         _ingreso.value = IngresoUiState()
     }

@@ -4,16 +4,23 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
@@ -66,7 +74,10 @@ fun PanelAdministrador(faenas: List<FaenaGuardada>, onVerFaena: (String) -> Unit
         Text("Selecciona una tarjeta para consultar y auditar sus faenas en terreno.", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4B5563))
 
         GrupoFaena.entries.chunked(2).forEach { fila ->
-            Row(horizontalArrangement = Arrangement.spacedBy(11.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+            ) {
                 fila.forEach { grupo ->
                     val elegido = seleccionado == grupo
                     val contador = grupos.getValue(grupo).size
@@ -74,7 +85,7 @@ fun PanelAdministrador(faenas: List<FaenaGuardada>, onVerFaena: (String) -> Unit
                         grupo = grupo,
                         contador = contador,
                         elegido = elegido,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { seleccionado = grupo }
                     )
                 }
@@ -116,16 +127,27 @@ private fun TarjetaResumenGrupo(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val oscuro = elegido
-    val colorFondo = if (oscuro) AzulNocheJefatura else Color.White
-    val colorTexto = if (oscuro) Color.White else TextoJefatura
-    val (titulo, pie, etiqueta, colorEtiqueta) = when (grupo) {
-        GrupoFaena.ABIERTAS -> Quadrupla("Abiertas", if (elegido) "Mostrando • $contador por visar" else "$contador pendientes de decisión", "◉ DECISIÓN", Color(0xFF31506D))
-        GrupoFaena.EN_PROCESO -> Quadrupla("Autorizadas", "En agua / En proceso", "● ACTIVAS", Color(0xFFE4F0FF))
-        GrupoFaena.RECHAZADAS -> Quadrupla("Rechazadas", "Clima o equipos", "OBSERVADAS", Color(0xFFFFE2DF))
-        GrupoFaena.CERRADAS -> Quadrupla("Cerradas", "Bitácora histórica", "HISTÓRICO", Color(0xFFE6EEFF))
+    val colorFondo = if (elegido) AzulNocheJefatura else Color.White
+    val colorTexto = if (elegido) Color.White else TextoJefatura
+    val estilo = when (grupo) {
+        GrupoFaena.ABIERTAS -> EstiloGrupo(
+            "Abiertas", "Pendientes de decisión", "DECISIÓN", Icons.Default.PendingActions,
+            Color(0xFF1D4ED8), Color(0xFFE8F0FF)
+        )
+        GrupoFaena.EN_PROCESO -> EstiloGrupo(
+            "Autorizadas", "En agua / En proceso", "ACTIVAS", Icons.Default.Waves,
+            Color(0xFF00674F), Color(0xFFDDF6EC)
+        )
+        GrupoFaena.RECHAZADAS -> EstiloGrupo(
+            "Rechazadas", "Clima o equipos", "OBSERVADAS", Icons.Default.Cancel,
+            Color(0xFFAE2436), Color(0xFFFDE8EA)
+        )
+        GrupoFaena.CERRADAS -> EstiloGrupo(
+            "Cerradas", "Bitácora histórica", "HISTÓRICO", Icons.Default.Archive,
+            Color(0xFF3E5875), Color(0xFFE9EFF8)
+        )
     }
-    val subColor = if (oscuro) Color.White else Color(0xFF4B5563)
+    val subColor = if (elegido) Color(0xFFD8E2EF) else Color(0xFF4B5563)
 
     Card(
         modifier = modifier.semantics { selected = elegido }.clickable(onClick = onClick),
@@ -134,40 +156,58 @@ private fun TarjetaResumenGrupo(
         elevation = CardDefaults.cardElevation(if (elegido) 1.dp else 0.dp),
         border = if (!elegido) BorderStroke(1.dp, Color(0xFFE9EDF3)) else null
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(contador.toString(), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = if (oscuro) Color.White else Color(0xFF102033))
-                if (grupo == GrupoFaena.EN_PROCESO) Text("≋", color = Color(0xFF05A879), fontSize = 18.sp)
-                if (grupo == GrupoFaena.RECHAZADAS) Text("⊗", color = Color(0xFFFF465E), fontSize = 19.sp)
-                if (grupo == GrupoFaena.CERRADAS) Text("⇩", color = Color(0xFF42658C), fontSize = 18.sp)
-            }
-            Text(titulo, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = colorTexto)
-            Text(pie, style = MaterialTheme.typography.labelSmall, color = subColor, fontWeight = FontWeight.SemiBold, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Surface(color = if (oscuro) Color.White else colorEtiqueta, shape = RoundedCornerShape(4.dp)) {
+        Column(
+            Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 11.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
-                    etiqueta,
-                    Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
-                    color = when (grupo) {
-                        GrupoFaena.ABIERTAS -> if (oscuro) AzulNocheJefatura else Color(0xFF334155)
-                        GrupoFaena.EN_PROCESO -> Color(0xFF008B67)
-                        GrupoFaena.RECHAZADAS -> Color(0xFFDC2626)
-                        GrupoFaena.CERRADAS -> Color(0xFF475569)
-                    },
-                    style = MaterialTheme.typography.labelSmall,
+                    contador.toString(),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 8.sp
+                    color = colorTexto
+                )
+                Icon(
+                    estilo.icono,
+                    contentDescription = null,
+                    tint = if (elegido) estilo.fondoEtiqueta else estilo.acento,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Text(estilo.titulo, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = colorTexto)
+            Text(estilo.descripcion, style = MaterialTheme.typography.labelSmall, color = subColor)
+            Spacer(Modifier.weight(1f))
+            Surface(color = estilo.fondoEtiqueta, shape = RoundedCornerShape(4.dp)) {
+                Text(
+                    estilo.etiqueta,
+                    Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                    color = estilo.acento,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
     }
 }
 
-private data class Quadrupla(val primero: String, val segundo: String, val tercero: String, val cuarto: Color)
+private data class EstiloGrupo(
+    val titulo: String,
+    val descripcion: String,
+    val etiqueta: String,
+    val icono: ImageVector,
+    val acento: Color,
+    val fondoEtiqueta: Color
+)
 
 @Composable
 private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerFaena: (String) -> Unit) {
     val apertura = faena.resumen.apertura
-    val resultado = ReglasDecision.resultado(faena.resumen)
+    val resultado = ReglasDecision.evaluar(faena.resumen).resultado
     val colorBorde = when {
         grupo == GrupoFaena.RECHAZADAS || resultado == ResultadoFaena.REQUIERE_REVISION -> Color(0xFFDC2626)
         resultado == ResultadoFaena.OBSERVADO -> Color(0xFFF59E0B)
@@ -180,6 +220,7 @@ private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerF
     val centro = apertura.centroCultivo.ifBlank { "Centro sin asignar" }
     val codigo = apertura.id.takeLast(9).uppercase()
     val fotos = faena.resumen.checklist?.fotosEvidencia?.size ?: 0
+    val mediciones = faena.cierre?.mediciones
 
     Card(
         modifier = Modifier.fillMaxWidth().drawWithContent {
@@ -235,9 +276,12 @@ private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerF
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ValorOperativo("Prof. Máx.", "—", Modifier.weight(1f))
-                    ValorOperativo("Tiempo Fondo", faena.cierre?.duracionMinutos?.let { "$it min" } ?: "—", Modifier.weight(1f))
+                    ValorOperativo("Prof. Máx.", mediciones?.let { "${it.profundidadMaximaMetros} m" } ?: "—", Modifier.weight(1f))
+                    ValorOperativo("Tiempo Fondo", mediciones?.let { "${it.tiempoFondoMinutos} min" } ?: "—", Modifier.weight(1f))
                     ValorOperativo("DPR-24", if (progreso == 5) "100%" else "$progreso/5", Modifier.weight(1f))
+                }
+                mediciones?.alertas.orEmpty().forEach { alerta ->
+                    Text(alerta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
 
                 if (fotos > 0 || resultado == ResultadoFaena.OBSERVADO) {
@@ -258,26 +302,13 @@ private fun TarjetaFaenaJefatura(faena: FaenaGuardada, grupo: GrupoFaena, onVerF
                 }
 
                 if (grupo == GrupoFaena.ABIERTAS) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = { onVerFaena(apertura.id) },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(7.dp),
-                            border = BorderStroke(0.dp, Color.Transparent),
-                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFE6EEFF), contentColor = TextoJefatura)
-                        ) {
-                            Icon(Icons.Default.Checklist, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.size(4.dp))
-                            Text("Auditar AST", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                        }
-                        Button(
-                            onClick = { onVerFaena(apertura.id) },
-                            modifier = Modifier.weight(1.15f),
-                            shape = RoundedCornerShape(7.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AzulJefatura)
-                        ) {
-                            Text("Revisar y Visar", fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                        }
+                    Button(
+                        onClick = { onVerFaena(apertura.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(7.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AzulJefatura)
+                    ) {
+                        Text("Revisar y Visar", fontWeight = FontWeight.Bold)
                     }
                 } else {
                     OutlinedButton(

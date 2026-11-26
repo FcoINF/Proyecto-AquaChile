@@ -28,7 +28,7 @@ class FaenaPersistenciaTest {
     private val jefe = Usuario("jefe", "1234", Rol.JEFE)
     private val luis = Usuario("Luis", "1234", Rol.SUPERVISOR)
     private val apertura = PreChequeo("f1", "Centro Norte", "22/10/2026", "09:00", "Ana", "Luis", true, true, true)
-    private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Compresor", "ok", EstadoEquipo.CUMPLE)))
+    private val checklist = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Compresor", "ok", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4"))
     private val ast = FormularioAst("Limpieza de fondos", false, List(com.duoc.aquaflow.model.PREGUNTAS_AST.size) { true }, listOf(PasoAst("t", "p", "c")), ResultadoAst.CUMPLE)
     private val encuesta = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
 

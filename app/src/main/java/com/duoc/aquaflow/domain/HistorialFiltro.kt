@@ -21,12 +21,16 @@ data class HistorialFiltro(
 ) {
     fun aplicar(items: List<HistorialItem>): List<HistorialItem> {
         val consulta = texto.trim().lowercase()
-        return items.filter { item ->
-            (estado == null || item.estado == estado) &&
-                categoriaCoincide(item) &&
-                (fecha.isBlank() || (fechaValida(fecha) && item.fecha == fecha)) &&
-                (consulta.isEmpty() || coincide(item, consulta))
-        }
+        return items
+            .filter { item ->
+                (estado == null || item.estado == estado) &&
+                        categoriaCoincide(item) &&
+                        (fecha.isBlank() || (fechaValida(fecha) && item.fecha == fecha)) &&
+                        (consulta.isEmpty() || coincide(item, consulta))
+            }
+            .sortedBy { item ->
+                if (item.estado == EstadoFaena.AUTORIZADA || item.estado == EstadoFaena.EN_EJECUCION) 0 else 1
+            }
     }
 
     val errorFecha: String? get() = if (fecha.isNotBlank() && !fechaValida(fecha)) "Usa una fecha válida: dd/MM/aaaa" else null
@@ -39,16 +43,15 @@ data class HistorialFiltro(
     }
 
     private fun coincide(item: HistorialItem, consulta: String): Boolean =
-        item.codigo.lowercase().contains(consulta) ||
-            item.centroCultivo.lowercase().contains(consulta) ||
-            item.buzoAsignado.lowercase().contains(consulta) ||
-            item.supervisorACargo.lowercase().contains(consulta)
+        item.centroCultivo.lowercase().contains(consulta) ||
+                item.buzoAsignado.lowercase().contains(consulta) ||
+                item.supervisorACargo.lowercase().contains(consulta)
 
     private fun categoriaCoincide(item: HistorialItem): Boolean = when (categoria) {
         CategoriaHistorial.TODAS -> true
         CategoriaHistorial.APROBADAS -> item.estado == EstadoFaena.AUTORIZADA || item.estado == EstadoFaena.CERRADA
         CategoriaHistorial.OBSERVADAS -> item.estado == EstadoFaena.PRECHEQUEO && item.resultado == ResultadoFaena.OBSERVADO
-        CategoriaHistorial.EN_CURSO -> item.estado == EstadoFaena.EN_EJECUCION
+        CategoriaHistorial.EN_CURSO -> item.estado == EstadoFaena.AUTORIZADA || item.estado == EstadoFaena.EN_EJECUCION
         CategoriaHistorial.RECHAZADAS -> item.estado == EstadoFaena.RECHAZADA
     }
 }

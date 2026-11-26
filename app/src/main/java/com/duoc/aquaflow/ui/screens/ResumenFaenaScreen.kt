@@ -33,8 +33,10 @@ import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResumenFaena
 import com.duoc.aquaflow.model.Rol
+import com.duoc.aquaflow.model.fotosAsociadasPorEquipo
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.SemaforoAst
+import com.duoc.aquaflow.ui.components.DatosMediciones
 import com.duoc.aquaflow.ui.components.SemaforoFaena
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -53,6 +55,7 @@ fun ResumenFaenaScreen(
     onDecidir: (RegistroDecision) -> Unit,
     onVolver: () -> Unit,
     onFinalizar: () -> Unit,
+    modoDemo: Boolean = false,
     textoFinalizar: String = "Ir al inicio",
     // Error que no nace en esta pantalla (por ejemplo, al guardar la decisión en el dispositivo)
     cierre: com.duoc.aquaflow.model.RegistroCierre? = null,
@@ -66,7 +69,7 @@ fun ResumenFaenaScreen(
     val apertura = resumen.apertura
     val estados = ReglasSecciones.estados(resumen)
 
-    com.duoc.aquaflow.ui.components.Guardando(ocupado)
+    com.duoc.aquaflow.ui.components.Guardando(ocupado || ui.enviando)
     Scaffold(
         topBar = {
             TopAppBar(
@@ -83,10 +86,12 @@ fun ResumenFaenaScreen(
                 Text("Revisión de la operación", style = MaterialTheme.typography.headlineSmall)
                 Text("Confirma los datos y resuelve la autorización.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            // Semáforo global: solo aparece cuando están todas las partes
-            if (resultado != null) {
-                AquaSectionCard(title = "Estado de la faena") { SemaforoFaena(resultado) }
-            } else {
+            val evaluacion = ReglasDecision.evaluar(resumen)
+            AquaSectionCard(title = "Estado de la faena") {
+                SemaforoFaena(evaluacion.resultado)
+                evaluacion.motivos.forEach { Text(it) }
+            }
+            if (faltantes.isNotEmpty()) {
                 Card(colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Text(
                         "Resumen incompleto · Falta: ${faltantes.joinToString()}",
@@ -113,8 +118,20 @@ fun ResumenFaenaScreen(
                     if (it.notas.isNotBlank()) Text("Nota · ${it.notas}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 resumen.checklist?.let {
+                    val asociaciones = it.fotosAsociadasPorEquipo()
+                    val nombresPorFoto = it.items.mapNotNull { item ->
+                        asociaciones[item.id]?.let { referencia -> referencia to item.titulo }
+                    }.toMap()
+                    val categoriasPorFoto = it.items.mapNotNull { item ->
+                        asociaciones[item.id]?.let { referencia -> referencia to item.categoria }
+                    }.toMap()
                     Text("Fotos de evidencia: ${it.fotosEvidencia.size}")
-                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(it.fotosEvidencia)
+                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(
+                        fotos = it.fotosEvidencia,
+                        nombresPorFoto = nombresPorFoto,
+                        categoriasPorFoto = categoriasPorFoto,
+                        metadatos = it.metadatosPorFoto
+                    )
                 }
             }
 
@@ -139,19 +156,35 @@ fun ResumenFaenaScreen(
                 }
             }
 
+            Seccion("Checklist de tareas") {
+                Text("Estado: ${estados.getValue("Checklist de tareas").texto}")
+                val tareas = resumen.tareas?.items.orEmpty()
+                if (tareas.isEmpty()) Text("Sin tareas registradas")
+                tareas.forEach { tarea ->
+                    Text("${if (tarea.verificada) "✓" else "•"} ${tarea.descripcion.ifBlank { "Tarea sin descripción" }}")
+                }
+            }
+
             errorExterno?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (rol == Rol.SUPERVISOR) ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Seccion("Decisión") {
                 when {
                     // Ya decidida: se muestra el registro y se cierra el formulario
                     decision != null -> {
                         Text("${decision.decision.texto} por ${decision.decididoPor}")
                         if (decision.motivo.isNotEmpty()) Text("Motivo: ${decision.motivo}")
-                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
+                        Button(onClick = onFinalizar, enabled = !ui.enviando, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
                     }
                     // El supervisor no decide: su parte termina aquí, con la faena guardada para la jefatura
                     !ReglasDecision.puedeDecidir(rol) -> {
-                        Text("Solo la jefatura autoriza o rechaza la faena. Ya quedó guardada en el dispositivo para su revisión.")
-                        Button(onClick = onFinalizar, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
+                        Text(
+                            if (modoDemo) {
+                                "Modo demo: la faena se mantiene durante esta sesión y puedes continuar recorriendo la aplicación."
+                            } else {
+                                "Solo la jefatura autoriza o rechaza la faena. Ya quedó guardada en el dispositivo para su revisión."
+                            }
+                        )
+                        Button(onClick = onFinalizar, enabled = !ui.enviando, modifier = Modifier.fillMaxWidth()) { Text(textoFinalizar) }
                     }
                     else -> {
                         OutlinedTextField(
@@ -179,6 +212,7 @@ fun ResumenFaenaScreen(
             if (cierre != null) {
                 Seccion("Faena cerrada") {
                     Text("Tiempo de inmersión: ${cierre.duracionMinutos} minutos")
+                    cierre.mediciones?.let { DatosMediciones(it) }
                     Text("Observaciones: ${cierre.observaciones}")
                     Text("Revisión de salida: ${if (cierre.revisionSalida) "realizada" else "pendiente"}")
                     Text("Cerrada por ${cierre.cerradoPor}")
@@ -211,10 +245,10 @@ fun ResumenFaenaScreenPreview() {
             vm = ResumenFaenaViewModel(),
             resumen = ResumenFaena(
                 apertura = PreChequeo(
-                    centroCultivo = "Centro Punta de Tralca",
+                    centroCultivo = "Centro Demo Nébula",
                     fecha = "20/10/2026",
                     hora = "09:30",
-                    buzoAsignado = "Pedro Soto",
+                    buzoAsignado = "Buzo Demo Bravo",
                     supervisorACargo = "Carlos Supervisor"
                 ),
                 checklist = null,

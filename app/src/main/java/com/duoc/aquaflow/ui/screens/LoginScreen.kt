@@ -12,15 +12,21 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicSecureTextField
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.TextObfuscationMode
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +36,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,17 +65,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.duoc.aquaflow.BuildConfig
 import com.duoc.aquaflow.R
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -67,11 +83,14 @@ import com.duoc.aquaflow.viewmodel.IngresoUiState
 import com.duoc.aquaflow.viewmodel.SesionViewModel
 
 private const val PREFS_LOGIN = "aquaflow_login"
-private const val PREF_RECORDAR = "recordar"
-private const val PREF_USUARIO = "usuario"
+private val PREF_RECORDAR = booleanPreferencesKey("recordar")
+private val PREF_USUARIO = stringPreferencesKey("usuario")
+private val Context.preferenciasIngreso by preferencesDataStore(
+    name = PREFS_LOGIN,
+    produceMigrations = { listOf(SharedPreferencesMigration(it, PREFS_LOGIN, setOf("recordar", "usuario"))) }
+)
 
 private val FondoLogin = Color(0xFFF8F9FF)
-private val AzulMarino = Color(0xFF192838)
 private val AzulAccion = Color(0xFF0755B8)
 private val AzulTile = Color(0xFF90BDF9)
 private val AzulTileSuave = Color(0xFFE5EEFF)
@@ -125,39 +144,48 @@ fun LoginScreen(sesion: SesionViewModel, onIngresoExitoso: () -> Unit) {
     }
 
     val context = LocalContext.current
-    val prefs = remember(context) {
-        context.getSharedPreferences(PREFS_LOGIN, Context.MODE_PRIVATE)
-    }
-    var recordar by rememberSaveable {
-        mutableStateOf(prefs.getBoolean(PREF_RECORDAR, false))
-    }
+    val prefs = context.preferenciasIngreso
+    val alcance = rememberCoroutineScope()
+    var recordar by rememberSaveable { mutableStateOf(false) }
     val ui by sesion.ingreso.collectAsState()
 
-    LaunchedEffect(Unit) {
-        if (recordar && ui.nombre.isBlank()) {
-            prefs.getString(PREF_USUARIO, null)?.let(sesion::cambiarNombre)
+    LaunchedEffect(prefs) {
+        val guardadas = try { prefs.data.first() } catch (_: java.io.IOException) { return@LaunchedEffect }
+        recordar = guardadas[PREF_RECORDAR] ?: false
+        if (recordar && sesion.ingreso.value.nombre.isBlank()) {
+            guardadas[PREF_USUARIO]?.let(sesion::cambiarNombre)
         }
     }
 
     LoginContent(
         ui = ui,
         recordar = recordar,
+        accesoCloud = sesion.accesoCloud,
         onNombre = sesion::cambiarNombre,
-        onClave = sesion::cambiarClave,
+        onEditarClave = sesion::limpiarError,
         onRol = sesion::seleccionarRol,
         onRecordar = { activo ->
             recordar = activo
-            prefs.edit().putBoolean(PREF_RECORDAR, activo).apply()
-            // Solo se recuerda el usuario; el PIN nunca se guarda en el dispositivo.
-            if (!activo) prefs.edit().remove(PREF_USUARIO).apply()
-        },
-        onIngresar = {
-            if (recordar) {
-                prefs.edit().putString(PREF_USUARIO, ui.nombre.trim()).apply()
-            } else {
-                prefs.edit().remove(PREF_USUARIO).apply()
+            alcance.launch {
+                try {
+                    prefs.edit {
+                        it[PREF_RECORDAR] = activo
+                        if (!activo) it.remove(PREF_USUARIO)
+                    }
+                } catch (_: java.io.IOException) { }
             }
-            if (sesion.ingresar()) onIngresoExitoso()
+        },
+        onIngresar = { clave ->
+            alcance.launch {
+                try {
+                    prefs.edit {
+                        it[PREF_RECORDAR] = recordar
+                        if (recordar) it[PREF_USUARIO] = ui.nombre.trim() else it.remove(PREF_USUARIO)
+                    }
+                } catch (_: java.io.IOException) { }
+                sesion.cambiarClave(clave)
+                sesion.ingresar(onIngresoExitoso)
+            }
         }
     )
 }
@@ -166,16 +194,22 @@ fun LoginScreen(sesion: SesionViewModel, onIngresoExitoso: () -> Unit) {
 private fun LoginContent(
     ui: IngresoUiState,
     recordar: Boolean,
+    accesoCloud: Boolean = false,
     onNombre: (String) -> Unit,
-    onClave: (String) -> Unit,
+    onEditarClave: () -> Unit,
     onRol: (Rol) -> Unit,
     onRecordar: (Boolean) -> Unit,
-    onIngresar: () -> Unit
+    onIngresar: (String) -> Unit
 ) {
     val focus = LocalFocusManager.current
+    val clave = remember { TextFieldState() }
+    LaunchedEffect(clave, onEditarClave) {
+        snapshotFlow { clave.text }.drop(1).collect { onEditarClave() }
+    }
     val enviar = {
+        val claveAlEnviar = clave.text.toString()
         focus.clearFocus()
-        onIngresar()
+        onIngresar(claveAlEnviar)
     }
 
     BoxWithConstraints(
@@ -216,8 +250,9 @@ private fun LoginContent(
                 TarjetaCredenciales(
                     ui = ui,
                     recordar = recordar,
+                    accesoCloud = accesoCloud,
                     onNombre = onNombre,
-                    onClave = onClave,
+                    clave = clave,
                     onRecordar = onRecordar,
                     onIngresar = enviar,
                     modifier = Modifier
@@ -225,7 +260,8 @@ private fun LoginContent(
                         .fillMaxWidth()
                 )
                 Spacer(Modifier.height(26.dp))
-                TarjetaDemo(
+                TarjetaAcceso(
+                    accesoCloud = accesoCloud,
                     modifier = Modifier
                         .padding(horizontal = 38.dp)
                         .fillMaxWidth()
@@ -240,7 +276,7 @@ private fun MarcaAquaChile(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(AzulMarino),
+            .background(Color(0xFF192838)),
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -370,13 +406,15 @@ private fun TarjetaRol(
 private fun TarjetaCredenciales(
     ui: IngresoUiState,
     recordar: Boolean,
+    accesoCloud: Boolean,
     onNombre: (String) -> Unit,
-    onClave: (String) -> Unit,
+    clave: TextFieldState,
     onRecordar: (Boolean) -> Unit,
     onIngresar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focus = LocalFocusManager.current
+    var mostrarClave by remember { mutableStateOf(false) }
     val forma = RoundedCornerShape(14.dp)
     Column(
         modifier = modifier
@@ -405,28 +443,60 @@ private fun TarjetaCredenciales(
                 .background(BordeDivisor)
         )
         Spacer(Modifier.height(9.dp))
-        CampoCredencial(
-            valor = ui.nombre,
-            onValorChange = onNombre,
-            etiqueta = "RUT DEL OPERADOR",
-            placeholder = "11.111.111-K",
-            icono = painterResource(R.drawable.ic_id_card),
-            keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Next,
-            onImeAction = { focus.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
-        )
+        MarcoCredencial("USUARIO DEL OPERADOR") { campo, estilo ->
+            BasicTextField(
+                value = ui.nombre,
+                onValueChange = onNombre,
+                modifier = campo,
+                enabled = !ui.ocupado,
+                textStyle = estilo,
+                singleLine = true,
+                cursorBrush = SolidColor(AzulAccion),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(
+                    onNext = { focus.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
+                ),
+                decorationBox = { editor ->
+                    ContenidoCredencial(
+                        painterResource(R.drawable.ic_id_card), "Rol", ui.nombre.isEmpty(), estilo, editor
+                    )
+                }
+            )
+        }
         Spacer(Modifier.height(18.dp))
-        CampoCredencial(
-            valor = ui.clave,
-            onValorChange = onClave,
-            etiqueta = "PIN DE ACCESO",
-            placeholder = "*****",
-            icono = painterResource(R.drawable.ic_lock),
-            esPin = true,
-            keyboardType = KeyboardType.NumberPassword,
-            imeAction = ImeAction.Done,
-            onImeAction = onIngresar
-        )
+        MarcoCredencial(if (accesoCloud) "CONTRASEÑA" else "PIN DE ACCESO") { campo, estilo ->
+            BasicSecureTextField(
+                state = clave,
+                modifier = campo,
+                enabled = !ui.ocupado,
+                textStyle = estilo,
+                cursorBrush = SolidColor(AzulAccion),
+                textObfuscationMode = if (mostrarClave) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,
+                keyboardOptions = KeyboardOptions(
+                    autoCorrectEnabled = false,
+                    keyboardType = if (accesoCloud) KeyboardType.Password else KeyboardType.NumberPassword,
+                    imeAction = ImeAction.Done
+                ),
+                onKeyboardAction = { onIngresar() },
+                decorator = { editor ->
+                    ContenidoCredencial(
+                        painterResource(R.drawable.ic_lock), "Contraseña", clave.text.isEmpty(), estilo, editor
+                    ) {
+                        IconButton(
+                            onClick = { mostrarClave = !mostrarClave },
+                            enabled = !ui.ocupado,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (mostrarClave) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (mostrarClave) "Ocultar contraseña" else "Mostrar contraseña",
+                                tint = IconoGris
+                            )
+                        }
+                    }
+                }
+            )
+        }
         ui.error?.let { mensaje ->
             Spacer(Modifier.height(8.dp))
             Text(
@@ -449,6 +519,7 @@ private fun TarjetaCredenciales(
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = onIngresar,
+            enabled = !ui.ocupado,
             modifier = Modifier
                 .width(168.dp)
                 .height(40.dp),
@@ -459,7 +530,7 @@ private fun TarjetaCredenciales(
             )
         ) {
             Text(
-                text = "INGRESAR",
+                text = if (ui.ocupado) "CONECTANDO" else "INGRESAR",
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontSize = 11.sp,
                     letterSpacing = 0.6.sp
@@ -478,17 +549,9 @@ private fun TarjetaCredenciales(
 }
 
 @Composable
-private fun CampoCredencial(
-    valor: String,
-    onValorChange: (String) -> Unit,
+private fun MarcoCredencial(
     etiqueta: String,
-    placeholder: String,
-    icono: Painter,
-    modifier: Modifier = Modifier,
-    esPin: Boolean = false,
-    keyboardType: KeyboardType,
-    imeAction: ImeAction,
-    onImeAction: () -> Unit
+    contenido: @Composable (Modifier, TextStyle) -> Unit
 ) {
     val forma = RoundedCornerShape(8.dp)
     val estiloTexto = MaterialTheme.typography.bodyLarge.copy(
@@ -497,7 +560,7 @@ private fun CampoCredencial(
         fontWeight = FontWeight.Bold,
         color = TextoPrincipal
     )
-    Column(modifier = modifier) {
+    Column {
         Text(
             text = etiqueta,
             modifier = Modifier.padding(start = 2.dp, bottom = 4.dp),
@@ -508,10 +571,8 @@ private fun CampoCredencial(
                 color = TextoEtiqueta
             )
         )
-        BasicTextField(
-            value = valor,
-            onValueChange = onValorChange,
-            modifier = Modifier
+        contenido(
+            Modifier
                 .fillMaxWidth()
                 .height(50.dp)
                 .clip(forma)
@@ -519,48 +580,38 @@ private fun CampoCredencial(
                 .border(1.dp, BordeCampo, forma)
                 .padding(horizontal = 12.dp)
                 .semantics { contentDescription = etiqueta },
-            textStyle = estiloTexto,
-            singleLine = true,
-            cursorBrush = SolidColor(AzulAccion),
-            visualTransformation = if (esPin) {
-                PasswordVisualTransformation()
-            } else {
-                VisualTransformation.None
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = keyboardType,
-                imeAction = imeAction
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { onImeAction() },
-                onDone = { onImeAction() }
-            ),
-            decorationBox = { campoInterno ->
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = icono,
-                        contentDescription = null,
-                        tint = IconoGris,
-                        modifier = Modifier.size(19.dp)
-                    )
-                    Spacer(Modifier.width(24.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (valor.isEmpty()) {
-                            Text(
-                                text = placeholder,
-                                style = estiloTexto.copy(
-                                    letterSpacing = if (esPin) (-0.5).sp else 0.sp
-                                )
-                            )
-                        }
-                        campoInterno()
-                    }
-                }
-            }
+            estiloTexto
         )
+    }
+}
+
+@Composable
+private fun ContenidoCredencial(
+    icono: Painter,
+    placeholder: String,
+    vacio: Boolean,
+    estilo: TextStyle,
+    editor: @Composable () -> Unit,
+    accion: @Composable () -> Unit = {}
+) {
+    Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icono, contentDescription = null, tint = IconoGris, modifier = Modifier.size(19.dp))
+        Spacer(Modifier.width(24.dp))
+        Box(Modifier.weight(1f)) {
+            editor()
+            if (vacio) {
+                Text(
+                    text = placeholder,
+                    style = estilo.copy(
+                        color = TextoSecundario,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 0.sp
+                    )
+                )
+            }
+        }
+        accion()
     }
 }
 
@@ -616,18 +667,19 @@ private fun FilaRecordar(
 }
 
 @Composable
-private fun TarjetaDemo(modifier: Modifier = Modifier) {
+private fun TarjetaAcceso(accesoCloud: Boolean, modifier: Modifier = Modifier) {
     val forma = RoundedCornerShape(14.dp)
+    val claveDePrueba = BuildConfig.LOGIN_HINT_PASSWORD
     Column(
         modifier = modifier
             .shadow(4.dp, forma)
             .clip(forma)
             .background(Color.White)
-            .padding(vertical = 11.dp),
+            .padding(horizontal = 12.dp, vertical = 11.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "ACCESO DEMO",
+            text = if (accesoCloud) "USUARIOS POR PERFIL" else "ACCESO DEMO",
             style = MaterialTheme.typography.labelLarge.copy(
                 fontSize = 14.sp,
                 lineHeight = 15.sp,
@@ -637,7 +689,11 @@ private fun TarjetaDemo(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "SUPERVISOR: SUPERVISOR\nADMINISTRADOR: JEFE\nPIN: 1234",
+            text = when {
+                !accesoCloud -> "SUPERVISOR: SUPERVISOR\nADMINISTRADOR: JEFE\nPIN: 1234"
+                claveDePrueba.isNotEmpty() -> "supervisor = $claveDePrueba\njefe = $claveDePrueba"
+                else -> "Supervisor de Buceo · supervisor\nJefe de Centro / Prevención · jefe"
+            },
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 13.sp,
@@ -647,6 +703,14 @@ private fun TarjetaDemo(modifier: Modifier = Modifier) {
                 color = TextoPrincipal
             )
         )
+        if (accesoCloud && claveDePrueba.isEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Usa la contraseña asignada a tu cuenta.",
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodySmall.copy(color = TextoSecundario)
+            )
+        }
     }
 }
 
@@ -658,7 +722,7 @@ fun LoginScreenPreview() {
             ui = IngresoUiState(rol = Rol.SUPERVISOR),
             recordar = false,
             onNombre = {},
-            onClave = {},
+            onEditarClave = {},
             onRol = {},
             onRecordar = {},
             onIngresar = {}
@@ -674,7 +738,7 @@ private fun LoginAdministradorPreview() {
             ui = IngresoUiState(rol = Rol.JEFE),
             recordar = true,
             onNombre = {},
-            onClave = {},
+            onEditarClave = {},
             onRol = {},
             onRecordar = {},
             onIngresar = {}

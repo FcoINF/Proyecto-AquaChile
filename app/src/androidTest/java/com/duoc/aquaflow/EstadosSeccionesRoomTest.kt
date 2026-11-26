@@ -19,7 +19,7 @@ class EstadosSeccionesRoomTest {
         try {
             var repo = PreChequeoRepository(db.preChequeoDao())
             val apertura = PreChequeo("f1", "Centro", "25/10/2026", "10:00", "Ana", "Luis", true, true, true)
-            val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)))
+            val c = ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("foto"))
             val a = FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE)
             val e = EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL)
             repo.guardar(apertura)

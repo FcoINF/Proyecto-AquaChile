@@ -7,9 +7,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [AperturaEntity::class], version = 6, exportSchema = true)
+@Database(entities = [AperturaEntity::class, EnvioFaena::class, FragmentoFoto::class], version = 10, exportSchema = true)
 abstract class AquaFlowDatabase : RoomDatabase() {
     abstract fun preChequeoDao(): PreChequeoDao
+    abstract fun sincronizacionDao(): SincronizacionDao
 
     companion object {
         // v1 -> v2: agrega las secciones de la faena.
@@ -89,13 +90,82 @@ abstract class AquaFlowDatabase : RoomDatabase() {
             }
         }
 
+        private val columnasAperturaV7 = mapOf(
+            "centroId" to "TEXT NOT NULL DEFAULT ''",
+            "buzoId" to "TEXT NOT NULL DEFAULT ''",
+            "edadBuzo" to "INTEGER NOT NULL DEFAULT 0",
+            "imcBuzo" to "REAL NOT NULL DEFAULT 0",
+            "examenPreocupacionalVigente" to "INTEGER",
+            "vigenciaExamenPreocupacional" to "TEXT NOT NULL DEFAULT ''",
+            "puntajeCalbuco" to "INTEGER",
+            "testEsfuerzoVigente" to "INTEGER",
+            "vigenciaTestEsfuerzo" to "TEXT NOT NULL DEFAULT ''",
+            "buzoEmergenciaDisponible" to "INTEGER",
+            "intentosBloqueadosJson" to "TEXT NOT NULL DEFAULT '[]'"
+        )
+
+        // Los registros previos quedan explícitamente "sin registrar" y deben reconfirmarse.
+        val MIGRACION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                columnasAperturaV7.forEach { (nombre, definicion) ->
+                    db.execSQL("ALTER TABLE aperturas ADD COLUMN `$nombre` $definicion")
+                }
+            }
+        }
+
+        // La v7 del commit 17e252c omitía tareasJson y las columnas de la ficha del buzo.
+        // Room valida el esquema y actualiza la firma al terminar la migración.
+        val MIGRACION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val existentes = db.query("PRAGMA table_info(aperturas)").use { cursor ->
+                    val indice = cursor.getColumnIndexOrThrow("name")
+                    buildSet {
+                        while (cursor.moveToNext()) add(cursor.getString(indice))
+                    }
+                }
+                val columnas = columnasAperturaV7 + ("tareasJson" to "TEXT")
+                columnas.forEach { (nombre, definicion) ->
+                    if (nombre !in existentes) {
+                        db.execSQL("ALTER TABLE aperturas ADD COLUMN `$nombre` $definicion")
+                    }
+                }
+            }
+        }
+
+        val MIGRACION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS envios_faena (
+                        faena TEXT NOT NULL, cuenta TEXT NOT NULL, servidor TEXT NOT NULL, operacion TEXT NOT NULL,
+                        formulario TEXT NOT NULL, estado TEXT NOT NULL, error TEXT, PRIMARY KEY(faena)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS fragmentos_foto (
+                        faena TEXT NOT NULL, ruta TEXT NOT NULL, orden INTEGER NOT NULL, bytes BLOB NOT NULL,
+                        PRIMARY KEY(faena, ruta, orden),
+                        FOREIGN KEY(faena) REFERENCES envios_faena(faena) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRACION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE aperturas ADD COLUMN meteorologiaJson TEXT")
+            }
+        }
+
         @Volatile private var instancia: AquaFlowDatabase? = null
 
         fun obtener(context: Context): AquaFlowDatabase = instancia ?: synchronized(this) {
             instancia ?: Room.databaseBuilder(
                 context.applicationContext, AquaFlowDatabase::class.java, "aquaflow.db"
             )
-                .addMigrations(MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5, MIGRACION_5_6)
+                .addMigrations(
+                    MIGRACION_1_2, MIGRACION_2_3, MIGRACION_3_4, MIGRACION_4_5,
+                    MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10
+                )
                 .build()
                 .also { instancia = it }
         }

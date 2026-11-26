@@ -11,11 +11,24 @@ object ReglasCierre {
         else -> null
     }
 
+    fun errorMediciones(mediciones: MedicionesInmersion?, duracion: Int): String? = when {
+        mediciones == null -> "Completa las mediciones de la inmersión y selecciona su origen."
+        mediciones.tiempoFondoMinutos !in 1..duracion ->
+            "El tiempo de fondo debe ser mayor que cero y no superar la duración de la inmersión."
+        listOf(mediciones.profundidadMaximaMetros, mediciones.descensoMaximo, mediciones.ascensoMaximo)
+            .any { !it.isFinite() || it <= 0 } -> "Ingresa valores positivos para la profundidad y las velocidades."
+        else -> null
+    }
+
     fun puedeIniciar(faena: FaenaGuardada, usuario: Usuario) =
         faena.decision?.decision == Decision.AUTORIZADA && faena.inicio == null && faena.cierre == null && propietario(faena, usuario)
 
     fun puedeCerrar(faena: FaenaGuardada, usuario: Usuario) =
         faena.decision?.decision == Decision.AUTORIZADA && faena.inicio != null && faena.cierre == null && propietario(faena, usuario)
+
+    fun bloqueoCritico(resumen: ResumenFaena): String? =
+        "Cierre bloqueado: el expediente registra una condición crítica."
+            .takeIf { ReglasDecision.evaluar(resumen).resultado == ResultadoFaena.REQUIERE_REVISION }
 
     private fun propietario(faena: FaenaGuardada, usuario: Usuario) =
         usuario.rol == Rol.SUPERVISOR && faena.resumen.apertura.supervisorACargo == usuario.nombre

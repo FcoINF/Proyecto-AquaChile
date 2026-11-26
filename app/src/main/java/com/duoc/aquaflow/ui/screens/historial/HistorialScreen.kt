@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,20 +22,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +53,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -60,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -69,8 +79,8 @@ import com.duoc.aquaflow.domain.CategoriaHistorial
 import com.duoc.aquaflow.domain.HistorialFiltro
 import com.duoc.aquaflow.model.EstadoFaena
 import com.duoc.aquaflow.model.HistorialItem
-import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.ResultadoFaena
+import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.ui.navigation.MainBottomBar
 import com.duoc.aquaflow.ui.navigation.Tab
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
@@ -86,6 +96,16 @@ private val HistorialFondo = Color(0xFFF5F7FC)
 private val HistorialTexto = Color(0xFF172033)
 private val HistorialSecundario = Color(0xFF64748B)
 
+private data class EstiloTarjetaFaena(
+    val etiqueta: String,
+    val color: Color,
+    val suave: Color,
+    val mensajeOperativo: String?,
+    val textoBoton: String,
+    val iconoBoton: ImageVector,
+    val botonPrimario: Boolean
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistorialScreen(
@@ -100,11 +120,23 @@ fun HistorialScreen(
     onReintentar: () -> Unit,
     onDetalle: (String) -> Unit,
     onTab: (Tab) -> Unit,
+    onCierresRecibidos: (() -> Unit)? = null,
     onSalir: () -> Unit
 ) {
     val filtro = state.filtro
     var mostrarCalendario by remember { mutableStateOf(false) }
     var mostrarPerfil by remember { mutableStateOf(false) }
+
+    val fuenteOperaciones = state.todasFaenas.ifEmpty { state.faenas }
+    val operacionesActivas = remember(fuenteOperaciones) {
+        fuenteOperaciones.filter {
+            it.estado == EstadoFaena.AUTORIZADA || it.estado == EstadoFaena.EN_EJECUCION
+        }
+    }
+    val autorizadasPendientes = remember(fuenteOperaciones) {
+        fuenteOperaciones.count { it.estado == EstadoFaena.AUTORIZADA }
+    }
+
     if (mostrarCalendario) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = filtro.fecha.aMillisUtc())
         DatePickerDialog(
@@ -181,10 +213,27 @@ fun HistorialScreen(
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    IndicadorCard("INCIDENTES / DECO", "${state.alertas}", "alertas", "según evaluación AST y salud", Icons.Default.Shield, Modifier.weight(1f), Color(0xFF059669))
-                    IndicadorCard("BUZOS ACTIVOS", "${state.buzosActivos}", "en turno", "inmersiones en ejecución", Icons.Default.Group, Modifier.weight(1f), Color(0xFF42658C))
+                    val colorAlertas = if (state.alertasVelocidad > 0) Color(0xFFDC2626) else Color(0xFF059669)
+                    IndicadorCard("ALERTAS DE VELOCIDAD", "${state.alertasVelocidad}", "alertas", "ascenso y descenso", Icons.Default.Shield, Modifier.weight(1f), colorAlertas)
+                    val pieActivos = when {
+                        autorizadasPendientes > 0 -> "$autorizadasPendientes autorizada${if (autorizadasPendientes == 1) "" else "s"} por iniciar"
+                        else -> "inmersiones en ejecución"
+                    }
+                    val colorActivos = if (autorizadasPendientes > 0) Color(0xFF059669) else Color(0xFF42658C)
+                    IndicadorCard("BUZOS ACTIVOS", "${state.buzosActivos}", "en turno", pieActivos, Icons.Default.Group, Modifier.weight(1f), colorActivos)
                 }
             }
+
+            if (operacionesActivas.isNotEmpty()) {
+                item {
+                    SeccionOperacionesActivas(
+                        operaciones = operacionesActivas,
+                        rol = rol,
+                        onDetalle = onDetalle
+                    )
+                }
+            }
+
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     OutlinedTextField(
@@ -192,7 +241,7 @@ fun HistorialScreen(
                         onValueChange = onTexto,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Buscar por ID faena, buzo, jaula…", fontSize = 12.sp) },
+                        placeholder = { Text("Buscar por buzo o jaula…", fontSize = 12.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF42658C)) },
                         trailingIcon = {
                             IconButton(onClick = { mostrarCalendario = true }) {
@@ -200,7 +249,7 @@ fun HistorialScreen(
                             }
                         },
                         shape = RoundedCornerShape(11.dp),
-                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        colors = OutlinedTextFieldDefaults.colors(
                             unfocusedContainerColor = Color.White,
                             focusedContainerColor = Color.White
                         )
@@ -209,7 +258,7 @@ fun HistorialScreen(
                         Surface(color = Color(0xFFE6F0FF), shape = RoundedCornerShape(7.dp)) {
                             Row(Modifier.padding(start = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("Fecha: ${filtro.fecha}", color = HistorialAzulNoche, style = MaterialTheme.typography.labelSmall)
-                                IconButton(onClick = { onFecha("") }, modifier = Modifier.size(32.dp)) {
+                                IconButton(onClick = { onFecha("") }, modifier = Modifier.size(48.dp)) {
                                     Icon(Icons.Default.Close, contentDescription = "Quitar filtro de fecha", tint = HistorialAzul, modifier = Modifier.size(15.dp))
                                 }
                             }
@@ -259,6 +308,11 @@ fun HistorialScreen(
                 }
             }
 
+            if (onCierresRecibidos != null) item {
+                OutlinedButton(onClick = onCierresRecibidos, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cierres recibidos y alertas")
+                }
+            }
             when {
                 state.cargando -> item {
                     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -283,7 +337,156 @@ fun HistorialScreen(
                     }
                 }
                 else -> items(state.faenas, key = { it.id }) { item ->
-                    FaenaHistorialCard(item, onDetalle = { onDetalle(item.id) })
+                    FaenaHistorialCard(item = item, rol = rol, onDetalle = { onDetalle(item.id) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeccionOperacionesActivas(
+    operaciones: List<HistorialItem>,
+    rol: Rol,
+    onDetalle: (String) -> Unit
+) {
+    val esSupervisor = rol == Rol.SUPERVISOR
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.5.dp, Color(0xFF93C5FD)),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(color = Color(0xFFE6F0FF), shape = CircleShape) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = HistorialAzul,
+                        modifier = Modifier.padding(5.dp).size(15.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (esSupervisor) "OPERACIONES ACTIVAS / POR INICIAR" else "OPERACIONES EN SEGUIMIENTO",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = HistorialAzulNoche,
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        if (esSupervisor) "Faenas autorizadas o en curso listas para gestionar"
+                        else "Inmersiones autorizadas o actualmente en ejecución",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = HistorialSecundario,
+                        fontSize = 10.sp
+                    )
+                }
+                Surface(color = HistorialAzul, shape = CircleShape) {
+                    Text(
+                        operaciones.size.toString(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            operaciones.forEach { item ->
+                val autorizada = item.estado == EstadoFaena.AUTORIZADA
+                val acento = if (autorizada) Color(0xFF059669) else HistorialAzul
+                val fondoSuave = if (autorizada) Color(0xFFE5F8F1) else Color(0xFFE6F0FF)
+                val badge = if (autorizada) "AUTORIZADA" else "EN CURSO"
+                val aviso = if (autorizada) {
+                    "Autorizada por Jefatura · Lista para iniciar inmersión"
+                } else {
+                    "Inmersión en curso · Pendiente de cierre"
+                }
+                val textoBoton = when {
+                    autorizada && esSupervisor -> "INICIAR INMERSIÓN"
+                    !autorizada && esSupervisor -> "FINALIZAR Y CERRAR FAENA"
+                    else -> "VER SEGUIMIENTO ACTIVO"
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFFAFCFF),
+                    border = BorderStroke(1.dp, acento.copy(alpha = 0.45f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    item.centroCultivo.ifBlank { "Centro sin asignar" },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HistorialTexto,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    "Buzo: ${item.buzoAsignado.ifBlank { "Por asignar" }} · ${item.fecha.ifBlank { "S/F" }} ${item.hora}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = HistorialSecundario,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Surface(color = fondoSuave, shape = CircleShape) {
+                                Text(
+                                    badge,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = acento,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 8.sp
+                                )
+                            }
+                        }
+
+                        Surface(color = fondoSuave, shape = RoundedCornerShape(7.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (autorizada) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = acento,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    aviso,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = acento,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { onDetalle(item.id) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = acento, contentColor = Color.White)
+                        ) {
+                            Text(textoBoton, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(15.dp))
+                        }
+                    }
                 }
             }
         }
@@ -294,8 +497,8 @@ private fun String.aMillisUtc(): Long? {
     if (isBlank()) return null
     return runCatching {
         SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).apply {
-        isLenient = false
-        timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+            timeZone = TimeZone.getTimeZone("UTC")
         }.parse(this)?.time
     }.getOrNull()
 }
@@ -305,7 +508,7 @@ private fun Long.aFechaUtc(): String = SimpleDateFormat("dd/MM/yyyy", Locale.ROO
 }.format(Date(this))
 
 @Composable
-private fun IndicadorCard(titulo: String, valor: String, sufijo: String, pie: String, icono: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, color: Color) {
+private fun IndicadorCard(titulo: String, valor: String, sufijo: String, pie: String, icono: ImageVector, modifier: Modifier = Modifier, color: Color) {
     Card(
         modifier = modifier.height(82.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -327,30 +530,51 @@ private fun IndicadorCard(titulo: String, valor: String, sufijo: String, pie: St
 }
 
 @Composable
-private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
-    val (estado, color, suave) = estiloEstado(item)
+private fun FaenaHistorialCard(item: HistorialItem, rol: Rol, onDetalle: () -> Unit) {
+    val estilo = estiloEstado(item, rol)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.55f)),
+        border = BorderStroke(1.2.dp, estilo.color.copy(alpha = 0.6f)),
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Row(Modifier.fillMaxWidth()) {
-            androidx.compose.foundation.layout.Box(Modifier.width(4.dp).heightIn(min = 130.dp).background(color))
+            Box(Modifier.width(4.dp).heightIn(min = 138.dp).background(estilo.color))
             Column(Modifier.weight(1f).padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("Faena #${item.codigo}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = HistorialTexto)
                             Surface(color = Color(0xFFE6F0FF), shape = RoundedCornerShape(4.dp)) {
                                 Text(item.fecha.ifBlank { "S/F" }, Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = Color(0xFF334155), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            }
+                            if (item.hora.isNotBlank()) {
+                                Text(item.hora, color = HistorialSecundario, fontSize = 8.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                         Text("⌖ ${item.centroCultivo.ifBlank { "Centro sin asignar" }}", style = MaterialTheme.typography.bodySmall, color = Color(0xFF334155), fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Surface(color = suave, shape = CircleShape) {
-                        Text(estado.uppercase(), Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = color, fontWeight = FontWeight.Bold, fontSize = 8.sp)
+                    Surface(color = estilo.suave, shape = CircleShape) {
+                        Text(estilo.etiqueta.uppercase(), Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = estilo.color, fontWeight = FontWeight.Bold, fontSize = 8.sp)
+                    }
+                }
+                if (estilo.mensajeOperativo != null) {
+                    Surface(color = estilo.suave, shape = RoundedCornerShape(7.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (item.estado == EstadoFaena.PRECHEQUEO && (item.resultado == ResultadoFaena.OBSERVADO || item.resultado == ResultadoFaena.REQUIERE_REVISION)) Icons.Default.WarningAmber else estilo.iconoBoton,
+                                contentDescription = null,
+                                tint = estilo.color,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                estilo.mensajeOperativo,
+                                color = HistorialTexto,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 9.sp
+                            )
+                        }
                     }
                 }
                 Row(Modifier.fillMaxWidth().padding(1.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -362,30 +586,33 @@ private fun FaenaHistorialCard(item: HistorialItem, onDetalle: () -> Unit) {
                     MetricaFaena("PRESIÓN", item.encuesta?.let { "${it.sistolica}/${it.diastolica}" } ?: "—", Modifier.weight(1f))
                     MetricaFaena("SPO₂", item.encuesta?.let { "${it.saturacion}%" } ?: "—", Modifier.weight(1f))
                 }
-                if (item.estado == EstadoFaena.PRECHEQUEO && (item.resultado == ResultadoFaena.OBSERVADO || item.resultado == ResultadoFaena.REQUIERE_REVISION)) {
-                    Surface(color = Color(0xFFEAF1FF), shape = RoundedCornerShape(7.dp)) {
-                        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.WarningAmber, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-                            Text(
-                                if (item.resultado == ResultadoFaena.OBSERVADO) "Faena con observaciones para revisión." else "Requiere revisión antes de autorizar.",
-                                color = HistorialTexto,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontSize = 9.sp
-                            )
-                        }
+                item.alertasVelocidad.forEach { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 10.sp) }
+
+                if (estilo.botonPrimario) {
+                    Button(
+                        onClick = onDetalle,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
+                        contentPadding = PaddingValues(6.dp),
+                        shape = RoundedCornerShape(7.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = estilo.color, contentColor = Color.White)
+                    ) {
+                        Icon(estilo.iconoBoton, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.size(6.dp))
+                        Text(estilo.textoBoton.uppercase(), fontWeight = FontWeight.Bold, fontSize = 11.sp)
                     }
-                }
-                OutlinedButton(
-                    onClick = onDetalle,
-                    modifier = Modifier.fillMaxWidth().height(34.dp),
-                    contentPadding = PaddingValues(4.dp),
-                    shape = RoundedCornerShape(7.dp),
-                    border = BorderStroke(0.dp, Color.Transparent),
-                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFE5EEFF), contentColor = HistorialAzulNoche)
-                ) {
-                    Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(Modifier.size(5.dp))
-                    Text("VER BITÁCORA", fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                } else {
+                    OutlinedButton(
+                        onClick = onDetalle,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp),
+                        contentPadding = PaddingValues(4.dp),
+                        shape = RoundedCornerShape(7.dp),
+                        border = BorderStroke(0.dp, Color.Transparent),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = estilo.suave, contentColor = if (item.estado == EstadoFaena.CERRADA) HistorialAzulNoche else estilo.color)
+                    ) {
+                        Icon(estilo.iconoBoton, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.size(5.dp))
+                        Text(estilo.textoBoton.uppercase(), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
                 }
             }
         }
@@ -410,13 +637,73 @@ private fun MetricaFaena(label: String, value: String, modifier: Modifier = Modi
     }
 }
 
-private fun estiloEstado(item: HistorialItem): Triple<String, Color, Color> = when {
-    item.estado == EstadoFaena.RECHAZADA -> Triple("Rechazada", Color(0xFFDC2626), Color(0xFFFEF2F2))
-    item.estado == EstadoFaena.AUTORIZADA || item.estado == EstadoFaena.CERRADA -> Triple("Aprobada", Color(0xFF059669), Color(0xFFE5F8F1))
-    item.estado == EstadoFaena.EN_EJECUCION -> Triple("En ejecución", Color(0xFF0755B8), Color(0xFFE6F0FF))
-    item.resultado == ResultadoFaena.REQUIERE_REVISION -> Triple("Requiere revisión", Color(0xFFDC2626), Color(0xFFFEF2F2))
-    item.resultado == ResultadoFaena.OBSERVADO -> Triple("Observada", Color(0xFFF59E0B), Color(0xFFFFF7E6))
-    else -> Triple("En pre-chequeo", Color(0xFF42658C), Color(0xFFEAF1FF))
+private fun estiloEstado(item: HistorialItem, rol: Rol): EstiloTarjetaFaena {
+    val esSupervisor = rol == Rol.SUPERVISOR
+    return when {
+        item.estado == EstadoFaena.RECHAZADA -> EstiloTarjetaFaena(
+            etiqueta = "Rechazada",
+            color = Color(0xFFDC2626),
+            suave = Color(0xFFFEF2F2),
+            mensajeOperativo = "Operación rechazada por Jefatura.",
+            textoBoton = "Revisar rechazo",
+            iconoBoton = Icons.Default.Cancel,
+            botonPrimario = false
+        )
+        item.estado == EstadoFaena.AUTORIZADA -> EstiloTarjetaFaena(
+            etiqueta = "Autorizada",
+            color = Color(0xFF059669),
+            suave = Color(0xFFE5F8F1),
+            mensajeOperativo = "Aprobada por Jefatura · Lista para iniciar inmersión.",
+            textoBoton = if (esSupervisor) "Iniciar inmersión" else "Ver detalle",
+            iconoBoton = Icons.Default.PlayArrow,
+            botonPrimario = esSupervisor
+        )
+        item.estado == EstadoFaena.EN_EJECUCION -> EstiloTarjetaFaena(
+            etiqueta = "En curso",
+            color = Color(0xFF0755B8),
+            suave = Color(0xFFE6F0FF),
+            mensajeOperativo = "Inmersión en ejecución · Pendiente de cierre.",
+            textoBoton = if (esSupervisor) "Finalizar y cerrar faena" else "Ver seguimiento",
+            iconoBoton = Icons.Default.CheckCircle,
+            botonPrimario = esSupervisor
+        )
+        item.estado == EstadoFaena.CERRADA -> EstiloTarjetaFaena(
+            etiqueta = "Finalizada",
+            color = Color(0xFF0F766E),
+            suave = Color(0xFFE5EEFF),
+            mensajeOperativo = null,
+            textoBoton = "Ver bitácora",
+            iconoBoton = Icons.Default.Visibility,
+            botonPrimario = false
+        )
+        item.resultado == ResultadoFaena.REQUIERE_REVISION -> EstiloTarjetaFaena(
+            etiqueta = "Requiere revisión",
+            color = Color(0xFFDC2626),
+            suave = Color(0xFFFEF2F2),
+            mensajeOperativo = "Requiere revisión antes de autorizar.",
+            textoBoton = "Revisar solicitud",
+            iconoBoton = Icons.Default.Schedule,
+            botonPrimario = false
+        )
+        item.resultado == ResultadoFaena.OBSERVADO -> EstiloTarjetaFaena(
+            etiqueta = "Observada",
+            color = Color(0xFFD97706),
+            suave = Color(0xFFFFF7E6),
+            mensajeOperativo = "Faena con observaciones para revisión.",
+            textoBoton = "Revisar observaciones",
+            iconoBoton = Icons.Default.Schedule,
+            botonPrimario = false
+        )
+        else -> EstiloTarjetaFaena(
+            etiqueta = "En revisión",
+            color = Color(0xFF42658C),
+            suave = Color(0xFFEAF1FF),
+            mensajeOperativo = "Pendiente de autorización de Jefatura.",
+            textoBoton = "Ver solicitud",
+            iconoBoton = Icons.Default.Schedule,
+            botonPrimario = false
+        )
+    }
 }
 
 @Preview(showBackground = true, widthDp = 380, heightDp = 850)

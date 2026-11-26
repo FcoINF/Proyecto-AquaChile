@@ -20,7 +20,7 @@ Una aplicación móvil (offline-first) que reemplaza los formularios en papel pa
 
 - **Ingreso basado en roles**: Diferenciación de accesos e interfaces para perfiles de Administrador y Supervisor de Buceo
 - **Digitalización de Formularios Obligatorios**: Pre-chequeo preventivo, AST (Análisis Seguro de Trabajo) y R-DPR-24
-- **Modo Offline Activo**: Guardado local en el dispositivo (SQLite Room DB) previendo la falta de conexión en mar abierto, con sincronización posterior planificada (pendiente de backend)
+- **Guardado local**: Room conserva borradores y los formularios del dispositivo. El modo conectado envía las aperturas confirmadas al backend.
 - **Evidencia Fotográfica**: Uso de la cámara del dispositivo para capturar el estado físico y fallas de los equipos
 - **Encuesta de Salud Física**: Registro de condiciones, presión, oxígeno y temperatura del buzo antes de cada inmersión
 - **Módulo de Toma de Decisión**: Consolidación y resumen de faena para la autorización o rechazo (con motivo registrado) por parte de la jefatura
@@ -57,10 +57,10 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 ### Estado actual: avance funcional local
 
 - **Flujo integrado:** apertura → DPR-24 y fotos → salud inicial → AST → tareas → resumen → autorización de jefatura → inicio por supervisor → salud de salida y cierre desde el historial.
-- **Room v6:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones 1→2→3→4→5→6 sin recuperación destructiva.
+- **Room v7:** apertura, condiciones iniciales, checklist, AST, salud, decisión y cierre. Migraciones de 1 a 7 sin recuperación destructiva.
 - **Estados de sección:** distingue borrador, completa y sin registrar al guardar y recuperar; integra los botones de borrador y el detalle de historial de `develop`. Las secciones antiguas sin estado requieren reconfirmación. Bloquea autorizar y rechazar expedientes incompletos en pantalla y en la transacción de persistencia. Ver [alcance de la primera propuesta](docs/ESTADOS_SECCIONES.md).
 - **Guardado confirmado:** se avanza después de persistir; los errores quedan visibles y permiten reintentar. Recuperar una faena restaura sus secciones.
-- **Identidad local:** el supervisor pertenece a la sesión y no puede cambiarse en el formulario. Las faenas decididas no se pueden editar; los cierres no se sobrescriben.
+- **Identidad por sesión:** en modo conectado Spring Security autentica la cuenta y determina su rol. El supervisor pertenece a la sesión y no se edita en el formulario. Las faenas decididas localmente no se pueden editar y los cierres conservan el registro original.
 - **Fotografías:** captura a archivo interno con `TakePicture` y `FileProvider`; referencias en Room y miniaturas en checklist y detalle. Cancelar o fallar la cámara no agrega evidencias simuladas. Los nombres ficticios guardados por versiones antiguas no contienen imágenes recuperables: la app informa cuando la vista previa no está disponible.
 - **Dos recursos del dispositivo:** cámara y fecha/hora automática, visible en apertura y detalle. La captura se delega a la app de cámara con acceso temporal al URI; AquaFlow no solicita el permiso de cámara para usar directamente el hardware.
 - **Inicio:** solo el supervisor propietario inicia una faena autorizada; se registra responsable y fecha/hora, con estado En ejecución.
@@ -73,7 +73,7 @@ La interfaz fue diseñada para asegurar la legibilidad en exteriores y bajo fuer
 1. Abrir el proyecto con Android Studio y configurar Android SDK 35.
 2. Seleccionar un JDK compatible con Gradle; esta entrega fue verificada con **JDK 17**. `local.properties` debe apuntar al SDK de cada equipo y no se versiona.
 3. Sincronizar Gradle y ejecutar `app` en Android 7.0/API 24 o superior. Las pruebas de esta entrega usan Pixel 7 Pro con Android 13/API 33.
-4. Credenciales **de demostración**: perfil Supervisor, usuario `supervisor`, contraseña `1234`; perfil Administrador, usuario `jefe`, contraseña `1234`.
+4. Para iniciar sesión en la compilación predeterminada, usa las [credenciales de acceso remoto](#acceso-desde-un-teléfono-android).
 
 ```powershell
 .\gradlew.bat assembleDebug
@@ -85,9 +85,76 @@ La última orden requiere dispositivo o emulador conectado y autorizado por ADB.
 
 La evidencia de pruebas y el guion de demostración se mantienen en [Validación del MVP](docs/VALIDACION_MVP.md). Las tareas implementadas y pendientes se registran en [Planificación](docs/PLANIFICACION_MVP.md); el [roadmap](docs/ROADMAP_MVP.md) conserva la correspondencia con las rúbricas.
 
+Las instrucciones para firmar, instalar y reunir las evidencias están en [Entrega EA4](docs/ENTREGA_EA4.md).
+
+### Acceso desde un teléfono Android
+
+Desde el teléfono, descarga e instala la [APK de AquaFlow Remoto](https://github.com/FcoINF/Proyecto-AquaChile/releases/download/apk-remota-1.0.0-rc.3/AquaFlow-Remoto.apk) y abre **AquaFlow Remoto**. Se instala junto a la app anterior, conserva los datos de esa instalación y usa su propio almacenamiento local. La APK de `app.zip` corresponde a una versión anterior sin acceso a Cloudflare.
+
+- **Supervisor de Buceo** · usuario `supervisor` · contraseña `aquaflow123`
+- **Jefe de Centro / Prevención** · usuario `jefe` · contraseña `aquaflow123`
+
+Las faenas, los borradores y las evidencias de este modo se guardan en Room en el teléfono. El flujo que comparte expedientes entre dispositivos usa la API Spring Boot descrita abajo.
+
+En **Inicio**, usa **Ver pronóstico de mi ubicación** para consultar Open-Meteo con el permiso de ubicación. En el checklist, **Registrar referencia** guarda una foto patrón por equipo en ese teléfono. Las capturas siguientes se comparan automáticamente con esa referencia. La similitud visual orienta la revisión fotográfica manual.
+
+El teléfono necesita internet para autenticar la cuenta. Si prefieres compilar la misma variante desde Windows:
+
+```powershell
+.\gradlew.bat :app:assembleEquipo
+```
+
+El resultado queda en `app/build/outputs/apk/equipo/app-equipo.apk`. Las compilaciones debug y release también usan Cloudflare por defecto. La configuración del Worker y la migración de D1 están en `cloudflare/`.
+
+### Probar la apertura conectada a Spring Boot
+
+Desde la raíz, inicia el servidor con el wrapper Gradle del proyecto y un JDK 17 o 21. La compilación del backend genera clases compatibles con Java 17 en ambos casos. Usa PIN de demostración en ambos perfiles. Para reutilizar el acceso demo de Android, escribe `1234` en las dos solicitudes.
+
+```powershell
+$env:AQUAFLOW_SUPERVISOR_PIN = Read-Host 'PIN de demostración de supervisor'
+$env:AQUAFLOW_JEFE_PIN = Read-Host 'PIN de demostración de jefatura'
+.\gradlew.bat -p backend bootRun
+```
+
+El backend escucha en `127.0.0.1:8080` y H2 guarda las aperturas en `backend/data/`. Mantén esa consola abierta. En otra consola, instala la APK debug en el emulador con la URL de Spring Boot y abre AquaFlow.
+
+```powershell
+.\gradlew.bat :app:installDebug "-PaquaflowApiUrl=http://10.0.2.2:8080/"
+adb shell am start -n com.duoc.aquaflow/.MainActivity
+```
+
+1. Ingresa como `supervisor` con conexión. Completa la apertura y pulsa **Continuar**. Android conserva la apertura y los borradores en Room, incluso si se pierde la red después de iniciar sesión.
+2. Completa checklist, fotos, salud, AST y tareas. En el resumen pulsa **Guardar para sincronizar**. El panel muestra **Pendiente de sincronizar**, **Sincronizado** o **Error de sincronización**. WorkManager publica el expediente al recuperar la conexión y reintenta los fallos transitorios. Si el servidor rechaza los datos, revisa el mensaje antes de volver a enviar.
+3. Entra como `jefe` y pulsa **Aperturas recibidas → Ver expediente**. Revisa las evidencias y el semáforo del servidor y registra la decisión. Una vez autorizada la faena, el supervisor puede iniciarla y cerrarla en **Mis expedientes en el servidor**.
+4. Jefatura puede volver al detalle desde **Cierres recibidos** para consultar la bitácora y revisar las alertas de ascenso y descenso.
+5. En [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html), pulsa **Authorize** e ingresa las credenciales del perfil correspondiente. Consulta `GET /api/faenas/{id}/expediente` con el ID de la faena.
+
+Pruebas de la API y de Android:
+
+```powershell
+.\gradlew.bat -p backend test
+.\gradlew.bat :app:testDebugUnitTest
+```
+
+Genera los informes JaCoCo de ViewModel y Repository y comprueba el umbral superior al 90 % de líneas en cada grupo:
+
+```powershell
+.\gradlew.bat :app:verificarCoberturaDebug
+```
+
+Los informes HTML y XML se generan en `app/build/reports/jacoco/`. Para ejecutar la prueba Compose del cierre bloqueado, inicia un emulador o conecta un dispositivo que aparezca en `adb devices`:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.duoc.aquaflow.FlujoOperativoUiTest#expedienteCriticoMuestraAlertaYDeshabilitaCerrarFaena'
+```
+
+En un teléfono conectado por USB puedes ejecutar `adb reverse tcp:8080 tcp:8080` y compilar con `-PaquaflowApiUrl=http://127.0.0.1:8080/`. Para ejecutar la demo local sin servidor, instala con `-PaquaflowApiUrl=` y usa el PIN `1234`. HTTP está habilitado en debug para las direcciones locales de la prueba. Usa HTTPS al configurar un servidor para una build release.
+
 ### Límites del alcance actual
 
-La aplicación funciona localmente y admite el flujo sin conexión. **No hay backend definido, autenticación remota ni sincronización entre dispositivos.** Jefatura revisa las faenas cambiando de cuenta en el mismo dispositivo. Las cuentas, catálogos y reglas de salud son de demostración académica; requieren validación del cliente antes de un uso operativo.
+Room conserva el expediente, el cierre y la bitácora de bloqueos. En el checklist, **Elegir referencia** importa una imagen local y **Comparar fotos** permite registrar el resultado de la revisión visual. La aplicación guarda la fecha, el responsable y el equipo de cada captura.
+
+En modo conectado, el servidor valida la aprobación, el inicio y el cierre. Las revisiones de expedientes ya publicados se abren con conexión para bloquear la aprobación en el servidor antes de editar. Una publicación pendiente puede reanudarse con la misma sesión después de reiniciar el proceso. Android cifra la autorización del trabajador con Keystore y la elimina al cerrar sesión. DataStore guarda solo las preferencias de ingreso y el nombre de usuario que se decide recordar. Las cuentas, catálogos y reglas de salud son de demostración académica.
 
 Los archivos capturados se conservan en almacenamiento privado. Quitar una referencia del checklist no elimina inmediatamente el archivo, para evitar borrar una evidencia ya guardada antes de confirmar la edición. La limpieza de archivos huérfanos queda pendiente.
 

@@ -17,7 +17,7 @@ object ReglasPanel {
         EstadoFaena.CERRADA -> GrupoFaena.CERRADAS
         EstadoFaena.RECHAZADA -> GrupoFaena.RECHAZADAS
         EstadoFaena.AUTORIZADA, EstadoFaena.EN_EJECUCION -> GrupoFaena.EN_PROCESO
-        EstadoFaena.PRECHEQUEO -> if (ReglasDecision.faltantes(faena.resumen).isEmpty())
+        EstadoFaena.PRECHEQUEO -> if (faena.intentosBloqueados.isNotEmpty() || ReglasDecision.faltantes(faena.resumen).isEmpty())
             GrupoFaena.ABIERTAS else null
     }
 

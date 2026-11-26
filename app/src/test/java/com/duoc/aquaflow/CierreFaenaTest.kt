@@ -11,12 +11,13 @@ import org.junit.Test
 
 class CierreFaenaTest {
     private val supervisor = Usuario("supervisor", "1234", Rol.SUPERVISOR)
-    private val cierre = RegistroCierre(30, "Sin novedades", true, "suplantado", 1, saludSalida())
+    private val mediciones = MedicionesInmersion(25, 16.0, 24.5, 9.0, OrigenMedicion.CENSUS)
+    private val cierre = RegistroCierre(30, "Sin novedades", true, "suplantado", 1, saludSalida(), mediciones)
 
     @Test fun cierrePersistidoDefineEstadoYNoSeSobrescribe() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         repo.guardar(PreChequeo("f1", "Centro", "24/10/2026", "10:00", "Ana", supervisor.nombre, true, true, true))
-        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
+        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4")))
         repo.guardarEncuesta("f1", EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
         repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
         repo.guardarTareas("f1", tareasCompletas())
@@ -31,6 +32,8 @@ class CierreFaenaTest {
         assertEquals("supervisor", faena.cierre!!.cerradoPor)
         assertTrue(faena.cierre.cerradoEn > 1)
         assertEquals(30, faena.cierre.duracionMinutos)
+        assertEquals(mediciones, faena.cierre.mediciones)
+        assertEquals(1, faena.aHistorialItem().alertasVelocidad.size)
         assertTrue(runCatching { repo.cerrar("f1", cierre.copy(duracionMinutos = 50), supervisor) }.isFailure)
         assertTrue(runCatching { repo.guardar(faena.resumen.apertura) }.isFailure)
         assertEquals(30, repo.recuperarFaena("supervisor")!!.cierre!!.duracionMinutos)
@@ -39,7 +42,7 @@ class CierreFaenaTest {
     @Test fun faenaRechazadaNoSePuedeCerrarNiPorJefatura() = runTest {
         val repo = PreChequeoRepository(DaoMemoria())
         repo.guardar(PreChequeo("f1", "Centro", "24/10/2026", "10:00", "Ana", supervisor.nombre, true, true, true))
-        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))))
+        repo.guardarChecklist("f1", ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4")))
         repo.guardarEncuesta("f1", EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL))
         repo.guardarAst("f1", FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("Tarea", "Peligro", "Control")), ResultadoAst.CUMPLE))
         repo.guardarTareas("f1", tareasCompletas())
@@ -61,7 +64,17 @@ class CierreFaenaTest {
         vm.revision(true)
         assertNull(vm.validar())
         vm.sistolica("125"); vm.diastolica("82"); vm.saturacion("97")
+        assertNull(vm.validar())
+        vm.fondo("25")
+        vm.profundidad("16,5")
+        vm.descenso("24")
+        vm.ascenso("9")
+        vm.origen(OrigenMedicion.CENSUS)
         assertNotNull(vm.validar())
+        assertEquals(16.5, vm.validar()!!.mediciones!!.profundidadMaximaMetros, 0.0)
+        assertTrue(vm.validar()!!.mediciones!!.alertas.isEmpty())
+        vm.ascenso("9,1")
+        assertTrue(vm.validar()!!.mediciones!!.alertas.single().startsWith("Ascenso"))
         assertEquals(vm.validar(), CierreFaenaViewModel(saved).validar())
     }
 }

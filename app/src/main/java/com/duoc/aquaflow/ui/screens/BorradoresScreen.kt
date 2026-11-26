@@ -23,6 +23,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.ui.components.AquaSectionCard
 import com.duoc.aquaflow.ui.components.EmptyState
@@ -38,7 +39,9 @@ fun BorradoresScreen(
     onEditarBorrador: (String) -> Unit,
     onVolver: () -> Unit
 ) {
-    val borradores = faenas.filter { it.decision == null }
+    val borradores = faenas.filter {
+        it.decision == null && ReglasDecision.faltantes(it.resumen).isNotEmpty()
+    }
 
     Scaffold(
         topBar = {

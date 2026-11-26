@@ -10,6 +10,7 @@ import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.FaenaGuardada
 import com.duoc.aquaflow.model.FormularioAst
+import com.duoc.aquaflow.model.IntentoBloqueado
 import com.duoc.aquaflow.model.PreChequeo
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResumenFaena
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.map
 
 interface BorradoresApertura {
     suspend fun guardar(apertura: PreChequeo)
+    suspend fun registrarBloqueo(apertura: PreChequeo, intento: IntentoBloqueado) = Unit
     suspend fun recuperar(supervisor: String): PreChequeo?
     suspend fun recuperarFaena(supervisor: String): FaenaGuardada? =
         recuperar(supervisor)?.let { FaenaGuardada(ResumenFaena(it, null, null, null)) }
@@ -33,6 +35,7 @@ interface RegistroFaena {
     suspend fun guardarAst(id: String, ast: FormularioAst)
     suspend fun guardarEncuesta(id: String, encuesta: EncuestaSalud)
     suspend fun guardarDecision(id: String, decision: RegistroDecision)
+    suspend fun auditarAutorizacion(id: String, motivo: String, usuario: Usuario) = Unit
     suspend fun decidir(id: String, decision: RegistroDecision, usuario: Usuario) {
         require(usuario.rol == Rol.JEFE) { "Solo la jefatura puede decidir." }
         guardarDecision(id, decision.copy(decididoPor = usuario.nombre))
@@ -74,6 +77,11 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
     override suspend fun recuperar(supervisor: String): PreChequeo? =
         dao.ultimaApertura(supervisor)?.aModelo()
 
+    override suspend fun registrarBloqueo(apertura: PreChequeo, intento: IntentoBloqueado) {
+        require(apertura.id.isNotBlank() && apertura.supervisorACargo == intento.responsable)
+        dao.registrarBloqueo(AperturaEntity.desde(apertura, intento.fecha), intento)
+    }
+
     override suspend fun recuperarFaena(supervisor: String): FaenaGuardada? =
         dao.ultimaApertura(supervisor)?.aFaena()
 
@@ -102,7 +110,15 @@ class PreChequeoRepository(private val dao: PreChequeoDao) :
     }
 
     override suspend fun guardarDecision(id: String, decision: RegistroDecision) {
-        dao.guardarDecisionValidada(id, decision)
+        val error = dao.guardarDecisionValidada(id, decision)
+        require(error == null) { error.orEmpty() }
+    }
+
+    override suspend fun auditarAutorizacion(id: String, motivo: String, usuario: Usuario) {
+        require(usuario.rol == Rol.JEFE) { "Solo la jefatura puede decidir." }
+        dao.guardarDecisionValidada(id, RegistroDecision(
+            com.duoc.aquaflow.model.Decision.AUTORIZADA, motivo.trim(), usuario.nombre
+        ), soloAuditar = true)
     }
 
     override suspend fun iniciar(id: String, usuario: Usuario) = dao.iniciarValidada(id, usuario)

@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.duoc.aquaflow.data.local.AquaFlowDatabase
 import com.duoc.aquaflow.data.repository.PreChequeoRepository
 import com.duoc.aquaflow.model.PreChequeo
+import com.duoc.aquaflow.model.CondicionesMaritimas
 import com.duoc.aquaflow.model.Rol
 import com.duoc.aquaflow.model.Usuario
 import com.duoc.aquaflow.data.local.AperturaEntity
@@ -19,7 +20,8 @@ class AperturaRoomTest {
         val contexto = InstrumentationRegistry.getInstrumentation().targetContext
         val db = Room.inMemoryDatabaseBuilder(contexto, AquaFlowDatabase::class.java).build()
         try {
-            val primera = PreChequeo("1", "Centro norte", "22/10/2026", "09:00", "Ana", "Luis")
+            val clima = CondicionesMaritimas(-42.0, -73.0, 1700000000000L, 1699999999000L, 0.8, 2.0, null, null)
+            val primera = PreChequeo("1", "Centro norte", "22/10/2026", "09:00", "Ana", "Luis", meteorologia = clima)
             val segunda = primera.copy(id = "2", supervisorACargo = "Pedro")
             val dao = db.preChequeoDao()
             dao.guardar(AperturaEntity.desde(primera, 100L))
@@ -30,6 +32,7 @@ class AperturaRoomTest {
             assertEquals(listOf(segunda, primera), repo.observar(admin).first())
             assertEquals(listOf(primera), repo.observar(supervisor).first())
             assertEquals(segunda, repo.observarDetalle("2", admin).first())
+            assertEquals(clima, repo.observarDetalle("1", admin).first()?.meteorologia)
             assertNull(repo.observarDetalle("2", supervisor).first())
             assertNull(repo.observarDetalle("inexistente", admin).first())
             dao.guardar(AperturaEntity.desde(primera.copy(centroCultivo = "Centro actualizado"), 300L))

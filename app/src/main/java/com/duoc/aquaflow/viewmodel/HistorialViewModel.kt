@@ -17,14 +17,15 @@ data class HistorialUiState(
     val error: String? = null,
     val total: Int = 0,
     val tiempoFondoMinutos: Int = 0,
-    val alertas: Int = 0,
+    val alertasVelocidad: Int = 0,
     val buzosActivos: Int = 0,
     val aprobadas: Int = 0,
     val observadas: Int = 0,
     val rechazadas: Int = 0,
     val enCurso: Int = 0,
     val filtro: HistorialFiltro = HistorialFiltro(),
-    val faenas: List<HistorialItem> = emptyList()
+    val faenas: List<HistorialItem> = emptyList(),
+    val todasFaenas: List<HistorialItem> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -39,14 +40,15 @@ class HistorialViewModel(consulta: ConsultaAperturas, usuario: Usuario) : ViewMo
             HistorialUiState(
                 cargando = false,
                 total = items.size,
-                tiempoFondoMinutos = lista.sumOf { it.cierre?.duracionMinutos ?: 0 },
-                alertas = items.count { it.resultado == com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO || it.resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION },
+                tiempoFondoMinutos = lista.sumOf { it.cierre?.mediciones?.tiempoFondoMinutos ?: 0 },
+                alertasVelocidad = items.sumOf { it.alertasVelocidad.size },
                 buzosActivos = items.filter { it.estado == EstadoFaena.EN_EJECUCION }.map { it.buzoAsignado }.filter(String::isNotBlank).distinct().size,
                 aprobadas = items.count { it.estado == EstadoFaena.AUTORIZADA || it.estado == EstadoFaena.CERRADA },
                 observadas = items.count { it.estado == EstadoFaena.PRECHEQUEO && it.resultado == com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO },
                 rechazadas = items.count { it.estado == EstadoFaena.RECHAZADA },
-                enCurso = items.count { it.estado == EstadoFaena.EN_EJECUCION },
-                faenas = items
+                enCurso = items.count { it.estado == EstadoFaena.AUTORIZADA || it.estado == EstadoFaena.EN_EJECUCION },
+                faenas = items,
+                todasFaenas = items
             )
         }.onStart { emit(HistorialUiState()) }
             .catch { emit(HistorialUiState(cargando = false, error = "No se pudo cargar el historial.")) }

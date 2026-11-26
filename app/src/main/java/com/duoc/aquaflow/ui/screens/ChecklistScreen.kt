@@ -1,7 +1,9 @@
 package com.duoc.aquaflow.ui.screens
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,19 +15,32 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.duoc.aquaflow.data.local.EvidenciasFotos
 import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.EstadoEquipo
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.MetadatosFoto
+import com.duoc.aquaflow.ui.components.EvidenciasGaleria
+import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.ItemChecklist
 import com.duoc.aquaflow.ui.components.SeccionFotos
+import com.duoc.aquaflow.ui.components.VisorEvidencia
 import com.duoc.aquaflow.ui.theme.AquaFlowTheme
+import com.duoc.aquaflow.viewmodel.ChecklistViewModel
+import com.duoc.aquaflow.domain.ReglasSecciones
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ChecklistScreen(
@@ -36,36 +51,84 @@ fun ChecklistScreen(
     onGuardar: (ChecklistFaena) -> Unit,
     onGuardarBorrador: (ChecklistFaena) -> Unit,
     onVolver: () -> Unit,
-    centroCultivo: String = "Centro sin asignar - Jaula 24"
+    centroCultivo: String = "Centro sin asignar - Jaula 24",
+    supervisor: String = "",
+    onBloqueo: ((String) -> Unit)? = null,
+    mensaje: String? = null,
+    vm: ChecklistViewModel = viewModel(key = "checklist-$faenaId")
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val vm: com.duoc.aquaflow.viewmodel.ChecklistViewModel = androidx.lifecycle.viewmodel.compose.viewModel(key = "checklist-$faenaId")
-    LaunchedEffect(faenaId) { vm.cargar(faenaId, checklistInicial) }
+    val context = LocalContext.current
+    var referencias by remember(context) { mutableStateOf(EvidenciasFotos.referencias(context)) }
+    LaunchedEffect(faenaId, vm) {
+        vm.cargar(faenaId, checklistInicial)
+        vm.aplicarReferencias(referencias)
+    }
     val ui by vm.ui.collectAsState()
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { resultado ->
-        val uri = vm.ui.value.pendiente?.let(android.net.Uri::parse)
-        val guardada = resultado && uri != null && com.duoc.aquaflow.data.local.EvidenciasFotos.existe(context, uri)
-        if (!guardada && uri != null) com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, uri)
-        vm.terminarFoto(guardada)
+        val uri = vm.ui.value.pendiente?.let(Uri::parse)
+        val guardada = resultado && uri != null && EvidenciasFotos.existe(context, uri)
+        if (!guardada && uri != null) EvidenciasFotos.descartar(context, uri)
+        val patron = vm.ui.value.pendienteEquipoId?.let(referencias::get)
+        vm.terminarFoto(guardada, supervisor, patron)
     }
+    val scope = rememberCoroutineScope()
+    var equipoReferencia by rememberSaveable(faenaId) { mutableStateOf<String?>(null) }
+    var referenciaAmpliada by rememberSaveable(faenaId) { mutableStateOf<String?>(null) }
+    var importando by remember { mutableStateOf(false) }
+    val importarReferencia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { origen ->
+        val equipo = equipoReferencia
+        equipoReferencia = null
+        if (origen != null && equipo != null) {
+            importando = true
+            scope.launch {
+                try {
+                    val copia = withContext(Dispatchers.IO) { EvidenciasFotos.registrarReferencia(context, equipo, origen) }
+                    referencias = referencias + (equipo to copia)
+                    vm.ui.value.fotosPorEquipo[equipo]?.let { vm.referencia(it, copia) }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    vm.errorReferencia()
+                } finally {
+                    importando = false
+                }
+            }
+        }
+    }
+    val elegirEquipo: (String) -> Unit = { equipo ->
+        equipoReferencia = equipo
+        importarReferencia.launch("image/*")
+    }
+    referenciaAmpliada?.let { VisorEvidencia("Referencia del equipo", it) { referenciaAmpliada = null } }
 
-    com.duoc.aquaflow.ui.components.Guardando(ocupado)
+    Guardando(ocupado)
 
     ChecklistScreenContent(
-        ocupado = ocupado,
+        ocupado = ocupado || importando,
         error = errorExterno ?: ui.error,
         items = ui.items,
         fotos = ui.fotos,
+        fotosPorEquipo = ui.fotosPorEquipo,
+        metadatos = ui.metadatosPorFoto,
+        onElegirReferencia = { foto ->
+            ui.fotosPorEquipo.entries.firstOrNull { it.value == foto }?.key?.let(elegirEquipo)
+        },
+        referenciasPorEquipo = referencias,
+        onElegirReferenciaEquipo = elegirEquipo,
+        onVerReferencia = { referenciaAmpliada = it },
+        onComparar = vm::comparar,
+        onBloqueo = onBloqueo,
+        mensaje = mensaje,
         onEstadoCambiado = vm::cambiarEstado,
-        onTomarFotoClick = {
+        onTomarFotoClick = { itemId ->
             if (ui.pendiente == null) {
                 try {
-                    val uri = com.duoc.aquaflow.data.local.EvidenciasFotos.crear(context)
-                    vm.prepararFoto(uri.toString())
+                    val uri = EvidenciasFotos.crear(context)
+                    vm.prepararFoto(itemId, uri.toString())
                     cameraLauncher.launch(uri)
                 } catch (_: Exception) {
-                    vm.ui.value.pendiente?.let { com.duoc.aquaflow.data.local.EvidenciasFotos.descartar(context, android.net.Uri.parse(it)) }
+                    vm.ui.value.pendiente?.let { EvidenciasFotos.descartar(context, Uri.parse(it)) }
                     vm.errorCamara()
                 }
             }
@@ -89,14 +152,26 @@ fun ChecklistScreenContent(
     error: String?,
     items: List<ItemEquipamiento>,
     fotos: List<String>,
+    fotosPorEquipo: Map<String, String>,
     onEstadoCambiado: (String, EstadoEquipo) -> Unit,
-    onTomarFotoClick: () -> Unit,
+    onTomarFotoClick: (String) -> Unit,
     onQuitarFoto: (String) -> Unit,
     onGuardarClick: () -> Unit,
     onGuardarBorradorClick: () -> Unit,
     onVolver: () -> Unit,
-    centroCultivo: String = "Centro sin asignar - Jaula 24"
+    centroCultivo: String = "Centro sin asignar - Jaula 24",
+    metadatos: Map<String, MetadatosFoto> = emptyMap(),
+    onElegirReferencia: ((String) -> Unit)? = null,
+    onComparar: ((String, Boolean) -> Unit)? = null,
+    referenciasPorEquipo: Map<String, String> = emptyMap(),
+    onElegirReferenciaEquipo: ((String) -> Unit)? = null,
+    onVerReferencia: ((String) -> Unit)? = null,
+    onBloqueo: ((String) -> Unit)? = null,
+    mensaje: String? = null
 ) {
+    val checklistCompletable = ReglasSecciones.checklistHabilitaContinuidad(
+        ChecklistFaena("validacion-ui", items, fotos, fotosPorEquipo = fotosPorEquipo)
+    )
     Scaffold(
         topBar = {
             TopAppBar(
@@ -131,7 +206,11 @@ fun ChecklistScreenContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
                 item { ProgresoChecklist() }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -145,21 +224,50 @@ fun ChecklistScreenContent(
                     }
                 }
                 items(items) { item ->
-                    ItemChecklist(
-                        item = item,
-                        onEstadoCambiado = { nuevoEstado ->
-                            onEstadoCambiado(item.id, nuevoEstado)
+                    val capturada = !fotosPorEquipo[item.id].isNullOrBlank()
+                    Column {
+                        ItemChecklist(
+                            item = item,
+                            fotoCapturada = capturada,
+                            onEstadoCambiado = { nuevoEstado -> onEstadoCambiado(item.id, nuevoEstado) },
+                            onTomarFoto = { onTomarFotoClick(item.id) }
+                        )
+                        if (!capturada && onElegirReferenciaEquipo != null) {
+                            val patron = referenciasPorEquipo[item.id]
+                            Row {
+                                TextButton(onClick = { onElegirReferenciaEquipo(item.id) }, enabled = !ocupado) {
+                                    Text(if (patron == null) "Registrar referencia" else "Cambiar referencia")
+                                }
+                                if (patron != null && onVerReferencia != null) {
+                                    TextButton(onClick = { onVerReferencia(patron) }) { Text("Ampliar referencia") }
+                                }
+                            }
                         }
-                    )
+                    }
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    SeccionFotos(
-                        cantidadFotos = fotos.size,
-                        onTomarFotoClick = onTomarFotoClick
-                    )
-                    com.duoc.aquaflow.ui.components.EvidenciasGaleria(fotos, onQuitarFoto)
+                    val nombresPorFoto = items.mapNotNull { item ->
+                        fotosPorEquipo[item.id]?.let { referencia -> referencia to item.titulo }
+                    }.toMap()
+                    val categoriasPorFoto = items.mapNotNull { item ->
+                        fotosPorEquipo[item.id]?.let { referencia -> referencia to item.categoria }
+                    }.toMap()
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SeccionFotos(
+                            cantidadFotos = fotosPorEquipo.size,
+                            totalEquipos = items.size
+                        )
+                        EvidenciasGaleria(
+                            fotos = fotos,
+                            nombresPorFoto = nombresPorFoto,
+                            categoriasPorFoto = categoriasPorFoto,
+                            onQuitar = onQuitarFoto.takeUnless { ocupado },
+                            metadatos = metadatos,
+                            onElegirReferencia = onElegirReferencia.takeUnless { ocupado },
+                            onComparar = onComparar.takeUnless { ocupado }
+                        )
+                    }
                 }
             }
 
@@ -170,19 +278,32 @@ fun ChecklistScreenContent(
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
+            mensaje?.let { Text(it) }
+            val bloqueados = items.filter { it.estado == EstadoEquipo.NO_CUMPLE }
+            if (bloqueados.isNotEmpty()) {
+                val motivo = "Equipo crítico sin conformidad: ${bloqueados.joinToString { it.titulo }}."
+                Text(
+                    "Faena bloqueada. $motivo",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (onBloqueo != null) TextButton(onClick = { onBloqueo(motivo) }, enabled = !ocupado) {
+                    Text("Registrar intento bloqueado")
+                }
+            }
 
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Button(
-                    enabled = !ocupado,
+                    enabled = !ocupado && checklistCompletable,
                     onClick = onGuardarClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 42.dp),
+                        .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0755B8))
                 ) {
                     Text(
-                        text = "Continuar al Checklist",
+                        text = "Continuar a Salud",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -194,9 +315,9 @@ fun ChecklistScreenContent(
                     onClick = onGuardarBorradorClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 38.dp),
+                        .heightIn(min = 48.dp),
                     shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0755B8)),
+                    border = BorderStroke(1.dp, Color(0xFF0755B8)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0755B8))
                 ) {
                     Text("Guardar Borrador")
@@ -220,9 +341,9 @@ private fun ProgresoChecklist() {
                     Text("2", modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp), color = Color.White, style = MaterialTheme.typography.labelSmall)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                Text("Paso 2 de 4", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Paso 2 de 5", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            LinearProgressIndicator(progress = 0.5f, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = Color(0xFFE5EAF0))
+            LinearProgressIndicator(progress = { 0.4f }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF0755B8), trackColor = Color(0xFFE5EAF0))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("2. INSPECCIÓN DE EQUIPOS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF334155))
                 Text("Sig: Encuesta Salud", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A9BB3))
@@ -241,34 +362,35 @@ fun ChecklistScreenPreview() {
             items = listOf(
                 ItemEquipamiento(
                     id = "1",
-                    titulo = "Compresor, Purgas y Filtros Carbón",
-                    descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y banco presurizado.",
+                    titulo = "Maleta de Suministro de Aire",
+                    descripcion = "Verificación de manifold, válvulas de alivio, manómetro análogo y presurización de línea principal.",
                     categoria = "EQUIPO 01 • SUMINISTRO PRIMARIO",
-                    badge = "220 BAR"
+                    badge = "FOTO OBLIGATORIA"
                 ),
                 ItemEquipamiento(
                     id = "2",
-                    titulo = "Traje Seco, Arnés y Casco KMB",
-                    descripcion = "Prueba de estanqueidad de cremallera estanca, diafragma buconasal y fonía bidireccional limpia.",
-                    categoria = "EQUIPO 02 • PERSONAL",
-                    badge = "BUZO #1"
+                    titulo = "Filtros del Compresor",
+                    descripcion = "Test de CO/CO2 con tubo colorimétrico OK. Purgas automáticas drenadas y carbón activo.",
+                    categoria = "EQUIPO 02 • COMPRESOR",
+                    badge = "FOTO OBLIGATORIA"
                 ),
                 ItemEquipamiento(
                     id = "3",
-                    titulo = "Botellón de Rescate (Bail-out)",
-                    descripcion = "Presión 210 BAR verificada en manómetro análogo sumergible. Conmutación manual activa.",
-                    categoria = "EQUIPO 03 • RESPALDO RESCATE",
-                    badge = "210 BAR"
+                    titulo = "Aletas y Equipamiento Personal",
+                    descripcion = "Prueba de tirantes de aletas, ensamble de hebillas y estanqueidad de traje seco/casco KMB.",
+                    categoria = "EQUIPO 03 • INDIVIDUAL BUZO",
+                    badge = "FOTO OBLIGATORIA"
                 ),
                 ItemEquipamiento(
                     id = "4",
-                    titulo = "Manguera Umbilical y Conexiones",
-                    descripcion = "Roco superficial en manga protectora externa 15m. Conexiones neumáticas y audio 100% funcionales.",
-                    categoria = "EQUIPO 04 • ALIMENTACIÓN",
-                    badge = "OBSERVACIÓN"
+                    titulo = "Dispositivo Census",
+                    descripcion = "Consola de monitoreo de profundidad, velocidad de ascenso/descenso y telemetría conectada.",
+                    categoria = "EQUIPO 04 • MONITOREO Y CONTROL",
+                    badge = "FOTO OBLIGATORIA"
                 )
             ),
             fotos = emptyList(),
+            fotosPorEquipo = emptyMap(),
             onEstadoCambiado = { _, _ -> },
             onTomarFotoClick = {},
             onQuitarFoto = {},

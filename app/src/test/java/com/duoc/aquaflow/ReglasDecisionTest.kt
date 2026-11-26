@@ -5,6 +5,7 @@ import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.Decision
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.EstadoEquipo
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.ItemEquipamiento
 import com.duoc.aquaflow.model.NivelSalud
@@ -24,7 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private fun cl(vararg estados: EstadoEquipo) =
-    ChecklistFaena("f1", estados.mapIndexed { i, e -> ItemEquipamiento("$i", "Equipo $i", "desc", e) })
+    ChecklistFaena("f1", estados.mapIndexed { i, e -> ItemEquipamiento("$i", "Equipo $i", "desc", e) }, listOf("f1", "f2", "f3", "f4"))
 
 private fun astDe(r: ResultadoAst = ResultadoAst.CUMPLE) = FormularioAst(
     "Inspección de redes", false, List(PREGUNTAS_AST.size) { true }, listOf(PasoAst("t", "p", "c")), r
@@ -48,6 +49,8 @@ class ReglasDecisionTest {
         val r = resumen(checklist = null)
         assertNull(ReglasDecision.resultado(r))
         assertEquals(listOf("Checklist"), ReglasDecision.faltantes(r))
+        assertEquals(ResultadoFaena.OBSERVADO, ReglasDecision.evaluar(r).resultado)
+        assertTrue(ReglasDecision.evaluar(r).motivos.any { "Checklist" in it })
     }
 
     @Test fun checklistConPendientes_cuentaComoFaltante() =
@@ -75,12 +78,27 @@ class ReglasDecisionTest {
     @Test fun saludCritica_requiereRevision() =
         assertEquals(ResultadoFaena.REQUIERE_REVISION, ReglasDecision.resultado(resumen(encuesta = salud(sat = 90))))
 
+    @Test fun saludSinMedicionesQuedaPendienteDeRevision() {
+        val borrador = salud(sat = 0).copy(sistolica = 0, diastolica = 0, estado = EstadoSeccion.BORRADOR)
+        val evaluacion = ReglasDecision.evaluar(resumen(encuesta = borrador))
+        assertEquals(ResultadoFaena.OBSERVADO, evaluacion.resultado)
+        assertTrue(evaluacion.motivos.any { "Encuesta de salud" in it })
+        assertFalse(evaluacion.motivos.any { "críticos" in it })
+    }
+
     @Test fun saludConAlerta_esObservado() =
         assertEquals(ResultadoFaena.OBSERVADO, ReglasDecision.resultado(resumen(encuesta = salud(alertas = listOf("a")))))
 
     @Test fun ganaElPeor() =
         assertEquals(ResultadoFaena.REQUIERE_REVISION,
             ReglasDecision.resultado(resumen(checklist = cl(EstadoEquipo.OBSERVADO), encuesta = salud(sat = 90))))
+
+    @Test fun respuestaCriticaInvalidaSuperaLaRevisionPendiente() {
+        val ast = astDe().copy(respuestas = listOf(false, null, null, null, null))
+        val evaluacion = ReglasDecision.evaluar(resumen(checklist = null, ast = ast))
+        assertEquals(ResultadoFaena.REQUIERE_REVISION, evaluacion.resultado)
+        assertTrue(evaluacion.motivos.any { it.startsWith("AST:") })
+    }
 
     @Test fun soloLaJefaturaDecide() {
         assertTrue(ReglasDecision.puedeDecidir(Rol.JEFE))
@@ -96,8 +114,8 @@ class ReglasDecisionTest {
     @Test fun autorizarRojoSinMotivo_esError() =
         assertNotNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, ""))
 
-    @Test fun autorizarRojoConMotivo_esValido() =
-        assertNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Equipo repuesto"))
+    @Test fun autorizarRojoConMotivo_sigueBloqueado() =
+        assertNotNull(ReglasDecision.errorDecision(Decision.AUTORIZADA, ResultadoFaena.REQUIERE_REVISION, "Equipo repuesto"))
 }
 
 class ResumenFaenaViewModelTest {
@@ -135,6 +153,13 @@ class ResumenFaenaViewModelTest {
 
     @Test fun autorizarRojoSinMotivo_noRegistra() {
         val vm = ResumenFaenaViewModel()
+        val rojo = resumen(checklist = cl(EstadoEquipo.NO_CUMPLE))
+        assertNull(vm.decidir(Decision.AUTORIZADA, rojo, Rol.JEFE, "Luis"))
+    }
+
+    @Test fun autorizarRojoConMotivo_noRegistra() {
+        val vm = ResumenFaenaViewModel()
+        vm.cambiarMotivo("Equipo repuesto")
         val rojo = resumen(checklist = cl(EstadoEquipo.NO_CUMPLE))
         assertNull(vm.decidir(Decision.AUTORIZADA, rojo, Rol.JEFE, "Luis"))
     }

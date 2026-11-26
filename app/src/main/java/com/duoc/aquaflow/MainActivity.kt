@@ -12,7 +12,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AquaFlowTheme { AquaFlowNavHost() }
+            AquaFlowTheme {
+                AquaFlowNavHost(backendUrl = BuildConfig.API_URL, authUrl = BuildConfig.AUTH_URL)
+            }
         }
     }
 }

@@ -5,14 +5,17 @@ import com.duoc.aquaflow.model.ChecklistFaena
 import com.duoc.aquaflow.model.Decision
 import com.duoc.aquaflow.model.EncuestaSalud
 import com.duoc.aquaflow.model.EstadoEquipo
+import com.duoc.aquaflow.model.EstadoSeccion
 import com.duoc.aquaflow.model.FormularioAst
 import com.duoc.aquaflow.model.ItemEquipamiento
+import com.duoc.aquaflow.model.MetadatosFoto
 import com.duoc.aquaflow.model.NivelSalud
 import com.duoc.aquaflow.model.PasoAst
 import com.duoc.aquaflow.model.RegistroDecision
 import com.duoc.aquaflow.model.ResultadoAst
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FaenaCodecTest {
@@ -23,18 +26,35 @@ class FaenaCodecTest {
                 ItemEquipamiento("1", "Compresor", "Test de CO \"OK\"", EstadoEquipo.CUMPLE),
                 ItemEquipamiento("2", "Umbilical", "Roce\nsuperficial", EstadoEquipo.NO_CUMPLE, "Reemplazar, ñandú")
             ),
-            listOf("file:///foto1.jpg", "file:///foto2.jpg")
+            listOf("file:///foto1.jpg", "file:///foto2.jpg", "file:///foto3.jpg", "file:///foto4.jpg"),
+            metadatosPorFoto = mapOf("file:///foto1.jpg" to MetadatosFoto(1795110000000, "supervisor",
+                referencia = "content://app/ref", coincide = false))
         )
         assertEquals(original, FaenaCodec.checklistDesde(FaenaCodec.checklistATexto(original)))
     }
 
     @Test fun astVuelveIgual() {
         val original = FormularioAst(
-            "Inspección de redes", true, listOf(true, false, true),
+            "Inspección de redes", true, listOf(true, false, null, true, true),
             listOf(PasoAst("Bajar", "Corriente", "Línea guía", true), PasoAst()),
             ResultadoAst.REQUIERE_REVISION, com.duoc.aquaflow.model.EstadoSeccion.BORRADOR
         )
         assertEquals(original, FaenaCodec.astDesde(FaenaCodec.astATexto(original)))
+    }
+
+    @Test fun borradorAstAntiguoRequiereReconfirmarRespuestasAmbiguas() {
+        val texto = """
+            {"estado":"BORRADOR","tipologia":"","requiereNuevoAst":false,
+             "respuestas":[true,false,false,true,false],"pasos":[],"resultado":"OBSERVADO"}
+        """.trimIndent()
+        val ast = FaenaCodec.astDesde(texto)!!
+        assertEquals(EstadoSeccion.BORRADOR, ast.estado)
+        assertEquals(listOf(true, null, null, true, null), ast.respuestas)
+        assertTrue(com.duoc.aquaflow.domain.ReglasAst.condicionesCriticasIncumplidas(ast.respuestas).isEmpty())
+
+        val bloqueo = FaenaCodec.astDesde(texto.replace("OBSERVADO", "REQUIERE_REVISION"))!!
+        assertEquals(listOf(true, false, false, true, false), bloqueo.respuestas)
+        assertTrue(com.duoc.aquaflow.domain.ReglasAst.condicionesCriticasIncumplidas(bloqueo.respuestas).isNotEmpty())
     }
 
     @Test fun encuestaVuelveIgual() {
@@ -45,6 +65,14 @@ class FaenaCodecTest {
     @Test fun decisionVuelveIgual() {
         val original = RegistroDecision(Decision.RECHAZADA, "Falla en el compresor", "jefe")
         assertEquals(original, FaenaCodec.decisionDesde(FaenaCodec.decisionATexto(original)))
+    }
+
+    @Test fun encuestaHistoricaSinDetalleExigeReconfirmacionSinInventarRespuestas() {
+        val historica = FaenaCodec.encuestaDesde(
+            """{"estado":"COMPLETA","sistolica":120,"diastolica":80,"saturacion":98,"alertas":[],"nivel":"NORMAL"}"""
+        )!!
+        assertTrue(historica.respuestas.values.all { it == null })
+        assertEquals(com.duoc.aquaflow.model.EstadoSeccion.BORRADOR, historica.estado)
     }
 
     @Test fun textoDanadoDevuelveNullEnVezDeFallar() {

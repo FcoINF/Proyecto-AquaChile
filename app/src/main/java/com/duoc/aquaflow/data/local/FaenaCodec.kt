@@ -16,6 +16,12 @@ import com.duoc.aquaflow.domain.ReglasSecciones
 import com.duoc.aquaflow.model.ChecklistTareas
 import com.duoc.aquaflow.model.TareaFaena
 import com.duoc.aquaflow.model.RegistroInicio
+import com.duoc.aquaflow.model.IntentoBloqueado
+import com.duoc.aquaflow.model.MedicionesInmersion
+import com.duoc.aquaflow.model.MetadatosFoto
+import com.duoc.aquaflow.model.OrigenMedicion
+import com.duoc.aquaflow.model.PREGUNTAS_AST
+import com.duoc.aquaflow.model.PREGUNTAS_SALUD
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -37,25 +43,50 @@ object FaenaCodec {
             }
         })
         .put("fotos", JSONArray(c.fotosEvidencia))
+        .put("fotosPorEquipo", JSONObject(c.fotosPorEquipo))
+        .put("metadatosPorFoto", JSONObject().also { fotos ->
+            c.metadatosPorFoto.forEach { (uri, foto) ->
+                fotos.put(uri, JSONObject().put("capturadaEn", foto.capturadaEn)
+                    .put("capturadaPor", foto.capturadaPor).put("referencia", foto.referencia)
+                    .put("coincide", foto.coincide))
+            }
+        })
         .toString()
 
     fun checklistDesde(texto: String): ChecklistFaena? = runCatching {
         val o = JSONObject(texto)
+        val items = o.getJSONArray("items").objetos().map {
+            ItemEquipamiento(
+                id = it.getString("id"),
+                titulo = it.getString("titulo"),
+                descripcion = it.getString("descripcion"),
+                estado = EstadoEquipo.valueOf(it.getString("estado")),
+                notas = it.optString("notas", ""),
+                categoria = it.optString("categoria", ""),
+                badge = it.optString("badge", "")
+            )
+        }
+        val fotos = o.getJSONArray("fotos").textos()
+        val fotosPorEquipo = o.optJSONObject("fotosPorEquipo")?.let { asignaciones ->
+            asignaciones.keys().asSequence().associateWith { asignaciones.getString(it) }
+        }.orEmpty()
         ChecklistFaena(
             idFaena = o.getString("idFaena"),
-            items = o.getJSONArray("items").objetos().map {
-                ItemEquipamiento(
-                    id = it.getString("id"),
-                    titulo = it.getString("titulo"),
-                    descripcion = it.getString("descripcion"),
-                    estado = EstadoEquipo.valueOf(it.getString("estado")),
-                    notas = it.optString("notas", ""),
-                    categoria = it.optString("categoria", ""),
-                    badge = it.optString("badge", "")
-                )
-            },
-            fotosEvidencia = o.getJSONArray("fotos").textos(),
-            estado = estadoDesde(o)
+            items = items,
+            fotosEvidencia = fotos,
+            estado = estadoDesde(o),
+            fotosPorEquipo = fotosPorEquipo,
+            metadatosPorFoto = o.optJSONObject("metadatosPorFoto")?.let { fotos ->
+                fotos.keys().asSequence().associateWith { uri ->
+                    val foto = fotos.getJSONObject(uri)
+                    MetadatosFoto(
+                        capturadaEn = if (foto.isNull("capturadaEn")) null else foto.getLong("capturadaEn"),
+                        capturadaPor = if (foto.isNull("capturadaPor")) null else foto.getString("capturadaPor"),
+                        referencia = foto.optString("referencia", "").takeIf(String::isNotBlank),
+                        coincide = if (foto.isNull("coincide")) null else foto.getBoolean("coincide")
+                    )
+                }
+            }.orEmpty()
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.checklist(it)) }
 
@@ -63,7 +94,7 @@ object FaenaCodec {
         .put("estado", ReglasSecciones.ast(a).name)
         .put("tipologia", a.tipologia)
         .put("requiereNuevoAst", a.requiereNuevoAst)
-        .put("respuestas", JSONArray(a.respuestas))
+        .put("respuestas", JSONArray(a.respuestas.map { it ?: JSONObject.NULL }))
         .put("pasos", JSONArray().also { arr ->
             a.pasos.forEach {
                 arr.put(
@@ -78,11 +109,21 @@ object FaenaCodec {
 
     fun astDesde(texto: String): FormularioAst? = runCatching {
         val o = JSONObject(texto)
-        val respuestas = o.getJSONArray("respuestas")
+        val jsonRespuestas = o.getJSONArray("respuestas")
+        val respuestas = (0 until jsonRespuestas.length()).map {
+            if (jsonRespuestas.isNull(it)) null else jsonRespuestas.getBoolean(it)
+        }
+        val estado = estadoDesde(o)
+        val resultado = ResultadoAst.valueOf(o.getString("resultado"))
+        // Los borradores antiguos guardaban como false las preguntas sin responder.
+        // Un borrador con un «No» crítico explícito ya registra el resultado rojo.
+        val borradorAntiguo = estado == EstadoSeccion.BORRADOR &&
+            resultado != ResultadoAst.REQUIERE_REVISION && respuestas.none { it == null } &&
+            PREGUNTAS_AST.zip(respuestas).any { (pregunta, respuesta) -> pregunta.critica && respuesta == false }
         FormularioAst(
             tipologia = o.getString("tipologia"),
             requiereNuevoAst = o.getBoolean("requiereNuevoAst"),
-            respuestas = (0 until respuestas.length()).map { respuestas.getBoolean(it) },
+            respuestas = if (borradorAntiguo) respuestas.map { it?.takeIf { afirmativa -> afirmativa } } else respuestas,
             pasos = o.getJSONArray("pasos").objetos().map {
                 PasoAst(
                     tarea = it.optString("tarea", ""),
@@ -91,8 +132,8 @@ object FaenaCodec {
                     critico = it.optBoolean("critico", false)
                 )
             },
-            resultado = ResultadoAst.valueOf(o.getString("resultado")),
-            estado = estadoDesde(o)
+            resultado = resultado,
+            estado = estado
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.ast(it)) }
 
@@ -100,6 +141,11 @@ object FaenaCodec {
         .put("estado", ReglasSecciones.encuesta(e).name)
         .put("sistolica", e.sistolica).put("diastolica", e.diastolica).put("saturacion", e.saturacion)
         .put("alertas", JSONArray(e.alertasEncuesta))
+        .put("respuestas", JSONObject().also { respuestas ->
+            e.respuestas.forEach { (pregunta, respuesta) ->
+                respuestas.put(pregunta, respuesta ?: JSONObject.NULL)
+            }
+        })
         .put("nivel", e.nivel.name)
         .toString()
 
@@ -111,7 +157,12 @@ object FaenaCodec {
             saturacion = o.getInt("saturacion"),
             alertasEncuesta = o.getJSONArray("alertas").textos(),
             nivel = NivelSalud.valueOf(o.getString("nivel")),
-            estado = estadoDesde(o)
+            estado = estadoDesde(o),
+            respuestas = o.optJSONObject("respuestas")?.let { respuestas ->
+                respuestas.keys().asSequence().associateWith {
+                    if (respuestas.isNull(it)) null else respuestas.getBoolean(it)
+                }
+            } ?: PREGUNTAS_SALUD.associateWith { null }
         )
     }.getOrNull()?.let { it.copy(estado = ReglasSecciones.encuesta(it)) }
 
@@ -132,13 +183,21 @@ object FaenaCodec {
         .put("duracionMinutos", c.duracionMinutos).put("observaciones", c.observaciones)
         .put("revisionSalida", c.revisionSalida).put("cerradoPor", c.cerradoPor)
         .put("cerradoEn", c.cerradoEn)
-        .put("saludSalida", c.saludSalida?.let { JSONObject(encuestaATexto(it)) }).toString()
+        .put("saludSalida", c.saludSalida?.let { JSONObject(encuestaATexto(it)) })
+        .put("mediciones", c.mediciones?.let {
+            JSONObject().put("fondo", it.tiempoFondoMinutos).put("profundidad", it.profundidadMaximaMetros)
+                .put("descenso", it.descensoMaximo).put("ascenso", it.ascensoMaximo).put("origen", it.origen.name)
+        }).toString()
 
     fun cierreDesde(texto: String): RegistroCierre? = runCatching {
         val o = JSONObject(texto)
         RegistroCierre(o.getInt("duracionMinutos"), o.getString("observaciones"),
             o.getBoolean("revisionSalida"), o.getString("cerradoPor"), o.getLong("cerradoEn"),
-            o.optJSONObject("saludSalida")?.let { encuestaDesde(it.toString()) })
+            o.optJSONObject("saludSalida")?.let { encuestaDesde(it.toString()) },
+            o.optJSONObject("mediciones")?.let {
+                MedicionesInmersion(it.getInt("fondo"), it.getDouble("profundidad"), it.getDouble("descenso"),
+                    it.getDouble("ascenso"), OrigenMedicion.valueOf(it.getString("origen")))
+            })
     }.getOrNull()
 
     fun tareasATexto(t: ChecklistTareas): String = JSONObject()
@@ -161,6 +220,26 @@ object FaenaCodec {
         val o = JSONObject(texto)
         RegistroInicio(o.getString("iniciadoPor"), o.getLong("iniciadoEn"))
     }.getOrNull()
+
+    fun intentosBloqueadosATexto(intentos: List<IntentoBloqueado>): String = JSONArray().also { array ->
+        intentos.forEach { intento ->
+            array.put(JSONObject()
+                .put("responsable", intento.responsable)
+                .put("fecha", intento.fecha)
+                .put("motivo", intento.motivo)
+                .put("accion", intento.accion))
+        }
+    }.toString()
+
+    fun intentosBloqueadosDesde(texto: String): List<IntentoBloqueado> = runCatching {
+        val array = JSONArray(texto)
+        (0 until array.length()).map { indice ->
+            array.getJSONObject(indice).let {
+                IntentoBloqueado(it.getString("responsable"), it.getLong("fecha"),
+                    it.getString("motivo"), it.getString("accion"))
+            }
+        }
+    }.getOrDefault(emptyList())
 
     // develop guardaba también borradores sin estado: los registros antiguos necesitan reconfirmación.
     private fun estadoDesde(o: JSONObject): EstadoSeccion =

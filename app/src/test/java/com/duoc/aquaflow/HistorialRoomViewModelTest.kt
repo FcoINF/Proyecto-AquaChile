@@ -44,11 +44,13 @@ class HistorialRoomViewModelTest {
         assertEquals(2, vm.state.value.faenas.size)
     }
 
-    @Test fun filtrosBuscanTodosLosCamposYCombinanEstado() {
-        val item = primera.aHistorialItem()
-        listOf("uuid-1", "norte", "ANA", "luis").forEach {
+    @Test fun filtrosOmitenIdentificadoresYCombinanEstado() {
+        val item = primera.aHistorialItem().copy(codigo = "FAENA-001", centroCultivo = "Centro Norte - Jaula 04")
+        listOf("norte", "jaula 04", "ANA", "luis").forEach {
             assertEquals(listOf(item), HistorialFiltro(it, EstadoFaena.PRECHEQUEO).aplicar(listOf(item)))
         }
+        assertTrue(HistorialFiltro("uuid-1").aplicar(listOf(item)).isEmpty())
+        assertTrue(HistorialFiltro("FAENA-001").aplicar(listOf(item)).isEmpty())
         assertTrue(HistorialFiltro("Ana", EstadoFaena.AUTORIZADA).aplicar(listOf(item)).isEmpty())
     }
 
@@ -60,6 +62,26 @@ class HistorialRoomViewModelTest {
         assertEquals(0, vm.state.value.total)
         assertTrue(vm.state.value.faenas.isEmpty())
         assertNull(vm.state.value.error)
+    }
+
+    @Test fun elContadorCuentaCadaAlertaDeVelocidadYOmiteBorradores() = runTest {
+        val borrador = FaenaGuardada(ResumenFaena(primera, null, null, null))
+        val cierre = RegistroCierre(25, "Registro", true,
+            mediciones = MedicionesInmersion(20, 15.0, 25.0, 10.0, OrigenMedicion.MANUAL))
+        val valoresAlLimite = cierre.copy(mediciones = cierre.mediciones!!.copy(descensoMaximo = 24.0, ascensoMaximo = 9.0))
+        val tercero = segunda.copy(id = "uuid-3")
+        val consultaConCierres = object : ConsultaAperturas by consulta {
+            override fun observarFaenas(usuario: Usuario) = flowOf(listOf(
+                borrador,
+                FaenaGuardada(ResumenFaena(segunda, null, null, null), cierre = cierre),
+                FaenaGuardada(ResumenFaena(tercero, null, null, null), cierre = valoresAlLimite)
+            ))
+        }
+        val vm = HistorialViewModel(consultaConCierres, usuario)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect() }
+        advanceUntilIdle()
+        assertEquals(2, vm.state.value.alertasVelocidad)
+        assertEquals(listOf(0, 2, 0), vm.state.value.faenas.map { it.alertasVelocidad.size })
     }
 
     @Test fun falloDeLecturaPuedeReintentarse() = runTest {

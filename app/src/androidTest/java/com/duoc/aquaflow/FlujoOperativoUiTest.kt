@@ -19,21 +19,21 @@ class FlujoOperativoUiTest {
         var guardado: ChecklistTareas? = null
         var borrador: ChecklistTareas? = null
         compose.setContent { AquaFlowTheme { TareasScreen("prueba", null, false, null, { guardado = it }, { borrador = it }, {}) } }
-        compose.onNodeWithText("Guardar tareas y revisar").performScrollTo().performClick()
+        compose.onNodeWithText("Guardar tareas y revisar").performClick()
         compose.onNodeWithText("Registra y verifica", substring = true).assertExists()
         compose.onNodeWithText("Agregar tarea").performScrollTo().performClick()
         compose.onNodeWithText("Tarea 1").performScrollTo().performTextInput("Inspección de red")
-        compose.onNodeWithText("Guardar borrador").performScrollTo().performClick()
+        compose.onNodeWithText("Guardar borrador").performClick()
         compose.runOnIdle { assertEquals(EstadoSeccion.BORRADOR, borrador!!.estado); assertNull(guardado) }
         compose.onNode(isToggleable()).performScrollTo().performClick()
-        compose.onNodeWithText("Guardar tareas y revisar").performScrollTo().performClick()
+        compose.onNodeWithText("Guardar tareas y revisar").performClick()
         compose.runOnIdle { assertEquals(EstadoSeccion.COMPLETA, guardado!!.estado); assertTrue(guardado!!.items.single().verificada) }
     }
 
     @Test fun inicioSoloTrasAutorizacionYCierreSoloTrasInicio() {
         val r = ResumenFaena(
             PreChequeo("f1", "Centro", "26/10/2026", "10:00", "Ana", "supervisor", true, true, true),
-            ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))),
+            ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("foto")),
             FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
             EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL), tareasCompletas())
         val faena = mutableStateOf(FaenaGuardada(r))
@@ -52,5 +52,61 @@ class FlujoOperativoUiTest {
         compose.onNodeWithText("Cerrar faena").assertExists()
         compose.onNodeWithText("Presión sistólica de salida").assertExists()
         compose.onNodeWithText("Cierre faena").assertDoesNotExist()
+    }
+
+    @Test fun resultadoRojoDeshabilitaAutorizarPeroPermiteRechazar() {
+        val resumen = ResumenFaena(
+            PreChequeo("f-roja", "Centro", "26/10/2026", "10:00", "Ana", "supervisor", true, true, true),
+            ChecklistFaena(
+                "f-roja",
+                listOf(ItemEquipamiento("1", "Maleta de aire", "", EstadoEquipo.NO_CUMPLE)),
+                listOf("foto"),
+                fotosPorEquipo = mapOf("1" to "foto")
+            ),
+            FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
+            EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL),
+            tareasCompletas()
+        )
+        compose.setContent {
+            AquaFlowTheme {
+                DetalleFaenaScreen(ResumenFaenaViewModel(), FaenaGuardada(resumen), Rol.JEFE, "jefe", {}, {}, {})
+            }
+        }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Autorizar"))
+        compose.onNodeWithText("Autorizar").assertIsNotEnabled()
+        compose.onNodeWithText("Rechazar").assertIsEnabled()
+        compose.onNodeWithText("Una justificación no puede omitir", substring = true).assertExists()
+    }
+
+    @Test fun expedienteCriticoMuestraAlertaYDeshabilitaCerrarFaena() {
+        val apertura = PreChequeo("f-critica", "Centro", "26/10/2026", "10:00", "Ana", "supervisor", true, true, true)
+        val encuesta = EncuestaSalud(120, 80, 90, emptyList(), NivelSalud.CRITICO)
+        val faena = FaenaGuardada(
+            ResumenFaena(apertura, null, null, encuesta),
+            decision = RegistroDecision(Decision.AUTORIZADA, "", "jefe"),
+            inicio = RegistroInicio("supervisor", 1)
+        )
+        val motivo = "La encuesta de salud inicial contiene valores críticos."
+        val expediente = com.duoc.aquaflow.data.remote.DetalleRemoto(
+            faena = faena,
+            version = 3,
+            semaforo = com.duoc.aquaflow.data.remote.SemaforoRemoto("ROJO", listOf(motivo), emptyList()),
+            alertas = emptyList(),
+            publicado = true
+        )
+        compose.setContent {
+            AquaFlowTheme {
+                DetalleFaenaScreen(
+                    ResumenFaenaViewModel(), faena, Rol.SUPERVISOR, "supervisor",
+                    onDecidir = {}, onVolver = {}, onFinalizar = {},
+                    expedienteRemoto = expediente,
+                    onCerrar = { error("El cierre crítico debe permanecer bloqueado.") }
+                )
+            }
+        }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Cerrar faena"))
+        compose.onNodeWithText("Cerrar faena").assertIsNotEnabled()
+        compose.onNodeWithTag("alerta-bloqueo-cierre").assertTextEquals(motivo)
+        compose.onNodeWithText("Confirmar cierre").assertDoesNotExist()
     }
 }

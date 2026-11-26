@@ -32,20 +32,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.duoc.aquaflow.domain.Reglas
+import com.duoc.aquaflow.domain.ReglasCierre
 import com.duoc.aquaflow.domain.ReglasSecciones
 import com.duoc.aquaflow.domain.ReglasDecision
 import com.duoc.aquaflow.model.*
 import com.duoc.aquaflow.ui.components.CierreFaenaFormulario
+import com.duoc.aquaflow.ui.components.DatosMediciones
 import com.duoc.aquaflow.ui.components.EvidenciasGaleria
 import com.duoc.aquaflow.ui.components.Guardando
 import com.duoc.aquaflow.ui.components.SemaforoAst
 import com.duoc.aquaflow.ui.components.SemaforoFaena
+import com.duoc.aquaflow.ui.components.AquaSectionCard
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
 import com.duoc.aquaflow.ui.components.SemaforoSalud
 import com.duoc.aquaflow.ui.theme.AquaAzul
 import com.duoc.aquaflow.ui.theme.AquaAzulAccion
 import com.duoc.aquaflow.ui.theme.AquaVerde
-import com.duoc.aquaflow.ui.theme.SemaforoAzul
+import com.duoc.aquaflow.ui.theme.SemaforoAmarillo
 import com.duoc.aquaflow.viewmodel.ResumenFaenaViewModel
+import com.duoc.aquaflow.viewmodel.MeteorologiaUi
+import com.duoc.aquaflow.data.repository.ResultadoMeteorologia
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -70,7 +77,18 @@ fun DetalleFaenaScreen(
     onCerrar: ((RegistroCierre) -> Unit)? = null,
     onIniciar: (() -> Unit)? = null,
     ocupado: Boolean = false,
-    errorExterno: String? = null
+    errorExterno: String? = null,
+    onPublicarCierre: (() -> Unit)? = null,
+    cierrePublicado: Boolean = false,
+    onAuditarAutorizacion: ((String) -> Unit)? = null,
+    expedienteRemoto: com.duoc.aquaflow.data.remote.DetalleRemoto? = null,
+    onActualizar: (() -> Unit)? = null,
+    onRetirar: (() -> Unit)? = null,
+    onRevisarAlerta: ((String) -> Unit)? = null,
+    onEditarExpediente: (() -> Unit)? = null,
+    envio: com.duoc.aquaflow.data.local.EnvioFaena? = null,
+    climaActual: MeteorologiaUi = MeteorologiaUi(),
+    onConsultarClima: (() -> Unit)? = null
 ) {
     val ui by vm.ui.collectAsState()
     val resumen = faena.resumen
@@ -79,6 +97,18 @@ fun DetalleFaenaScreen(
     val resultado = ReglasDecision.resultado(resumen)
     val faltantes = ReglasDecision.faltantes(resumen)
     val estados = ReglasSecciones.estados(resumen)
+    var confirmarRetiro by androidx.compose.runtime.saveable.rememberSaveable(apertura.id) {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    if (confirmarRetiro) {
+        AlertDialog(onDismissRequest = { confirmarRetiro = false }, title = { Text("Retirar expediente") },
+            text = { Text("Se quitarán el prechequeo enviado y sus fotos del servidor.") },
+            confirmButton = { TextButton(onClick = {
+                confirmarRetiro = false
+                onRetirar?.invoke()
+            }) { Text("Retirar") } },
+            dismissButton = { TextButton(onClick = { confirmarRetiro = false }) { Text("Cancelar") } })
+    }
 
     Guardando(ocupado)
 
@@ -104,7 +134,7 @@ fun DetalleFaenaScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { CabeceraFaena(faena) }
+            item { CabeceraFaena(faena, expedienteRemoto) }
 
             if (faltantes.isNotEmpty()) {
                 item {
@@ -129,7 +159,69 @@ fun DetalleFaenaScreen(
             }
 
             item { FilaMetricas(faena) }
+            item {
+                AquaSectionCard(title = "Meteorología marítima", subtitle = "Datos de referencia · Open-Meteo") {
+                    val guardada = apertura.meteorologia
+                    val resultado = climaActual.resultado
+                    val clima = guardada ?: (resultado as? ResultadoMeteorologia.Disponible)?.condiciones
+                    if (guardada == null) {
+                        Text("Esta apertura no tiene una consulta meteorológica guardada.")
+                        if (climaActual.cargando) Text("Consultando condiciones marítimas…")
+                        if (resultado is ResultadoMeteorologia.Error) Text(resultado.mensaje)
+                        if (resultado == ResultadoMeteorologia.SinConexion) Text("Sin conexión para consultar Open-Meteo.")
+                        if (clima != null) Text("Consulta actual del centro", style = MaterialTheme.typography.titleSmall)
+                    }
+                    if (clima != null) {
+                        Text("Consulta: ${formatearFecha(clima.consultadaEn)}")
+                        Text("Hora del modelo: ${formatearFecha(clima.horaModelo)}",
+                            style = MaterialTheme.typography.bodySmall)
+                        Text("Oleaje: ${medidaModelo(clima.alturaOla, "m")} · Período: ${medidaModelo(clima.periodoOla, "s")}")
+                        Text("Dirección: ${medidaModelo(clima.direccionOla, "°")}")
+                        Text("Temperatura superficial: ${medidaModelo(clima.temperaturaSuperficial, "°C")}")
+                    }
+                    Text(if (apertura.condicionesListas) "Verificación en terreno registrada."
+                        else "Verificación en terreno pendiente.", style = MaterialTheme.typography.bodySmall)
+                    if (guardada == null && onConsultarClima != null) {
+                        TextButton(onClick = onConsultarClima, enabled = !climaActual.cargando) {
+                            Text(if (clima == null) "Consultar condiciones actuales" else "Actualizar consulta del centro")
+                        }
+                    }
+                }
+            }
+            if (envio != null) item {
+                AquaSectionCard(title = "Sincronización") {
+                    com.duoc.aquaflow.ui.components.EstadoSincronizacion(envio)
+                }
+            }
 
+            if (onActualizar != null) item {
+                TextButton(onClick = onActualizar, enabled = !ocupado) { Text("Actualizar expediente") }
+            }
+            if (expedienteRemoto != null) item {
+                AquaSectionCard(title = "Estado del expediente en el servidor") {
+                    if (!expedienteRemoto.publicado && faena.cierre == null) Text("Pendiente de envío por el supervisor.")
+                    if (onRetirar != null && expedienteRemoto.version != null && decision == null) {
+                        TextButton(onClick = { confirmarRetiro = true }, enabled = !ocupado) { Text("Retirar expediente enviado") }
+                    }
+                }
+            }
+            if (onEditarExpediente != null && decision == null && faena.cierre == null) item {
+                TextButton(onClick = onEditarExpediente, enabled = !ocupado) { Text("Editar prechequeo") }
+            }
+            if (expedienteRemoto?.alertas?.isNotEmpty() == true) item {
+                AquaSectionCard(title = "Revisión de alertas de velocidad") {
+                    expedienteRemoto.alertas.forEach { alerta ->
+                        val movimiento = if (alerta.tipo == "ASCENSO") "Ascenso" else "Descenso"
+                        Text("$movimiento: ${alerta.velocidad} m/min (límite ${alerta.limite} m/min)")
+                        if (alerta.revisadaPor != null) Text("Revisada por ${alerta.revisadaPor}")
+                        else if (onRevisarAlerta != null) {
+                            TextButton(onClick = { onRevisarAlerta(alerta.tipo) }, enabled = !ocupado) {
+                                Text("Marcar como revisada")
+                            }
+                        }
+                    }
+                }
+            }
             item { SeccionSalud(resumen.encuesta) }
             item { SeccionCondiciones(apertura) }
             item { SeccionChecklist(resumen.checklist, estados.getValue("Checklist")) }
@@ -145,14 +237,35 @@ fun DetalleFaenaScreen(
                     onDecidir = onDecidir,
                     motivo = ui.motivo,
                     uiError = ui.error,
-                    puedeDecidir = resultado != null && !ocupado
+                    puedeDecidir = !ocupado && if (onActualizar != null) expedienteRemoto?.publicado == true else resultado != null,
+                    ocupado = ocupado,
+                    onAuditarAutorizacion = onAuditarAutorizacion,
+                    semaforoRemoto = expedienteRemoto?.semaforo
                 )
+            }
+            if (faena.intentosBloqueados.isNotEmpty()) item {
+                SeccionDetalle("Bitácora de bloqueos", Icons.Filled.Warning, subtitulo = "Intentos registrados") {
+                    faena.intentosBloqueados.asReversed().forEach { intento ->
+                        val accion = when (intento.accion) {
+                            "AUTORIZAR_FAENA", "AUTORIZADA" -> "Autorizar faena"
+                            "RECHAZADA" -> "Rechazar faena"
+                            else -> intento.accion
+                        }
+                        Text(accion, style = MaterialTheme.typography.titleSmall)
+                        Text("${formatearFecha(intento.fecha)} · ${intento.responsable}")
+                        Text(intento.motivo, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
 
             val propietario = rol == Rol.SUPERVISOR && apertura.supervisorACargo == nombreUsuario
             if (faena.inicio != null) item { Text("Inicio: ${formatearFecha(faena.inicio.iniciadoEn)} · ${faena.inicio.iniciadoPor}") }
             if (propietario && faena.estado == EstadoFaena.AUTORIZADA && onIniciar != null) item {
-                Button(onClick = onIniciar, enabled = !ocupado && faltantes.isEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Cierre faena") }
+                Button(
+                    onClick = onIniciar,
+                    enabled = !ocupado && resultado != null && resultado != ResultadoFaena.REQUIERE_REVISION,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Cierre faena") }
             }
             val cierre = faena.cierre
             when {
@@ -161,6 +274,10 @@ fun DetalleFaenaScreen(
                     Text("Salud de salida · Buzo: ${apertura.buzoAsignado}")
                     if (cierre.saludSalida != null) SeccionSalud(cierre.saludSalida)
                     else Text("Cierre histórico sin encuesta de salida registrada.")
+                    if (propietario && cierre.mediciones != null && onPublicarCierre != null) {
+                        if (cierrePublicado) Text("Cierre publicado para jefatura.")
+                        else OutlinedButton(onClick = onPublicarCierre, enabled = !ocupado) { Text("Enviar cierre a jefatura") }
+                    }
                 }
                 propietario && faena.estado == EstadoFaena.EN_EJECUCION && onCerrar != null -> item {
                     SeccionDetalle(
@@ -169,7 +286,9 @@ fun DetalleFaenaScreen(
                         subtitulo = "Completa los datos al finalizar la inmersión"
                     ) {
                         Text("Encuesta de salud de salida · Buzo: ${apertura.buzoAsignado}")
-                        CierreFaenaFormulario(apertura.id, ocupado = ocupado) { onCerrar(it) }
+                        val bloqueo = if (expedienteRemoto == null) ReglasCierre.bloqueoCritico(resumen)
+                        else expedienteRemoto.semaforo?.bloqueos?.takeIf { it.isNotEmpty() }?.joinToString(" ")
+                        CierreFaenaFormulario(apertura.id, ocupado = ocupado, bloqueo = bloqueo, onCerrar = onCerrar)
                     }
                 }
             }
@@ -192,9 +311,9 @@ fun DetalleFaenaScreen(
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun CabeceraFaena(faena: FaenaGuardada) {
+private fun CabeceraFaena(faena: FaenaGuardada, remoto: com.duoc.aquaflow.data.remote.DetalleRemoto?) {
     val apertura = faena.resumen.apertura
-    val resultado = ReglasDecision.resultado(faena.resumen)
+    val evaluacion = ReglasDecision.evaluar(faena.resumen)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -254,8 +373,17 @@ private fun CabeceraFaena(faena: FaenaGuardada) {
                 )
             }
 
-            if (resultado != null) {
-                SemaforoFaena(resultado)
+            val semaforo = remoto?.semaforo
+            val resultado = when (semaforo?.nivel) {
+                "ROJO" -> com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION
+                "AMARILLO" -> com.duoc.aquaflow.model.ResultadoFaena.OBSERVADO
+                "VERDE" -> com.duoc.aquaflow.model.ResultadoFaena.CUMPLE
+                else -> evaluacion.resultado
+            }
+            SemaforoFaena(resultado)
+            val motivos = semaforo?.let { it.bloqueos + it.observaciones } ?: evaluacion.motivos
+            motivos.forEach {
+                Text(it, color = Color.White, style = MaterialTheme.typography.bodySmall)
             }
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
@@ -490,6 +618,14 @@ private fun SeccionSalud(encuesta: EncuestaSalud?) {
                     }
                 }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text("Respuestas de la encuesta", style = MaterialTheme.typography.labelLarge)
+            com.duoc.aquaflow.model.PREGUNTAS_SALUD.forEach { pregunta ->
+                Text(
+                    "$pregunta: ${encuesta.respuestas[pregunta]?.let { if (it) "Sí" else "No" } ?: "Sin responder"}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -506,6 +642,15 @@ private fun SeccionCondiciones(apertura: PreChequeo) {
         FilaCondicion("Embarcación lista", apertura.embarcacionLista)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         FilaCondicion("Comunicaciones operativas", apertura.comunicacionesOperativas)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text("Ficha del buzo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text("Centro ID: ${apertura.centroId.ifBlank { "Sin registrar" }}")
+        Text("Buzo ID: ${apertura.buzoId.ifBlank { "Sin registrar" }}")
+        Text("Edad: ${apertura.edadBuzo} años · IMC: ${apertura.imcBuzo}")
+        Text("Examen preocupacional: ${if (apertura.examenPreocupacionalVigente == true) "Vigente" else "No vigente"} · hasta ${apertura.vigenciaExamenPreocupacional.ifBlank { "sin fecha" }}")
+        Text("Puntaje Calbuco: ${apertura.puntajeCalbuco ?: "Sin registrar"}")
+        Text("Test de esfuerzo: ${if (apertura.testEsfuerzoVigente == true) "Vigente" else "No vigente"} · hasta ${apertura.vigenciaTestEsfuerzo.ifBlank { "sin fecha" }}")
+        FilaCondicion("Buzo de emergencia disponible", apertura.buzoEmergenciaDisponible)
     }
 }
 
@@ -514,6 +659,13 @@ private fun SeccionChecklist(checklist: ChecklistFaena?, estado: EstadoSeccion) 
     val items = checklist?.items.orEmpty()
     val conformes = items.count { it.estado == EstadoEquipo.CUMPLE }
     val fotos = checklist?.fotosEvidencia.orEmpty()
+    val asociaciones = checklist?.fotosAsociadasPorEquipo().orEmpty()
+    val nombresPorFoto = items.mapNotNull { item ->
+        asociaciones[item.id]?.let { referencia -> referencia to item.titulo }
+    }.toMap()
+    val categoriasPorFoto = items.mapNotNull { item ->
+        asociaciones[item.id]?.let { referencia -> referencia to item.categoria }
+    }.toMap()
 
     SeccionDetalle(
         titulo = "Checklist de equipos",
@@ -535,7 +687,12 @@ private fun SeccionChecklist(checklist: ChecklistFaena?, estado: EstadoSeccion) 
                 "Evidencias fotográficas (${fotos.size})",
                 style = MaterialTheme.typography.labelLarge
             )
-            EvidenciasGaleria(fotos)
+            EvidenciasGaleria(
+                fotos = fotos,
+                nombresPorFoto = nombresPorFoto,
+                categoriasPorFoto = categoriasPorFoto,
+                metadatos = checklist?.metadatosPorFoto.orEmpty()
+            )
         }
     }
 }
@@ -641,8 +798,13 @@ private fun SeccionDecision(
     onDecidir: (RegistroDecision) -> Unit,
     motivo: String,
     uiError: String?,
-    puedeDecidir: Boolean
+    puedeDecidir: Boolean,
+    ocupado: Boolean,
+    onAuditarAutorizacion: ((String) -> Unit)?,
+    semaforoRemoto: com.duoc.aquaflow.data.remote.SemaforoRemoto?
 ) {
+    val rojo = semaforoRemoto?.let { it.nivel == "ROJO" }
+        ?: (ReglasDecision.evaluar(resumen).resultado == com.duoc.aquaflow.model.ResultadoFaena.REQUIERE_REVISION)
     SeccionDetalle(
         titulo = "Decisión",
         icono = Icons.AutoMirrored.Filled.Assignment,
@@ -709,6 +871,18 @@ private fun SeccionDecision(
             }
 
             else -> {
+                if (rojo) {
+                    Text(
+                        "Autorización bloqueada: el expediente está en rojo. Una justificación no puede omitir un bloqueo crítico.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    if (onAuditarAutorizacion != null) {
+                        TextButton(enabled = !ocupado, onClick = { onAuditarAutorizacion(motivo.trim()) }) {
+                            Text("Registrar intento bloqueado")
+                        }
+                    }
+                }
                 Text(
                     "Revisa el expediente y registra la decisión de la jefatura.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -717,7 +891,7 @@ private fun SeccionDecision(
                 OutlinedTextField(
                     value = motivo,
                     onValueChange = vm::cambiarMotivo,
-                    label = { Text("Motivo (obligatorio al rechazar)") },
+                    label = { Text(if (semaforoRemoto?.nivel == "AMARILLO") "Justificación de la revisión" else "Motivo (obligatorio al rechazar)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 uiError?.let {
@@ -728,16 +902,18 @@ private fun SeccionDecision(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        enabled = puedeDecidir,
+                        enabled = puedeDecidir && !rojo,
                         onClick = {
-                            vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
+                            if (semaforoRemoto != null) onDecidir(RegistroDecision(Decision.AUTORIZADA, motivo, nombreUsuario))
+                            else vm.decidir(Decision.AUTORIZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("Autorizar") }
                     OutlinedButton(
                         enabled = puedeDecidir,
                         onClick = {
-                            vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
+                            if (semaforoRemoto != null) onDecidir(RegistroDecision(Decision.RECHAZADA, motivo, nombreUsuario))
+                            else vm.decidir(Decision.RECHAZADA, resumen, rol, nombreUsuario)?.let(onDecidir)
                         },
                         modifier = Modifier.weight(1f)
                     ) { Text("Rechazar") }
@@ -770,6 +946,7 @@ private fun SeccionCierre(cierre: RegistroCierre) {
             )
         }
 
+        cierre.mediciones?.let { DatosMediciones(it) }
         if (cierre.observaciones.isNotBlank()) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -957,7 +1134,7 @@ private fun FilaEquipo(item: ItemEquipamiento) {
     val color = when (item.estado) {
         EstadoEquipo.CUMPLE -> AquaVerde
         EstadoEquipo.NO_CUMPLE -> MaterialTheme.colorScheme.error
-        EstadoEquipo.OBSERVADO -> SemaforoAzul
+        EstadoEquipo.OBSERVADO -> SemaforoAmarillo
         EstadoEquipo.PENDIENTE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val icono = when (item.estado) {
@@ -1087,6 +1264,10 @@ private fun textoEstado(estado: EstadoEquipo): String = when (estado) {
     EstadoEquipo.OBSERVADO -> "Observado"
     EstadoEquipo.PENDIENTE -> "Pendiente"
 }
+
+private fun medidaModelo(valor: Double?, unidad: String): String =
+    valor?.let { java.text.NumberFormat.getNumberInstance(java.util.Locale("es", "CL")).format(it) + " " + unidad }
+        ?: "Sin datos"
 
 private fun formatearFecha(millis: Long): String =
     SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(millis))

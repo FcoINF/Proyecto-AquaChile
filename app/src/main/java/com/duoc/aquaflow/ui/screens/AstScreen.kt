@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -69,7 +72,9 @@ fun AstScreen(
     fecha: String,
     onGuardar: (FormularioAst) -> Unit,
     onGuardarBorrador: (FormularioAst) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    onBloqueo: ((String) -> Unit)? = null,
+    mensaje: String? = null
 ) {
     val ui by vm.ui.collectAsState()
     com.duoc.aquaflow.ui.components.Guardando(ocupado)
@@ -97,10 +102,20 @@ fun AstScreen(
         },
         containerColor = FondoAst,
         bottomBar = {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 40.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Button(
                     enabled = !ocupado,
-                    onClick = { vm.guardar()?.let(onGuardar) },
+                    onClick = {
+                        val bloqueos = com.duoc.aquaflow.domain.ReglasAst.condicionesCriticasIncumplidas(ui.respuestas)
+                        if (bloqueos.isNotEmpty()) onBloqueo?.invoke(bloqueos.joinToString(" "))
+                        vm.guardar()?.let(onGuardar)
+                    },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                     shape = RoundedCornerShape(9.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AzulAst)
@@ -117,7 +132,12 @@ fun AstScreen(
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 19.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -134,7 +154,7 @@ fun AstScreen(
                     Spacer(Modifier.height(1.dp))
                     TIPOLOGIAS_AST.forEach { tipo ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(28.dp).clickable(enabled = !ocupado) { vm.elegirTipologia(tipo) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = !ocupado) { vm.elegirTipologia(tipo) },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -143,7 +163,7 @@ fun AstScreen(
                                 modifier = Modifier.padding(end = 2.dp),
                                 colors = RadioButtonDefaults.colors(selectedColor = AzulAst)
                             )
-                            Text(tipo, style = MaterialTheme.typography.labelMedium, color = Color(0xFF172033), fontWeight = FontWeight.Medium, fontSize = 10.sp)
+                            Text(tipo, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF172033), fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -178,8 +198,8 @@ fun AstScreen(
                                     modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color(0xFF172033),
-                                    fontSize = 8.sp,
-                                    lineHeight = 10.sp
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
                                 )
                                 Switch(
                                     checked = respuesta,
@@ -202,6 +222,8 @@ fun AstScreen(
                 }
             }
 
+            ui.resultado?.let { com.duoc.aquaflow.ui.components.SemaforoAst(it) }
+            mensaje?.let { Text(it) }
             (errorExterno ?: ui.error)?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
@@ -223,9 +245,9 @@ private fun ProgresoAst() {
                     Text("4", color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
                 }
                 Text("FLUJO OPERATIVO DE FAENA", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 9.sp)
-                Text("Paso 4 de 4", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B), fontSize = 8.sp)
+                Text("Paso 4 de 5", style = MaterialTheme.typography.labelMedium, color = Color(0xFF64748B))
             }
-            LinearProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxWidth(), color = AzulAst, trackColor = Color(0xFFE5EAF0))
+            LinearProgressIndicator(progress = { 0.8f }, modifier = Modifier.fillMaxWidth(), color = AzulAst, trackColor = Color(0xFFE5EAF0))
             Text("4. FORMULARIO AST", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF172033), fontSize = 8.sp)
         }
     }

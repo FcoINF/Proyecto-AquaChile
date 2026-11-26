@@ -22,7 +22,7 @@ class PanelAdministradorTest {
     private val jefe = Usuario("jefe", "1234", Rol.JEFE)
     private val apertura = PreChequeo("f1", "Centro Norte", "26/10/2026", "10:00", "Ana", "Luis", true, true, true)
     private val resumen = ResumenFaena(apertura,
-        ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE))),
+        ChecklistFaena("f1", listOf(ItemEquipamiento("1", "Equipo", "", EstadoEquipo.CUMPLE)), listOf("f1", "f2", "f3", "f4")),
         FormularioAst("Limpieza", false, List(PREGUNTAS_AST.size) { true }, emptyList(), ResultadoAst.CUMPLE),
         EncuestaSalud(120, 80, 98, emptyList(), NivelSalud.NORMAL), tareasCompletas())
     private val abierta = FaenaGuardada(resumen)
@@ -101,7 +101,8 @@ class PanelAdministradorTest {
         repo.iniciar("f1", supervisor)
         advanceUntilIdle()
         assertEquals(EstadoFaena.EN_EJECUCION, vm.state.value.faenas.single().estado)
-        repo.cerrar("f1", RegistroCierre(30, "Sin novedades", true, saludSalida = saludSalida()), supervisor)
+        repo.cerrar("f1", RegistroCierre(30, "Sin novedades", true, saludSalida = saludSalida(),
+            mediciones = MedicionesInmersion(25, 16.0, 20.0, 8.0, OrigenMedicion.MANUAL)), supervisor)
         advanceUntilIdle()
         assertEquals(GrupoFaena.CERRADAS, ReglasPanel.grupo(vm.state.value.faenas.single()))
         assertEquals("Luis", vm.state.value.faenas.single().cierre!!.cerradoPor)
